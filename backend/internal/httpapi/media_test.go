@@ -253,7 +253,7 @@ func TestSubscriberMediaIsSingleUseAndRechecked(t *testing.T) {
 	}
 }
 
-func TestRevocationAndCancellationCloseIssuedLinks(t *testing.T) {
+func TestLapsedSubscriptionAndRevocationCloseIssuedLinks(t *testing.T) {
 	f := newMediaFixture(t)
 	_, handle, tierID, postID, mediaID := newPost(t, f, creator.VisibilitySubscriber, nil)
 	fan := registerAndGetToken(t, f.handler, "media-fan-"+randSuffix(t)+"@example.test")
@@ -265,21 +265,16 @@ func TestRevocationAndCancellationCloseIssuedLinks(t *testing.T) {
 	if code != http.StatusCreated {
 		t.Fatalf("issue: %d", code)
 	}
-	rec := doJSON(t, f.handler, http.MethodGet, "/v1/me/subscriptions", fan.Tokens.AccessToken, "")
-	var subs struct {
-		Subscriptions []struct {
-			ID string `json:"id"`
-		} `json:"subscriptions"`
-	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &subs); err != nil || len(subs.Subscriptions) != 1 {
-		t.Fatalf("subscriptions: %s err=%v", rec.Body.String(), err)
-	}
-	if c := doJSON(t, f.handler, http.MethodPost, "/v1/subscriptions/"+subs.Subscriptions[0].ID+"/cancel",
-		fan.Tokens.AccessToken, ""); c.Code != http.StatusOK {
-		t.Fatalf("cancel: %d %s", c.Code, c.Body.String())
+	// A cancellation request keeps access until the period ends, so the boundary
+	// that must close the link is the lapse itself: expire the entitlement the way
+	// the scheduler would and the already-issued link has to fail.
+	if _, err := f.pool.Exec(context.Background(), `
+		UPDATE creator.entitlements SET expires_at = now() - interval '1 second'
+		WHERE fan_id = $1::uuid`, fan.User.ID); err != nil {
+		t.Fatalf("lapse entitlement: %v", err)
 	}
 	if res := fetchDelivery(t, f.handler, url); res.Code != http.StatusForbidden {
-		t.Fatalf("link survived cancellation: %d", res.Code)
+		t.Fatalf("link survived the subscription lapsing: %d", res.Code)
 	}
 
 	// Verification revocation closes a freshly issued link too.
@@ -289,7 +284,7 @@ func TestRevocationAndCancellationCloseIssuedLinks(t *testing.T) {
 	}
 	admin := registerAndGetToken(t, f.handler, "media-admin-"+randSuffix(t)+"@example.test")
 	makeAdmin(t, f, admin)
-	rec = doJSON(t, f.handler, http.MethodPost, "/v1/admin/verify/age/"+fan.User.ID+"/revoke",
+	rec := doJSON(t, f.handler, http.MethodPost, "/v1/admin/verify/age/"+fan.User.ID+"/revoke",
 		admin.Tokens.AccessToken, encodeBody(t, map[string]any{"reason": "boundary test"}))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("revoke: %d %s", rec.Code, rec.Body.String())

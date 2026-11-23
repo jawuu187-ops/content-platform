@@ -359,11 +359,11 @@ fun MembershipScreen(
                                 Text(tier.third, style = MaterialTheme.typography.bodyMedium, color = palette.inkSecondary)
                                 SpacerH(12)
                                 if (recommended) {
-                                    ActionButton("Join Studio", "\$${tier.second} / month") {
+                                    ActionButton("Join Studio", "\$${tier.second} / month", onClick = {
                                         onJoin(tier.first, tier.second)
-                                    }
+                                    })
                                 } else {
-                                    OutlineButton("Select ${tier.first}") { onJoin(tier.first, tier.second) }
+                                    OutlineButton("Select ${tier.first}", onClick = { onJoin(tier.first, tier.second) })
                                 }
                             }
                         }

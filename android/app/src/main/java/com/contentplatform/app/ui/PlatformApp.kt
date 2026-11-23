@@ -39,7 +39,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.contentplatform.app.ui.components.Divider
-import com.contentplatform.app.ui.components.PaymentResultCard
 import com.contentplatform.app.ui.motion.LocalVesperMotion
 import com.contentplatform.app.ui.motion.pressScale
 import com.contentplatform.app.ui.screens.AccountScreen
@@ -47,6 +46,7 @@ import com.contentplatform.app.ui.screens.CheckoutSheet
 import com.contentplatform.app.ui.screens.CreatorScreen
 import com.contentplatform.app.ui.screens.HomeScreen
 import com.contentplatform.app.ui.screens.MembershipScreen
+import com.contentplatform.app.ui.screens.PaymentResultCard
 import com.contentplatform.app.ui.screens.StudioScreen
 import com.contentplatform.app.ui.theme.LocalVesperPalette
 import com.contentplatform.app.ui.theme.ThemeController
@@ -91,9 +91,9 @@ fun PlatformApp(themeController: ThemeController) {
                         ) { width -> if (forward) width / 12 else -width / 12 } +
                             fadeIn(tween(motion.transition, easing = motion.easing))
                         val exit = slideOutHorizontally(
-                            animationSpec = tween(motion.short, easing = motion.easing),
+                            animationSpec = tween(motion.feedback, easing = motion.easing),
                         ) { width -> if (forward) -width / 12 else width / 12 } +
-                            fadeOut(tween(motion.short, easing = motion.easing))
+                            fadeOut(tween(motion.feedback, easing = motion.easing))
                         enter togetherWith exit
                     },
                     label = "destination",
@@ -131,7 +131,7 @@ fun PlatformApp(themeController: ThemeController) {
             ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
             exit = slideOutVertically(
                 animationSpec = tween(motion.transition, easing = motion.easing),
-            ) { height -> height / 10 } + fadeOut(tween(motion.short, easing = motion.easing)),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
         ) {
             Box(Modifier.fillMaxSize().background(palette.ground)) {
                 CreatorScreen(
@@ -149,7 +149,7 @@ fun PlatformApp(themeController: ThemeController) {
             AnimatedVisibility(
                 visible = checkout != null,
                 enter = fadeIn(tween(motion.transition, easing = motion.easing)),
-                exit = fadeOut(tween(motion.short, easing = motion.easing)),
+                exit = fadeOut(tween(motion.feedback, easing = motion.easing)),
                 modifier = Modifier.fillMaxSize(),
             ) {
                 Box(
@@ -165,7 +165,7 @@ fun PlatformApp(themeController: ThemeController) {
                     animationSpec = tween(motion.transition, easing = motion.easing),
                 ) { height -> height },
                 exit = slideOutVertically(
-                    animationSpec = tween(motion.short, easing = motion.easing),
+                    animationSpec = tween(motion.feedback, easing = motion.easing),
                 ) { height -> height },
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
@@ -188,7 +188,7 @@ fun PlatformApp(themeController: ThemeController) {
             enter = slideInVertically(
                 animationSpec = tween(motion.transition, easing = motion.easing),
             ) { height -> height / 2 } + fadeIn(tween(motion.transition)),
-            exit = slideOutVertically(tween(motion.short)) { height -> height / 2 } + fadeOut(tween(motion.short)),
+            exit = slideOutVertically(tween(motion.feedback)) { height -> height / 2 } + fadeOut(tween(motion.feedback)),
             modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp),
         ) {
             PaymentResultCard(

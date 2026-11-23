@@ -127,7 +127,7 @@ fun Reveal(
             targetValue = 1f,
             animationSpec = tween(
                 durationMillis = motion.reveal,
-                delayMillis = motion.stagger(index).roundToInt(),
+                delayMillis = motion.stagger(index).toInt(),
                 easing = motion.easing,
             ),
         )

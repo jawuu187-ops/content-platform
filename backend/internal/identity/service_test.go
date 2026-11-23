@@ -56,15 +56,6 @@ func TestPBKDF2SHA256KnownAnswers(t *testing.T) {
 	}
 }
 
-func hexOf(b []byte) string {
-	const digits = "0123456789abcdef"
-	out := make([]byte, 0, len(b)*2)
-	for _, v := range b {
-		out = append(out, digits[v>>4], digits[v&0x0f])
-	}
-	return string(out)
-}
-
 func TestHashIsSaltedAndVerifies(t *testing.T) {
 	h := NewHasher(TestParams())
 	first, err := h.Hash("correct horse battery staple")

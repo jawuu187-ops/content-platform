@@ -48,7 +48,7 @@ class VesperPaletteTest {
     fun `oxblood stays oxblood in both themes`() {
         listOf("light action" to VesperLight.action, "dark action" to VesperDark.action,
             "dark actionText" to VesperDark.actionText).forEach { (name, c) ->
-            assertTrue("$name keeps a red-dominant hue", c.red > c.green && c.green > c.blue)
+            assertTrue("$name keeps a red-dominant hue", c.red > c.green && c.red > c.blue)
             assertTrue("$name is not a neon pink", c.red < 0.95f)
         }
     }

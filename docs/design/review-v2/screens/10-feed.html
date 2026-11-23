@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Subscriber feed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen">
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="icons"><span class="bar-dot"></span><span class="bar-dot"></span><span class="bar-dot"></span><span class="batt"></span></span></div>
+
+  <div class="appbar">
+    <div class="grow">
+      <div class="row" style="gap:8px">
+        <div class="avatar" style="width:32px;height:32px;font-size:13px">LM</div>
+        <div class="h3">Lina Marchetti</div>
+        <span class="chip mint" style="padding:2px 7px">Subscribed</span>
+      </div>
+    </div>
+    <div class="icon-btn" style="width:36px;height:36px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="row between">
+      <div class="tabs">
+        <div class="tab active">Feed</div>
+        <div class="tab">Media</div>
+        <div class="tab">PPV</div>
+      </div>
+      <span class="tiny dim">Joined 12 Aug</span>
+    </div>
+
+    <!-- post -->
+    <div style="margin-top:16px">
+      <div class="row between">
+        <div class="row" style="gap:8px">
+          <span class="tiny dim">2h ago</span>
+          <span class="chip mint" style="padding:2px 7px">Subscribers</span>
+        </div>
+        <div class="tiny dim">•••</div>
+      </div>
+      <p class="small" style="margin-top:8px">
+        Morning light in the studio, and a set I have been sitting on for weeks. Fourteen frames,
+        full resolution, no crop.
+      </p>
+      <div class="media r43" style="margin-top:10px">
+        <div class="grain"></div>
+        <div class="lock-badge" style="right:10px;bottom:10px">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12l4.5 4.5L19 7"/></svg>
+          Watermarked preview
+        </div>
+      </div>
+      <div class="row between" style="margin-top:10px">
+        <div class="row" style="gap:14px;color:var(--muted)">
+          <span class="row" style="gap:5px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.4-7-9a4 4 0 017-2.6A4 4 0 0119 11c0 4.6-7 9-7 9z"/></svg>
+            <span class="tiny">248</span>
+          </span>
+          <span class="row" style="gap:5px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H9l-4 4z"/></svg>
+            <span class="tiny">31</span>
+          </span>
+        </div>
+        <span class="tiny dim">14 images</span>
+      </div>
+    </div>
+
+    <div class="hr-24"></div>
+
+    <!-- ppv teaser inside the feed -->
+    <div class="card amber" style="padding:0;overflow:hidden">
+      <div class="media r169" style="border-radius:0">
+        <div class="grain"></div>
+        <div style="position:absolute;inset:0;display:grid;place-items:center">
+          <div class="play" style="width:46px;height:46px"></div>
+        </div>
+        <div style="position:absolute;left:14px;top:12px" class="chip amber">Pay-per-view · 12:40</div>
+      </div>
+      <div style="padding:14px 16px">
+        <div class="h3">Rooftop, after hours</div>
+        <div class="tiny muted" style="margin-top:4px">One-time unlock. Yours to keep.</div>
+        <div class="row between" style="margin-top:12px">
+          <span class="price" style="font-size:22px">$14</span>
+          <div class="btn sm" style="background:var(--amber);color:var(--amber-ink)">Unlock</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- public post in the same feed -->
+    <div class="row" style="gap:10px;margin-top:18px">
+      <div class="avatar" style="width:32px;height:32px;font-size:13px">LM</div>
+      <div>
+        <div class="small" style="font-weight:600">Lina Marchetti</div>
+        <div class="tiny dim">Yesterday · Public</div>
+      </div>
+    </div>
+    <p class="small" style="margin-top:8px">
+      Print drop is live for Collector tier. Two editions left.
+    </p>
+    <div class="media r169" style="margin-top:10px;background:radial-gradient(70% 90% at 30% 20%,rgba(224,164,88,.5),transparent 60%),linear-gradient(150deg,#3a2c22,#1b1410)">
+      <div class="grain"></div>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <div class="navb">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5L12 4l8 6.5V20H4z"/></svg>
+      <span>Home</span><span class="dotmark"></span>
+    </div>
+    <div class="navb on">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 6h14M5 12h14M5 18h9"/></svg>
+      <span>Subs</span><span class="dotmark"></span>
+    </div>
+    <div class="navb">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M12 9v6M9 12h6"/></svg>
+      <span>Create</span><span class="dotmark"></span>
+    </div>
+    <div class="navb">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9a6 6 0 1112 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9z"/><path d="M10 18.5a2 2 0 004 0"/></svg>
+      <span>Alerts</span><span class="dotmark"></span>
+    </div>
+    <div class="navb">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c.8-3.8 3.6-5.6 7-5.6s6.2 1.8 7 5.6"/></svg>
+      <span>You</span><span class="dotmark"></span>
+    </div>
+  </div>
+</div>
+</body></html>

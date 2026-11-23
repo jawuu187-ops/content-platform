@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Payment states</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen">
+<div class="phone" style="display:flex;flex-direction:column">
+  <div class="statusbar"><span>9:41</span><span class="icons"><span class="bar-dot"></span><span class="bar-dot"></span><span class="bar-dot"></span><span class="batt"></span></span></div>
+
+  <div class="appbar">
+    <div class="icon-btn plain" style="font-size:18px">‹</div>
+    <span class="title">Payment</span>
+    <div class="spacer"></div>
+  </div>
+
+  <div class="body" style="flex:1;overflow:hidden">
+    <div class="eyebrow">Three possible outcomes</div>
+    <h2 class="h2" style="margin-top:8px;font-size:19px">What the app shows after the processor answers.</h2>
+
+    <!-- pending -->
+    <div class="card" style="margin-top:16px;border-color:#4a3820">
+      <div class="row between">
+        <span class="pill-status" style="color:var(--amber)"><span class="dot"></span>PENDING</span>
+        <span class="tiny dim mono">09:41:02</span>
+      </div>
+      <div class="h3" style="margin-top:10px">Waiting for confirmation</div>
+      <p class="tiny muted" style="margin-top:4px">
+        The processor has your request. Access opens the moment its signed confirmation arrives —
+        usually seconds.
+      </p>
+      <div style="height:3px;border-radius:2px;background:var(--line);margin-top:12px;overflow:hidden">
+        <div style="width:38%;height:100%;background:var(--amber)"></div>
+      </div>
+      <div class="row between" style="margin-top:10px">
+        <span class="tiny dim">Do not pay twice</span>
+        <span class="tiny dim">Retry in 30s</span>
+      </div>
+    </div>
+
+    <!-- succeeded -->
+    <div class="card" style="margin-top:12px;border-color:#2c4f45;background:linear-gradient(160deg,#1e2b28,#241a2e 70%)">
+      <div class="row between">
+        <span class="pill-status" style="color:var(--mint)"><span class="dot"></span>PAID</span>
+        <span class="tiny dim mono">$9.00</span>
+      </div>
+      <div class="row" style="gap:10px;margin-top:10px">
+        <div style="width:30px;height:30px;border-radius:50%;background:rgba(127,209,185,.15);display:grid;place-items:center">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" stroke-width="2.6"><path d="M4 12.5l5 5L20 6.5"/></svg>
+        </div>
+        <div>
+          <div class="h3">Studio unlocked</div>
+          <div class="tiny muted">Lina Marchetti · renews 26 Dec 2026</div>
+        </div>
+      </div>
+      <div class="divider" style="margin:12px 0;background:#2c4f45"></div>
+      <div class="kv"><span class="k">Receipt</span><span class="v mono" style="font-size:11.5px">int_7f3a…c19</span></div>
+      <div class="kv" style="margin-top:6px"><span class="k">Recorded in ledger</span><span class="v">2 entries · balanced</span></div>
+      <div class="btn sm" style="margin-top:12px;background:var(--mint);border-color:var(--mint);color:#0f1a16">Start watching</div>
+    </div>
+
+    <!-- failed -->
+    <div class="card danger" style="margin-top:12px">
+      <div class="row between">
+        <span class="pill-status" style="color:var(--danger)"><span class="dot"></span>DECLINED</span>
+        <span class="tiny dim mono">card_3ds_failed</span>
+      </div>
+      <div class="h3" style="margin-top:10px">The bank declined this payment</div>
+      <p class="tiny muted" style="margin-top:4px">
+        Nothing was charged and nothing was unlocked. The same intent can be retried without
+        creating a duplicate.
+      </p>
+      <div class="row" style="gap:8px;margin-top:12px">
+        <div class="btn sm" style="flex:1;background:transparent;border-color:#5c2f2c;color:var(--danger)">Try another method</div>
+        <div class="btn sm ghost" style="flex:1">Dismiss</div>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:14px">
+      Every state is driven by the server, not by what the browser returns. A duplicate or
+      replayed confirmation changes nothing and is acknowledged with 202.
+    </div>
+  </div>
+</div>
+</body></html>

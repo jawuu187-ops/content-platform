@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Composer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen">
+<div class="phone" style="display:flex;flex-direction:column">
+  <div class="statusbar"><span>9:41</span><span class="icons"><span class="bar-dot"></span><span class="bar-dot"></span><span class="bar-dot"></span><span class="batt"></span></span></div>
+
+  <div class="appbar">
+    <div class="icon-btn plain" style="font-size:17px">✕</div>
+    <span class="title">New post</span>
+    <div class="spacer"></div>
+    <span class="tiny dim">Draft saved</span>
+  </div>
+
+  <div class="body" style="flex:1;overflow:hidden">
+    <div class="eyebrow">Media</div>
+    <div class="grid-3" style="margin-top:10px">
+      <div class="media sq" style="aspect-ratio:1/1;border-radius:12px">
+        <div class="grain"></div>
+      </div>
+      <div class="media sq" style="aspect-ratio:1/1;border-radius:12px;background:radial-gradient(70% 90% at 60% 30%,rgba(156,138,196,.5),transparent 60%),linear-gradient(150deg,#2f2540,#16101c)">
+        <div class="grain"></div>
+      </div>
+      <div style="aspect-ratio:1/1;border-radius:12px;border:1px dashed var(--line);display:grid;place-items:center;color:var(--dim)">
+        <div class="center">
+          <div style="font-size:22px;line-height:1">＋</div>
+          <div class="tiny" style="margin-top:4px">Add</div>
+        </div>
+      </div>
+    </div>
+    <div class="row between" style="margin-top:8px">
+      <span class="tiny dim">2 images · 1 video queued</span>
+      <span class="tiny dim">JPEG, PNG, MP4 · max 200 MB</span>
+    </div>
+
+    <div class="eyebrow" style="margin-top:20px">Caption</div>
+    <div class="field" style="margin-top:8px;padding:12px 14px">
+      <div style="font-size:13.5px;line-height:1.55">
+        Morning light in the studio, and a set I have been sitting on for weeks.
+        <span class="caret"></span>
+      </div>
+      <div class="row between" style="margin-top:10px">
+        <span class="tiny dim">Public preview text</span>
+        <span class="tiny dim mono">178 / 2000</span>
+      </div>
+    </div>
+
+    <div class="eyebrow" style="margin-top:20px">Who can see this</div>
+    <div class="stack-8" style="margin-top:10px">
+      <div class="card flat" style="padding:12px 14px;border-color:var(--line)">
+        <div class="row">
+          <div style="width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line)"></div>
+          <div class="grow" style="margin-left:11px">
+            <div class="small" style="font-weight:600">Public</div>
+            <div class="tiny dim">Anyone, no subscription. No nudity or suggestion.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card amber" style="padding:12px 14px;border-color:var(--amber)">
+        <div class="row">
+          <div style="width:19px;height:19px;border-radius:50%;border:1.5px solid var(--amber);display:grid;place-items:center">
+            <div style="width:9px;height:9px;border-radius:50%;background:var(--amber)"></div>
+          </div>
+          <div class="grow" style="margin-left:11px">
+            <div class="small" style="font-weight:600;color:var(--amber-soft)">Subscribers</div>
+            <div class="tiny" style="color:#d9c3a6">Active Studio and Collector tiers. Age verified.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card flat" style="padding:12px 14px">
+        <div class="row">
+          <div style="width:19px;height:19px;border-radius:50%;border:1.5px solid var(--line)"></div>
+          <div class="grow" style="margin-left:11px">
+            <div class="small" style="font-weight:600">Pay-per-view</div>
+            <div class="tiny dim">One-time price, no subscription needed.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card flat" style="margin-top:14px;padding:12px 14px">
+      <div class="row between">
+        <span class="small muted">Schedule</span>
+        <span class="small">Publish now</span>
+      </div>
+      <div class="divider" style="margin:10px 0"></div>
+      <div class="row between">
+        <span class="small muted">Comments</span>
+        <div class="switch"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:0 20px 26px">
+    <div class="btn wide">Publish to subscribers</div>
+    <p class="note center" style="margin-top:9px">Uploads are scanned and stored before the post becomes visible.</p>
+  </div>
+</div>
+</body></html>

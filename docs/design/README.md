@@ -1,7 +1,9 @@
 # Visual design — approval status
 
-**Status: awaiting owner approval (board v1, 24 Nov 2026).** No Android or PWA UI
-work starts until this board is approved in writing.
+**Status: board v2 (26 Nov 2026) is the current review — see [`review-v2/`](review-v2/README.md).**
+No Android or PWA UI work starts until the current board is approved in writing.
+Board v1 below is kept for history: it covered five screens and a direction, not the
+complete journey.
 
 | File | What it is |
 | --- | --- |

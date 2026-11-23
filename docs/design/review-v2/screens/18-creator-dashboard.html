@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Creator dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen">
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span class="icons"><span class="bar-dot"></span><span class="bar-dot"></span><span class="bar-dot"></span><span class="batt"></span></span></div>
+
+  <div class="appbar">
+    <div class="grow">
+      <div class="tiny dim">Creator studio</div>
+      <div class="h2" style="margin-top:2px;font-size:20px">Lina Marchetti</div>
+    </div>
+    <div class="icon-btn" style="width:36px;height:36px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5.5c0 4.4-3 7.6-7 9.5-4-1.9-7-5.1-7-9.5V6z"/></svg>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="card amber">
+      <div class="row between">
+        <div class="eyebrow" style="color:var(--amber-soft)">Available balance</div>
+        <span class="chip amber" style="padding:3px 8px">USD</span>
+      </div>
+      <div class="price" style="margin-top:8px;color:#fbe9cf">$1,284<small style="color:#c8a98a">.40</small></div>
+      <div class="row between" style="margin-top:14px">
+        <div>
+          <div class="tiny" style="color:#c8a98a">This month</div>
+          <div class="small" style="font-weight:650;color:#f3dcbb">+$412.80</div>
+        </div>
+        <div class="btn sm" style="background:#f3dcbb;border-color:#f3dcbb;color:#241a12">Payout — coming soon</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:12px">
+      <div class="card flat" style="padding:13px">
+        <div class="tiny dim">Subscribers</div>
+        <div class="h3 mono" style="margin-top:4px;font-size:19px">12,412</div>
+        <div class="tiny" style="color:var(--mint);margin-top:3px">+84 this week</div>
+      </div>
+      <div class="card flat" style="padding:13px">
+        <div class="tiny dim">New unlocks</div>
+        <div class="h3 mono" style="margin-top:4px;font-size:19px">37</div>
+        <div class="tiny dim" style="margin-top:3px">$518 gross</div>
+      </div>
+      <div class="card flat" style="padding:13px">
+        <div class="tiny dim">Posts</div>
+        <div class="h3 mono" style="margin-top:4px;font-size:19px">48</div>
+        <div class="tiny dim" style="margin-top:3px">3 drafts</div>
+      </div>
+      <div class="card flat" style="padding:13px">
+        <div class="tiny dim">Expiring soon</div>
+        <div class="h3 mono" style="margin-top:4px;font-size:19px">26</div>
+        <div class="tiny dim" style="margin-top:3px">within 7 days</div>
+      </div>
+    </div>
+
+    <div class="row" style="gap:8px;margin-top:14px">
+      <div class="btn sm" style="flex:1">New post</div>
+      <div class="btn sm ghost" style="flex:1">Manage tiers</div>
+    </div>
+
+    <div class="eyebrow" style="margin-top:22px">Latest activity</div>
+    <div class="list" style="margin-top:10px">
+      <div class="item">
+        <div class="avatar" style="width:30px;height:30px;font-size:12px;background:linear-gradient(135deg,#7fd1b9,#9c8ac4)">A</div>
+        <div class="grow">
+          <div class="small">aya_k subscribed to Studio</div>
+          <div class="tiny dim">$9.00 · 12 minutes ago</div>
+        </div>
+      </div>
+      <div class="item">
+        <div style="width:30px;height:30px;border-radius:9px;background:rgba(224,164,88,.12);display:grid;place-items:center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8.5 10V8a3.5 3.5 0 017 0v2"/></svg>
+        </div>
+        <div class="grow">
+          <div class="small">marcus unlocked “Rooftop, after hours”</div>
+          <div class="tiny dim">$14.00 · 1 hour ago</div>
+        </div>
+      </div>
+      <div class="item">
+        <div class="avatar" style="width:30px;height:30px;font-size:12px;background:linear-gradient(135deg,#e0a458,#e4695e)">N</div>
+        <div class="grow">
+          <div class="small">Noor Haddad cancelled</div>
+          <div class="tiny dim">Access ends 3 Dec · 3 hours ago</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card flat" style="margin-top:14px;padding:12px 14px">
+      <div class="row" style="gap:10px;align-items:flex-start">
+        <span class="chip danger" style="padding:4px 7px">!</span>
+        <p class="tiny muted" style="margin:0">
+          Payouts are not enabled in this build. Balance is recorded in the ledger; transferring
+          it needs a contracted payment provider first.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <div class="navb">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 10.5L12 4l8 6.5V20H4z"/></svg>
+      <span>Home</span><span class="dotmark"></span>
+    </div>
+    <div class="navb">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 6h14M5 12h14M5 18h9"/></svg>
+      <span>Subs</span><span class="dotmark"></span>
+    </div>
+    <div class="navb on">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="14" rx="3"/><path d="M12 9v6M9 12h6"/></svg>
+      <span>Studio</span><span class="dotmark"></span>
+    </div>
+    <div class="navb">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 9a6 6 0 1112 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9z"/><path d="M10 18.5a2 2 0 004 0"/></svg>
+      <span>Alerts</span><span class="dotmark"></span>
+    </div>
+    <div class="navb">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8.5" r="3.6"/><path d="M5 20c.8-3.8 3.6-5.6 7-5.6s6.2 1.8 7 5.6"/></svg>
+      <span>You</span><span class="dotmark"></span>
+    </div>
+  </div>
+</div>
+</body></html>

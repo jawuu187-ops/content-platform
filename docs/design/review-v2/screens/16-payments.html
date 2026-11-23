@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Payment history</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen">
+<div class="phone" style="display:flex;flex-direction:column">
+  <div class="statusbar"><span>9:41</span><span class="icons"><span class="bar-dot"></span><span class="bar-dot"></span><span class="bar-dot"></span><span class="batt"></span></span></div>
+
+  <div class="appbar">
+    <div class="icon-btn plain" style="font-size:18px">‹</div>
+    <span class="title">Payments</span>
+    <div class="spacer"></div>
+    <span class="tiny dim">2026</span>
+  </div>
+
+  <div class="body" style="flex:1;overflow:hidden">
+    <div class="row between" style="align-items:baseline">
+      <div>
+        <div class="tiny dim">Spent this year</div>
+        <div class="price" style="margin-top:4px">$128<small>.00</small></div>
+      </div>
+      <span class="chip mint" style="padding:3px 8px">All settled</span>
+    </div>
+
+    <div class="eyebrow" style="margin-top:22px">Recent</div>
+    <div class="list" style="margin-top:10px">
+      <div class="item" style="align-items:flex-start">
+        <div style="width:34px;height:34px;border-radius:10px;background:rgba(127,209,185,.12);display:grid;place-items:center;flex:none">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" stroke-width="2.4"><path d="M4 12.5l5 5L20 6.5"/></svg>
+        </div>
+        <div class="grow">
+          <div class="row between">
+            <span class="small" style="font-weight:600">Lina Marchetti · Studio</span>
+            <span class="small mono">$9.00</span>
+          </div>
+          <div class="tiny dim" style="margin-top:2px">26 Nov 2026, 09:41 · Subscription · card</div>
+        </div>
+      </div>
+      <div class="item" style="align-items:flex-start">
+        <div style="width:34px;height:34px;border-radius:10px;background:rgba(127,209,185,.12);display:grid;place-items:center;flex:none">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" stroke-width="2.4"><path d="M4 12.5l5 5L20 6.5"/></svg>
+        </div>
+        <div class="grow">
+          <div class="row between">
+            <span class="small" style="font-weight:600">Lina Marchetti · Rooftop</span>
+            <span class="small mono">$14.00</span>
+          </div>
+          <div class="tiny dim" style="margin-top:2px">25 Nov 2026, 22:08 · One-time unlock · card</div>
+        </div>
+      </div>
+      <div class="item" style="align-items:flex-start">
+        <div style="width:34px;height:34px;border-radius:10px;background:rgba(228,105,94,.12);display:grid;place-items:center;flex:none">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </div>
+        <div class="grow">
+          <div class="row between">
+            <span class="small" style="font-weight:600">Sofia Reyes · Collector</span>
+            <span class="small mono">$12.00</span>
+          </div>
+          <div class="tiny dim" style="margin-top:2px">14 Nov 2026, 18:52 · Declined · nothing charged</div>
+        </div>
+      </div>
+      <div class="item" style="align-items:flex-start">
+        <div style="width:34px;height:34px;border-radius:10px;background:rgba(224,164,88,.12);display:grid;place-items:center;flex:none">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="8.5"/></svg>
+        </div>
+        <div class="grow">
+          <div class="row between">
+            <span class="small" style="font-weight:600">Noor Haddad · Supporter</span>
+            <span class="small mono">$5.00</span>
+          </div>
+          <div class="tiny dim" style="margin-top:2px">3 Nov 2026, 11:20 · Declined, retried and paid</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="eyebrow" style="margin-top:22px">Receipt · 26 Nov 2026</div>
+    <div class="card" style="margin-top:10px">
+      <div class="kv"><span class="k">Gross paid</span><span class="v mono">$9.00</span></div>
+      <div class="kv" style="margin-top:8px"><span class="k">Platform fee</span><span class="v mono">−$1.80</span></div>
+      <div class="kv" style="margin-top:8px"><span class="k">Creator share</span><span class="v mono">$7.20</span></div>
+      <div class="divider" style="margin:10px 0"></div>
+      <div class="kv"><span class="k">Ledger entries</span><span class="v mono">3 · balanced to 0</span></div>
+      <div class="kv" style="margin-top:8px"><span class="k">Intent</span><span class="v mono" style="font-size:11px">int_7f3a…c19</span></div>
+      <div class="kv" style="margin-top:8px"><span class="k">Status</span><span class="v" style="color:var(--mint)">Succeeded</span></div>
+      <div class="btn sm ghost" style="margin-top:12px">View receipt</div>
+    </div>
+
+    <p class="note" style="margin-top:14px">
+      A declined attempt leaves no charge and no entitlement. A refund reverses the same entries
+      rather than editing them.
+    </p>
+  </div>
+</div>
+</body></html>

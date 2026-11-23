@@ -1,0 +1,72 @@
+name: Design render
+
+# Renders docs/design/review-v2 (board + 20 screens) to PNG on a GitHub-hosted
+# runner and commits the images back so they can be reviewed in the repository.
+# No application code, database or backend is touched.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "docs/design/review-v2/**"
+      - ".github/workflows/design-render.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: design-render
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: render board and screens
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright and Chromium
+        run: |
+          python -m pip install --disable-pip-version-check --quiet playwright==1.47.2
+          python -m playwright install --with-deps chromium
+
+      - name: Render
+        run: python docs/design/review-v2/render.py
+
+      - name: Report sizes
+        run: |
+          echo "Rendered files:"
+          find docs/design/review-v2/png docs/design/review-v2/board.png -name '*.png' -printf '%s\t%p\n' |
+            sort -n | awk -F'\t' '{printf "%6.1f KiB  %s\n", $1/1024, $2}'
+
+      - name: Upload render (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-review-v2
+          path: |
+            docs/design/review-v2/board.png
+            docs/design/review-v2/png/*.png
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit rendered images
+        run: |
+          set -euo pipefail
+          git config user.name "design-render[bot]"
+          git config user.email "design-render@users.noreply.github.com"
+          git add docs/design/review-v2/png docs/design/review-v2/board.png
+          if git diff --cached --quiet; then
+            echo "render is identical to what is committed; nothing to do"
+            exit 0
+          fi
+          git commit -m "chore(design): render review-v2 board and screens [skip ci]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

@@ -169,6 +169,7 @@ func TestLoadRejectsFakeProviderInProduction(t *testing.T) {
 func TestLoadAllowsFakeProviderOnlyOutsideProduction(t *testing.T) {
 	base(t)
 	t.Setenv("PAY_PROVIDER", "fake")
+	t.Setenv("PAY_WEBHOOK_SECRET", strings.Repeat("p", 32))
 	cfg, err := Load("api")
 	if err != nil {
 		t.Fatalf("fake provider should be allowed in local: %v", err)

@@ -175,7 +175,7 @@ func parseAuthenticatorData(raw []byte) (parsedAuthenticatorData, error) {
 		flags:    raw[32],
 		raw:      raw,
 	}
-	ad.signCount = binary.BigEndian.Uint32(raw[33:37])
+	ad.signCount = uint64(binary.BigEndian.Uint32(raw[33:37]))
 	rest := raw[37:]
 	if ad.flags&flagAttestedData != 0 {
 		if len(rest) < 18 {
@@ -363,7 +363,7 @@ func (c WebAuthnConfig) verifyRegistration(challenge []byte, in RegistrationResp
 		// No attestation statement to check. The signature over future
 		// assertions still proves possession, which is what we rely on.
 	case "packed":
-		if err := c.verifyPackedAttestation(att.AttStmt, ad.AuthData, clientHash[:], key); err != nil {
+		if err := c.verifyPackedAttestation(att.AttStmt, ad.raw, clientHash[:], key); err != nil {
 			return verifiedCredential{}, err
 		}
 	default:

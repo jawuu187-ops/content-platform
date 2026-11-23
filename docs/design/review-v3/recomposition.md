@@ -45,10 +45,10 @@ No sixth decision was taken. Anything that would have required a new product dec
 
 | Screen | Composition now | Photography share of the content area |
 | --- | --- | --- |
-| 02 Discover | Featured cover 236 dp, name and price, Join button carrying `$9.00 / month`, then a 2-up "New this week" grid | **72%** (was 20%) |
-| 03 Creator | 200 dp cover, overlapping avatar, stats, two-line bio, tier preview, 6-cell work grid, sticky Join bar | **53%** |
+| 02 Discover | Featured cover 236 dp, name and price, Join button carrying `$9.00 / month`, then a 2-up "New this week" grid | **86%** (was 20%) |
+| 03 Creator | 176 dp cover, overlapping avatar, stats, two-line bio, tier preview, 6-cell work grid, sticky Join bar | **50%** |
 | 07 Feed | Post cards: 296 dp image with counter chip, honest PPV preview carrying its price | **65%** |
-| 11 Library | Owned media as a 196 dp hero cell plus a 2-up unlock grid, with type and dates | **76%** |
+| 11 Library | Owned media as a 220 dp hero cell plus a 2-up unlock grid, with type and dates | **79%** |
 
 Share is measured on the 743 dp content area (915 dp frame minus system bar, chrome and
 72 dp tab bar), counting image area only.
@@ -85,6 +85,22 @@ still reads as a design object rather than re-asking settled decisions.
 
 ## Round F — verification
 
+Rendering is the only step that can prove composition, and it did its job: the first
+render exposed three real defects that the arithmetic had missed. They were fixed in two
+correction passes, each measured from the PNG rather than guessed.
+
+| Defect (measured on the render) | Cause | Fix |
+| --- | --- | --- |
+| 03 second grid row cut by 29 dp | cover plus copy taller than the content area | cover 200 → 176, two margins 12 → 8 |
+| 06 fifth state card cut at the frame edge | five cards at 16 dp padding | four cards at 12 dp; the duplicate-webhook case moved into the paid card |
+| 02/11/16 68/83/114 dp of dead space | content shorter than the frame | larger covers, a closing-access row in Library, a last-7-days strip in Studio |
+| 13 304 dp of dead space on a list screen | only active subscriptions were shown | ended subscriptions, then a billing explainer |
+| 08 177 dp gap above the sticky bar | cover too short for the copy | cover 392 → 510 and the delivery note |
+
+After the corrections the bottom gap is 2–15 dp on 02, 03, 07, 11 and 16, and every card
+edge is inside the frame. This is the honest cost of never rendering intermediate versions:
+three renders of the same direction, each one paid for by a defect it revealed.
+
 Static audit (`audit.py`, run in CI, report-only):
 
 | Check | Result |
@@ -98,8 +114,9 @@ Static audit (`audit.py`, run in CI, report-only):
 | Screen density | thinnest content screen 65 words (splash remains 39 by design) |
 
 Rendering is done by `.github/workflows/design-render-v3.yml` on GitHub-hosted runners with
-Playwright, once, after all edits. `board.png` is 1720 wide; each screen is captured at
-824 × 1830.
+Playwright. `board.png` is 1720 wide; each screen is captured at 824 × 1830. Three renders
+were used for this direction: the first composition, then two measured corrections
+(commits `f15d588`, `b328e99`, and the final one).
 
 ---
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
@@ -27,6 +28,8 @@ type Deps struct {
 	Logger   *slog.Logger
 	Database *database.DB
 	Identity *identity.Service
+	// Creators is the creator profile, tier, subscription and access service.
+	Creators *creator.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -40,6 +43,7 @@ type Server struct {
 	logger    *slog.Logger
 	db        *database.DB
 	identity  *identity.Service
+	creators  *creator.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -59,6 +63,7 @@ func New(d Deps) http.Handler {
 		logger:    d.Logger,
 		db:        d.Database,
 		identity:  d.Identity,
+		creators:  d.Creators,
 		limits:    d.Limits,
 		build:     d.Build,
 		startedAt: d.StartedAt,
@@ -76,7 +81,16 @@ func New(d Deps) http.Handler {
 	// than 404, which tells a client the feature exists but the dependency is
 	// down.
 	if s.identity != nil {
-		newAuthHandler(s.identity, d.Logger, s.limits).registerRoutes(mux)
+		authHandler := newAuthHandler(s.identity, d.Logger, s.limits)
+		authHandler.registerRoutes(mux)
+		if s.creators != nil {
+			newCreatorHandler(authHandler, s.creators, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("/v1/creators/", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"the creator service is not configured on this instance")
+			})
+		}
 	} else {
 		mux.HandleFunc("/v1/auth/", func(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
@@ -136,7 +150,8 @@ func (s *Server) handleLive(w http.ResponseWriter, r *http.Request) {
 // not route to an instance that would error on every request.
 func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	type checks struct {
-		Database string `json:"database"`
+		Database  string `json:"database"`
+		RateLimit string `json:"rate_limit"`
 	}
 	out := healthResponse{
 		Status:      "ready",
@@ -147,6 +162,7 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 	}
 	status := http.StatusOK
 	dbStatus := "not_configured"
+	limitStatus := "in_process"
 	if s.db != nil {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
@@ -158,10 +174,24 @@ func (s *Server) handleReady(w http.ResponseWriter, r *http.Request) {
 			dbStatus = "ok"
 		}
 	}
+	// A configured shared limiter is a required dependency: if it is down, logins
+	// fail closed, so the instance must be taken out of rotation rather than
+	// answering "ready" while refusing every credential request.
+	if s.limits != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := s.limits.Ping(ctx); err != nil {
+			limitStatus = "unreachable"
+			out.Status = "degraded"
+			status = http.StatusServiceUnavailable
+		} else {
+			limitStatus = "ok"
+		}
+	}
 	writeJSON(w, status, struct {
 		healthResponse
 		Checks checks `json:"checks"`
-	}{out, checks{Database: dbStatus}})
+	}{out, checks{Database: dbStatus, RateLimit: limitStatus}})
 }
 
 func (s *Server) handleVersion(w http.ResponseWriter, r *http.Request) {

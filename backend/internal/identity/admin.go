@@ -50,3 +50,29 @@ func (s *Service) RolesOf(ctx context.Context, userID string) ([]string, error) 
 	}
 	return roles, nil
 }
+
+// BecomeCreator is the one self-service role grant: an account may make itself a
+// creator, which adds publishing capability but no moderation, finance or admin
+// power. Every other grant stays with an administrator.
+func (s *Service) BecomeCreator(ctx context.Context, p Principal, requestID string) ([]string, error) {
+	if p.UserID == "" {
+		return nil, ErrInvalidCredentials
+	}
+	tx, err := s.store.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("identity: begin become creator: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := s.store.userByIDTx(ctx, tx, p.UserID); err != nil {
+		return nil, err
+	}
+	if err := s.store.grantRole(ctx, tx, p.UserID, RoleCreator, p.UserID); err != nil {
+		return nil, err
+	}
+	s.store.audit(ctx, tx, "user", p.UserID, "role.self_granted", "user", p.UserID, requestID)
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("identity: commit become creator: %w", err)
+	}
+	return s.store.roles(ctx, p.UserID)
+}

@@ -122,6 +122,10 @@ jobs:
           # the WebAuthn spec allows over plain http.
           WEBAUTHN_RP_ID: localhost
           WEBAUTHN_ORIGINS: http://localhost:8080
+          # Development-only switch so the subscription/entitlement path can be
+          # proven end to end without a payment provider. Production refuses to
+          # start with it on (config validation).
+          ENABLE_FAKE_PAYMENTS: "true"
         run: |
           set -u
           ./bin/api > api.log 2>&1 &
@@ -194,6 +198,62 @@ jobs:
             -d '{"email":"smoke@example.test","password":"a-very-long-password","device":{"fingerprint":"ci","platform":"web"}}')
           echo "POST /v1/auth/register (duplicate) -> $dup_code"
           [ "$dup_code" = "409" ] || fail "duplicate registration returned $dup_code"
+
+          creator_code=$(curl -s -o creator.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/creators \
+            -H "Authorization: Bearer $access" -H 'Content-Type: application/json' \
+            -d '{"handle":"smoke_studio","display_name":"Smoke Studio","bio":"CI fixture","category":"art"}')
+          echo "POST /v1/creators -> $creator_code"
+          [ "$creator_code" = "201" ] || fail "creator profile creation returned $creator_code"
+          grep -q '"roles":\["fan","creator"\]' creator.json || fail "creator profile creation did not grant the creator role"
+
+          draft_code=$(curl -s -o draft.json -w '%{http_code}' http://127.0.0.1:8080/v1/creators/smoke_studio)
+          echo "GET /v1/creators/smoke_studio (unpublished) -> $draft_code"
+          [ "$draft_code" = "404" ] || fail "an unpublished profile is publicly readable ($draft_code)"
+
+          publish_code=$(curl -s -o publish.json -w '%{http_code}' -X PATCH http://127.0.0.1:8080/v1/creators/me \
+            -H "Authorization: Bearer $access" -H 'Content-Type: application/json' -d '{"published":true}')
+          echo "PATCH /v1/creators/me -> $publish_code"
+          [ "$publish_code" = "200" ] || fail "publishing the profile returned $publish_code"
+
+          tier_code=$(curl -s -o tier.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/creators/me/tiers \
+            -H "Authorization: Bearer $access" -H 'Content-Type: application/json' \
+            -d '{"name":"Smoke Tier","price_minor":1200,"currency":"USD","perks":["All posts"]}')
+          echo "POST /v1/creators/me/tiers -> $tier_code"
+          [ "$tier_code" = "201" ] || fail "tier creation returned $tier_code"
+          tier_id=$(python3 -c 'import json; print(json.load(open("tier.json"))["tier"]["id"])') \
+            || fail "tier response carried no id"
+
+          public_code=$(curl -s -o public.json -w '%{http_code}' http://127.0.0.1:8080/v1/creators/smoke_studio)
+          echo "GET /v1/creators/smoke_studio (published) -> $public_code"
+          [ "$public_code" = "200" ] || fail "published profile returned $public_code"
+          grep -q '"name":"Smoke Tier"' public.json || fail "published profile did not list its tier"
+
+          fan_code=$(curl -s -o fan.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/register \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"smoke-fan@example.test","password":"a-very-long-password","device":{"fingerprint":"ci-fan","platform":"web"}}')
+          echo "POST /v1/auth/register (subscriber) -> $fan_code"
+          [ "$fan_code" = "201" ] || fail "subscriber registration returned $fan_code"
+          fan_access=$(python3 -c 'import json; print(json.load(open("fan.json"))["tokens"]["access_token"])') \
+            || fail "subscriber registration carried no access token"
+
+          deny_code=$(curl -s -o deny.json -w '%{http_code}' \
+            "http://127.0.0.1:8080/v1/creators/smoke_studio/access?scope=subscriber" \
+            -H "Authorization: Bearer $fan_access")
+          echo "GET access (before subscribing) -> $deny_code"
+          [ "$deny_code" = "200" ] || fail "the access decision returned $deny_code"
+          grep -q '"allowed":false' deny.json || fail "a non-subscriber was granted subscriber access"
+
+          sub_code=$(curl -s -o sub.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/creators/smoke_studio/subscribe \
+            -H "Authorization: Bearer $fan_access" -H 'Content-Type: application/json' -d "{\"tier_id\":\"$tier_id\"}")
+          echo "POST /v1/creators/smoke_studio/subscribe -> $sub_code"
+          [ "$sub_code" = "201" ] || fail "subscription activation returned $sub_code"
+
+          allow_code=$(curl -s -o allow.json -w '%{http_code}' \
+            "http://127.0.0.1:8080/v1/creators/smoke_studio/access?scope=subscriber" \
+            -H "Authorization: Bearer $fan_access")
+          echo "GET access (after subscribing) -> $allow_code"
+          [ "$allow_code" = "200" ] || fail "the access decision returned $allow_code"
+          grep -q '"allowed":true' allow.json || fail "a subscriber was refused subscriber access"
 
           kill %1 2>/dev/null || true
 

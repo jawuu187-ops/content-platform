@@ -70,6 +70,10 @@ type Config struct {
 	TokenSigningKey   string
 	WebhookSecretKey  string
 
+	// FakePayments activates subscriptions without a payment provider. It exists
+	// for local development and CI; production refuses to start with it on.
+	FakePayments bool
+
 	// Feature gates that must be explicit in every environment.
 	RequireAgeVerification bool
 	EnableCryptoRails      bool
@@ -121,6 +125,7 @@ func Load(serviceName string) (*Config, error) {
 		TokenSigningKey:   get("TOKEN_SIGNING_KEY", ""),
 		WebhookSecretKey:  get("WEBHOOK_SECRET_KEY", ""),
 
+		FakePayments:           getBool("ENABLE_FAKE_PAYMENTS", false),
 		RequireAgeVerification: getBool("REQUIRE_AGE_VERIFICATION", true),
 		EnableCryptoRails:      getBool("ENABLE_CRYPTO_RAILS", false),
 		MediaDeliveryBaseURL:   strings.TrimRight(get("MEDIA_DELIVERY_BASE_URL", ""), "/"),
@@ -185,6 +190,10 @@ func (c *Config) validate() error {
 		}
 	}
 
+	if c.IsProduction() && c.FakePayments {
+		problems = append(problems, "ENABLE_FAKE_PAYMENTS must be off in production: it grants access without payment")
+	}
+
 	if c.IsProduction() && !c.RequireAgeVerification {
 		problems = append(problems, "REQUIRE_AGE_VERIFICATION cannot be disabled in production")
 	}
@@ -204,6 +213,7 @@ func (c *Config) Redacted() map[string]any {
 		"http_address":             c.HTTPAddress,
 		"public_base_url":          c.PublicBaseURL,
 		"require_age_verification": c.RequireAgeVerification,
+		"fake_payments":            c.FakePayments,
 		"enable_crypto_rails":      c.EnableCryptoRails,
 		"media_delivery_base_url":  c.MediaDeliveryBaseURL,
 		"session_signing_key":      redact(c.SessionSigningKey),

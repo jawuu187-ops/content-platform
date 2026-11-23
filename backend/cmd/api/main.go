@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/httpapi"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
@@ -134,6 +135,14 @@ func run() error {
 	// the replica count. A configured-but-unreachable store is a startup failure
 	// in production, because failing closed at request time is an outage nobody
 	// asked for.
+	var creatorService *creator.Service
+	if db != nil {
+		creatorService = creator.New(db.Pool(), creator.WithFakePayments(cfg.FakePayments))
+		if cfg.FakePayments {
+			logger.Warn("ENABLE_FAKE_PAYMENTS is on: subscriptions activate without payment (development only)")
+		}
+	}
+
 	var limits *ratelimit.Backend
 	if cfg.ValkeyURL != "" {
 		limits, err = ratelimit.New(ctx, cfg.ValkeyURL, "ratelimit:")
@@ -157,6 +166,7 @@ func run() error {
 		Logger:   logger,
 		Database: db,
 		Identity: identityService,
+		Creators: creatorService,
 		Limits:   limits,
 		Build:    httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

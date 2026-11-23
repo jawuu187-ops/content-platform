@@ -52,11 +52,11 @@ func (s *Service) audit(ctx context.Context, actorID, action, targetType, target
 func (s *Service) insertProfile(ctx context.Context, userID string, in ProfileInput) (Profile, error) {
 	var p Profile
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO creator.profiles (user_id, handle, display_name, bio, category)
-		VALUES ($1::uuid, $2, $3, $4, $5)
+		INSERT INTO creator.profiles (user_id, handle, display_name, bio, category, avatar_url, cover_url, is_published)
+		VALUES ($1::uuid, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), $8)
 		RETURNING user_id::text, handle::text, display_name, bio, category,
 		          COALESCE(avatar_url, ''), COALESCE(cover_url, ''), is_published, created_at, updated_at`,
-		userID, in.Handle, in.DisplayName, in.Bio, in.Category,
+		userID, in.Handle, in.DisplayName, in.Bio, in.Category, in.AvatarURL, in.CoverURL, in.publishValue(),
 	).Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.Category,
 		&p.AvatarURL, &p.CoverURL, &p.Published, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
@@ -78,7 +78,7 @@ func (s *Service) updateProfile(ctx context.Context, userID string, in ProfileIn
 		    category = COALESCE(NULLIF($4, ''), category),
 		    avatar_url = NULLIF($5, ''),
 		    cover_url = NULLIF($6, ''),
-		    is_published = $7,
+		    is_published = COALESCE($7, is_published),
 		    updated_at = now()
 		WHERE user_id = $1::uuid
 		RETURNING user_id::text, handle::text, display_name, bio, category,

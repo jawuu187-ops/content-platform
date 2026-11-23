@@ -21,7 +21,7 @@ type ProfileInput struct {
 	Category    string `json:"category"`
 	AvatarURL   string `json:"avatar_url"`
 	CoverURL    string `json:"cover_url"`
-	Publish     bool   `json:"published"`
+	Publish     *bool  `json:"published"`
 }
 
 // TierInput is used for both create and update; pointer fields mean "not supplied".
@@ -55,6 +55,11 @@ var (
 // can echo the canonical form back.
 func NormalizeHandle(raw string) string {
 	return strings.ToLower(strings.TrimSpace(raw))
+}
+
+// publishValue is the effective publish flag when creating a profile.
+func (in ProfileInput) publishValue() bool {
+	return in.Publish != nil && *in.Publish
 }
 
 func validateProfile(in ProfileInput, creating bool) (ProfileInput, error) {
@@ -115,6 +120,9 @@ func validateTier(in TierInput, creating bool) (TierInput, error) {
 	in.Currency = strings.ToUpper(in.Currency)
 	if in.PeriodDays != nil && (*in.PeriodDays < 1 || *in.PeriodDays > 366) {
 		return in, fmt.Errorf("%w: period_days must be between 1 and 366", ErrInvalidInput)
+	}
+	if in.Perks == nil {
+		in.Perks = []string{}
 	}
 	if len(in.Perks) > 10 {
 		return in, fmt.Errorf("%w: at most 10 perks", ErrInvalidInput)

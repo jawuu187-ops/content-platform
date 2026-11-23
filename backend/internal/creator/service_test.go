@@ -52,7 +52,7 @@ func (h *harness) creator(t *testing.T) (identity.Principal, Profile, Tier) {
 	p := h.account(t)
 	handle := "studio" + hex.EncodeToString(randomBytes(4))
 	profile, err := h.svc.CreateProfile(context.Background(), p, ProfileInput{
-		Handle: handle, DisplayName: "Mira", Bio: "Abstract work", Category: "art", Publish: true,
+		Handle: handle, DisplayName: "Mira", Bio: "Abstract work", Category: "art", Publish: ptrBool(true),
 	}, "")
 	if err != nil {
 		t.Fatalf("create profile: %v", err)
@@ -68,6 +68,8 @@ func (h *harness) creator(t *testing.T) (identity.Principal, Profile, Tier) {
 }
 
 func ptrInt64(v int64) *int64 { return &v }
+
+func ptrBool(v bool) *bool { return &v }
 
 func randomBytes(n int) []byte {
 	buf := make([]byte, n)
@@ -108,7 +110,7 @@ func TestProfileLifecycle(t *testing.T) {
 		t.Fatalf("duplicate handle: want ErrHandleTaken, got %v", err)
 	}
 
-	if _, err := h.svc.UpdateProfile(ctx, p, ProfileInput{Bio: "New bio", Publish: true}, ""); err != nil {
+	if _, err := h.svc.UpdateProfile(ctx, p, ProfileInput{Bio: "New bio", Publish: ptrBool(true)}, ""); err != nil {
 		t.Fatalf("publish: %v", err)
 	}
 	public, tiers, err := h.svc.PublicProfile(ctx, "mira_art")

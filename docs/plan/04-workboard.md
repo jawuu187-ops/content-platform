@@ -154,3 +154,29 @@ live profile; a tier created without perks violated NOT NULL; partial tier updat
 perk list; tier uniqueness was case-sensitive; `revokeEntitlementFor` was dead code; the smoke
 assertion assumed a role order; gitleaks and dependency-review cannot run on Dependabot PRs
 (read-only token, no dependency graph on the free plan).
+
+## P2 — التحقق من العمر (age and identity verification)
+
+| ID | البند | الحالة | الدليل |
+| --- | --- | --- | --- |
+| P2-A1 | مخطط `verify`: checks/attempts/callbacks/revocations بلا أي عمود للأدلة | ✅ مُنفَّذ | `0007_age_verification.sql`؛ فهرس تحقق حيّ واحد لكل حساب |
+| P2-A2 | مزوّد مستقل عن البائع (Start/ParseCallback/Capabilities) + مستقبل HMAC بتوقيت مسموح | ✅ مُنفَّذ | `TestCallbackSignatureAndTimestamp` (توقيع مفقود، جسم معدّل، توقيع قديم) |
+| P2-A3 | حظر الوصول قبل التحقق حتى مع اشتراك مدفوع فعّال | ✅ مُنفَّذ | `TestUnverifiedSubscriberCannotAccessPaidContent`, `TestPaidScopeRequiresAgeVerification` |
+| P2-A4 | الانتهاء والإلغاء وإعادة التحقق | ✅ مُنفَّذ | `TestExpiredVerificationClosesAccess`, `TestRevocationClosesAccessAndIsAudited` |
+| P2-A5 | منع إعادة التشغيل وربط النتيجة بالحساب | ✅ مُنفَّذ | `TestCallbackReplayIsRejected`, `ErrAccountMismatch` |
+| P2-A6 | حدود المحاولات | ✅ مُنفَّذ | `TestStartLimitsAndUnavailableProviders` |
+| P2-A7 | تقييم المزوّدين (قدرات، خصوصية، تغطية، أسعار، تكامل) | ✅ ورقة تقييم | `docs/vendors/age-verification.md` — لا شراء ولا تعاقد |
+| P2-A8 | تحقق فعلي عبر مزوّد مُتعاقد | ⬜ | يحتاج قرار المالك (AV-1..AV-4)؛ حتى ذلك الحين `start` يُعيد 503 والحظر قائم |
+
+## P2 age verification — evidence (GitHub Actions only)
+
+| Run | Workflow | Result | Evidence |
+| --- | --- | --- | --- |
+| 45161599996 | Backend CI | success | total coverage 69.8%; smoke: subscribed-but-unverified `200` with `age_verification_required`, signed callback `202`, access `200 allowed:true`, status `200 verified:true` |
+| 51d971d | Security | success | gitleaks, govulncheck, Trivy, gosec, staticcheck |
+
+Defects CI found in this slice and fixed: the gate field was added to the wrong
+file (vet caught it); an unused `insertCheck` binding; a test provider referencing a
+removed field; `ops.append_audit` takes `text`, not `uuid`; untyped metadata
+parameters in `jsonb_build_object`; a shape constraint that made revocation and
+expiry impossible.

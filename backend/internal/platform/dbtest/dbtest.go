@@ -5,8 +5,9 @@ package dbtest
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"net/url"
 	"os"
 	"sync"
@@ -55,7 +56,14 @@ func setup(base string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	name := fmt.Sprintf("cp_test_%d_%04d", os.Getpid(), rand.Intn(10000))
+	// crypto/rand rather than math/rand: the suffix only needs to be distinct, but
+	// a weak generator in a test helper is still flagged by static analysis and
+	// would be copied into production code by accident.
+	var suffix [4]byte
+	if _, err := rand.Read(suffix[:]); err != nil {
+		return fmt.Errorf("generate test database name: %w", err)
+	}
+	name := fmt.Sprintf("cp_test_%d_%s", os.Getpid(), hex.EncodeToString(suffix[:]))
 
 	admin, err := pgx.Connect(ctx, base)
 	if err != nil {

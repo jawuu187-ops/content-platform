@@ -504,6 +504,7 @@ body.dark .tabbar { background: var(--bone); }
 body.dark .sheet { background: var(--card); }
 body.dark .toast { background: var(--card); }
 body.dark .mark::after { background: var(--bone); }
+body.dark .btn.ink { background: var(--paper-3); border-color: var(--rule-strong); color: var(--ink); }
 body.dark .plate.ink { background: var(--paper-3); color: var(--ink); border: 1px solid var(--rule); }
 .vwbtn { background: #f0e9df; border-color: #f0e9df; color: #0d0b0a; }
  /* the viewer is dark in both themes, but a cream slab reads as a leftover in dark */

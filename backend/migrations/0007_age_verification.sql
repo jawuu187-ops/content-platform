@@ -30,11 +30,10 @@ CREATE TABLE IF NOT EXISTS verify.checks (
     CONSTRAINT checks_status CHECK (status IN ('pending', 'verified', 'failed', 'expired', 'revoked')),
     CONSTRAINT checks_method CHECK (method IN ('provider', 'manual_review')),
     CONSTRAINT checks_min_age CHECK (min_age BETWEEN 18 AND 21),
-    -- A verified row must know when it was verified; an unverified one must not
-    -- pretend to be verified.
-    CONSTRAINT checks_verified_shape CHECK (
-        (status = 'verified' AND verified_at IS NOT NULL)
-        OR (status <> 'verified' AND verified_at IS NULL)),
+    -- A verified row must know when it was verified. verified_at is kept after a
+    -- revocation or expiry: it records when the check passed, which is what an
+    -- investigation needs.
+    CONSTRAINT checks_verified_shape CHECK (status <> 'verified' OR verified_at IS NOT NULL),
     CONSTRAINT checks_revoked_shape CHECK ((status = 'revoked') = (revoked_at IS NOT NULL))
 );
 

@@ -5,10 +5,15 @@ name: Design render v3
 
 on:
   workflow_dispatch:
+  # Only the design sources that change pixels. Notes, measurements and rendered
+  # output are deliberately excluded so documentation edits never cost a render.
   push:
+    branches: [main]
     paths:
-      - "docs/design/review-v3/**"
-      - ".github/workflows/design-render-v3.yml"
+      - "docs/design/review-v3/assets/**"
+      - "docs/design/review-v3/screens/**"
+      - "docs/design/review-v3/board.html"
+      - "docs/design/review-v3/render.py"
 
 permissions:
   contents: write
@@ -37,6 +42,10 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check --quiet playwright==1.65.2
           python -m playwright install --with-deps chromium
+
+      - name: Audit sources (report only)
+        continue-on-error: true
+        run: python docs/design/review-v3/audit.py
 
       - name: Render
         run: python docs/design/review-v3/render.py

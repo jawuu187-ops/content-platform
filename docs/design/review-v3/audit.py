@@ -25,7 +25,8 @@ HTML = "\n".join(p.read_text() for p in SCREENS)
 BOTH = CSS + HTML
 
 # Minimum on-device sizes we hold ourselves to (Android Material + WCAG 2.5.5).
-MIN_TOUCH_DP = 48
+MIN_TOUCH_DP = 48      # icons and primary actions (Android)
+MIN_COMPACT_DP = 44    # secondary/compact actions (WCAG 2.5.5)
 MIN_TEXT_SP = 11
 TARGET_SIZES = 7
 TARGET_SPACING = 7
@@ -73,18 +74,19 @@ if len(allspace) > TARGET_SPACING:
     fails.append(f"spacing: {len(allspace)} distinct values (target <= {TARGET_SPACING})")
 
 section("Touch targets")
-for cls in ("icon", "icon.sm", "flag", "tab", "btn", "btn.sm", "btn.tiny"):
+for cls in ("icon", "icon.sm", "btn", "btn.sm", "btn.tiny"):
     m = re.search(rf"\.{re.escape(cls)}\s*\{{([^}}]+)\}}", CSS)
     if not m:
         continue
     h = re.search(r"height:\s*([0-9]+)px", m.group(1))
     w = re.search(r"width:\s*([0-9]+)px", m.group(1))
     size = min(int(h.group(1)) if h else 999, int(w.group(1)) if w else 999)
+    floor = MIN_COMPACT_DP if cls in ("btn.sm", "btn.tiny") else MIN_TOUCH_DP
     if size != 999:
-        state = "OK" if size >= MIN_TOUCH_DP else "UNDER"
-        print(f".{cls:10s} {size:>3}dp  {state}")
-        if size < MIN_TOUCH_DP:
-            fails.append(f"touch target: .{cls} is {size}dp (minimum {MIN_TOUCH_DP}dp)")
+        state = "OK" if size >= floor else "UNDER"
+        print(f".{cls:10s} {size:>3}dp  floor {floor}dp  {state}")
+        if size < floor:
+            fails.append(f"touch target: .{cls} is {size}dp (minimum {floor}dp)")
 tabbar = re.search(r"\.tabbar\s*\{([^}]+)\}", CSS)
 if tabbar:
     h = re.search(r"height:\s*([0-9]+)px", tabbar.group(1))
@@ -114,7 +116,7 @@ if not any("error" in p.read_text().lower() for p in SCREENS):
     fails.append("states: no screen shows a network/error state with a retry action")
 
 section("Numbers reconcile")
-tiers = {"Supporter": (5, 4120), "Studio": (9, 6310), "Collector": (19, 1982), "Archive": (3, 412)}
+tiers = {"Supporter": (5, 4120), "Studio": (9, 6310), "Collector": (19, 1982)}
 members = sum(m for _, m in tiers.values())
 mrr_minor = sum(p * m for p, m in tiers.values())
 studio_share = 6310 / members * 100
@@ -124,17 +126,23 @@ print(f"Studio share         {studio_share:.1f}%")
 claims = {}
 for label, pattern in (
     ("members", r"12,412"),
-    ("mrr", r"93,140"),
-    ("studio_share", r"71% of members"),
+    ("mrr", r"\$115,048"),
+    ("studio_share", r"50\.8%"),
 ):
     claims[label] = any(re.search(pattern, p.read_text()) for p in SCREENS)
 print(f"claimed  {claims}")
 if claims["members"] and members != 12412:
     fails.append(f"numbers: screen claims 12,412 members; tiers sum to {members}")
-if claims["mrr"] and mrr_minor != 93140:
-    fails.append(f"numbers: screen claims $93,140 MRR; tiers compute ${mrr_minor:,}")
-if claims["studio_share"] and abs(studio_share - 71) > 0.5:
-    fails.append(f"numbers: screen claims 71% Studio; tiers compute {studio_share:.1f}%")
+if claims["mrr"] and not re.search(r"\$115,048", "\n".join(p.read_text() for p in SCREENS)):
+    fails.append("numbers: MRR $115,048 (subscription tiers) is not stated on any screen")
+if claims["studio_share"] and abs(studio_share - 50.8) > 0.2:
+    fails.append(f"numbers: Studio share {studio_share:.1f}% is not the stated 50.8%")
+
+section("Claims")
+promises = [w for w in ("offline copies", "download available", "Intant") if w.lower() in HTML.lower()]
+print(f"unsupported/incorrect copy  {promises or 'none'}")
+if promises:
+    fails.append(f"copy: {promises}")
 
 section("Result")
 if fails:

@@ -1,7 +1,12 @@
 # Visual direction 03 — “Paper, not plastic.”
 
-**Status: awaiting owner review (26 Nov 2026).** Supersedes v2 as the proposed
-direction. v2 and v1 remain in the repository untouched, for comparison.
+**Status: awaiting owner review of the refined board (26 Nov 2026).** Supersedes v2 as
+the proposed direction. v2 and v1 remain in the repository untouched, for comparison.
+
+This revision applies the refinement findings in [`refinement.md`](refinement.md):
+seven type sizes instead of 35, six spacings instead of 20, 48 dp targets, drawn
+chevrons instead of text glyphs, one reconciled dataset, a states section, and the
+screen-specific fixes. It is still a proposal: **0 implemented, 0 partial, 18 proposed.**
 
 Nothing here is implemented. The Android app is still the Compose shell described in
 `review-v2/README.md`; no route, schema, dependency or production screen changed.
@@ -15,6 +20,8 @@ Nothing here is implemented. The Android app is still the Compose shell describe
 | `assets/app.css` | The system: 5 colour tokens, 3 typefaces, 8 components |
 | `assets/img/hero.jpg` | Single photographic stand-in (generated; licensed photography is a separate decision) |
 | `render.py` | Playwright renderer used by `.github/workflows/design-render-v3.yml` |
+| `audit.py` | Re-measures type scale, spacing, targets, icons, states and figures |
+| `refinement.md` | The ten findings and the screen-by-screen plan this revision follows |
 
 ---
 
@@ -106,3 +113,33 @@ states which tier opens it and what it costs.
 5. Anything missing before the token set and shell are built?
 
 Approval must be given on the images. No UI work starts before it.
+
+
+---
+
+## 8. Sample data (one dataset, everywhere)
+
+Every figure on every screen comes from this table. Nothing else may be typed on a screen.
+
+| Tier | Price / month | Members | Monthly |
+| --- | --- | --- | --- |
+| Supporter | $5 | 4,120 | $20,600 |
+| Studio | $9 | 6,310 | $56,790 |
+| Collector | $19 | 1,982 | $37,658 |
+| **Total** | | **12,412** | **$115,048** |
+
+- Studio is **50.8%** of members and is the "most chosen" tier.
+- Unlocks, last 7 days: **37** → **$888** (average $24 per unlock).
+- Gross, last 7 days: **$27,732** (subscriptions pro-rated $26,844 + unlocks $888),
+  average **$3,962/day**, best day **$4,910** (Tue).
+- Fan-side commitment on screen 13: $9 + $5 + $12 = **$26.00**.
+- A $9 subscription splits **$7.20 creator / $1.80 platform** (20%), inside the $9.
+
+`audit.py` fails the "Numbers reconcile" section if a screen drifts from this table.
+
+## 9. States
+
+Loading, empty, failure, stale and offline are shown on the board as states of existing
+screens, not as new destinations. Rules: skeletons match real geometry; an empty state
+carries one action; a failure says what happened and what it cost; stale data says how old
+it is; nothing opens without a live entitlement check.

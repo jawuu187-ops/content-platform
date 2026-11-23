@@ -22,6 +22,12 @@ updates:
     groups:
       android-dependencies:
         patterns: ["*"]
+    # Major upgrades (AGP 9, Kotlin 2.3+, Compose BOM that needs a newer SDK) are
+    # deliberate migrations: they land on a branch with a green CI run, never as
+    # an automatic pull request.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     labels: ["dependencies", "android"]
 
   - package-ecosystem: github-actions
@@ -33,6 +39,9 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     labels: ["dependencies", "ci"]
 
   - package-ecosystem: docker

@@ -40,11 +40,12 @@ func newTestAuthenticator(t *testing.T, rpID, origin string) *testAuthenticator 
 }
 
 func (a *testAuthenticator) coseKey() []byte {
-	size := (a.key.Curve.Params().BitSize + 7) / 8
-	x := make([]byte, size)
-	y := make([]byte, size)
-	a.key.PublicKey.X.FillBytes(x)
-	a.key.PublicKey.Y.FillBytes(y)
+	// PublicKey.Bytes returns the uncompressed point: 0x04 || X || Y.
+	point := a.key.PublicKey.Bytes()
+	if len(point) != 65 {
+		panic("unexpected public key length")
+	}
+	x, y := point[1:33], point[33:65]
 	raw, err := cbor.Marshal(map[int]any{
 		1:  2,  // kty: EC2
 		3:  -7, // alg: ES256

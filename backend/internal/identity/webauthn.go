@@ -248,8 +248,17 @@ func parseCOSEKey(raw []byte) (cosePublicKey, error) {
 		if crv != 1 || !xok || !yok {
 			return cosePublicKey{}, fmt.Errorf("%w: ES256 key is malformed", ErrInvalidAssertion)
 		}
-		pub := &ecdsa.PublicKey{Curve: elliptic.P256(), X: new(big.Int).SetBytes(x), Y: new(big.Int).SetBytes(y)}
-		if !pub.Curve.IsOnCurve(pub.X, pub.Y) {
+		if len(x) != 32 || len(y) != 32 {
+			return cosePublicKey{}, fmt.Errorf("%w: ES256 coordinates are not 32 bytes", ErrInvalidAssertion)
+		}
+		// ParseUncompressedPublicKey performs the on-curve check and returns a
+		// key with its internal optimisations intact.
+		point := make([]byte, 0, 65)
+		point = append(point, 0x04)
+		point = append(point, x...)
+		point = append(point, y...)
+		pub, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), point)
+		if err != nil {
 			return cosePublicKey{}, fmt.Errorf("%w: EC point is not on the curve", ErrInvalidAssertion)
 		}
 		return cosePublicKey{alg: alg, ecdsa: pub}, nil

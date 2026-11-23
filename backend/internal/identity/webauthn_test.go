@@ -247,10 +247,10 @@ func TestPasskeyRegistrationAndLogin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("finish login: %v", err)
 	}
-	if got.Tokens.AccessToken == "" {
+	if got.AccessToken == "" {
 		t.Fatal("passkey login produced no access token")
 	}
-	if _, err := svc.Authenticate(ctx, got.Tokens.AccessToken); err != nil {
+	if _, err := svc.Authenticate(ctx, got.AccessToken); err != nil {
 		t.Fatalf("the issued token does not authenticate: %v", err)
 	}
 

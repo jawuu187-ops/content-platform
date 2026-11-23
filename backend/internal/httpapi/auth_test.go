@@ -306,7 +306,7 @@ func TestAuthLoginIsRateLimited(t *testing.T) {
 	// attempts per minute, which is exercised by the limiter's own unit tests.
 	pool := dbtest.Pool(t)
 	svc := identity.New(pool, identity.WithHasher(identity.NewHasher(identity.TestParams())))
-	ah := newAuthHandler(svc, slog.New(slog.NewTextHandler(discard{}, nil)))
+	ah := newAuthHandler(svc, slog.New(slog.NewTextHandler(discard{}, nil)), nil)
 	ah.login = newLimiter(3, time.Minute, nil)
 	mux := http.NewServeMux()
 	ah.registerRoutes(mux)

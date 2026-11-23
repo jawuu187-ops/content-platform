@@ -216,3 +216,32 @@ Defects CI found in this slice and fixed:
 4. One test covered the lapse and the revocation in a single flow and contradicted
    itself (no link can be re-issued after the entitlement lapses). They are now
    separate tests.
+
+## P2 - payments and ledger
+
+| ID | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| P2-P1 | Zero-cost gateway research for Egypt and this business model | done (no eligible gateway) | `docs/vendors/payments-zero-cost.md`, decisions D-050 |
+| P2-P2 | Provider seam with fail-closed driver and a development fake | implemented | `payments.Provider`, `Unavailable`, `Fake` (HMAC webhook, refunds, refused in production by config) |
+| P2-P3 | Server-side pricing (client chooses what, never how much) | implemented | `CreateInput` has no price; unknown fields rejected; `TestSubscriptionPurchaseSettlesOnceAndIsIdempotent` |
+| P2-P4 | Double-entry ledger, append-only, balance enforced by the database | implemented | `ledger.Post`, deferred constraint trigger, immutability triggers; `TestPostIsBalancedAndIdempotent`, `TestDatabaseRejectsUnbalancedAndMutatedLedgerRows` |
+| P2-P5 | Idempotent settlement and refund (DB-level dedup) | implemented | `transactions_reference` unique, `payments.events` primary key; duplicate event returns 202 |
+| P2-P6 | Subscription purchase, renewal extension, expiry | implemented | `ActivatePaidSubscription` (new / extend / replay), `TestSubscriptionExpiryClosesAccessAfterPurchase` |
+| P2-P7 | PPV purchase and refund revocation | implemented | `UnlockPostPaid`, `RevokePaidAccess`; `TestPPVPurchaseUnlocksThenRefundRevokes` |
+| P2-P8 | Refunds: full only, ledger reversal, entitlement withdrawal | implemented | `Refund` + `applyRefund`; `TestRefundReversesLedgerAndRevokesAccess` |
+| P2-P9 | Real gateway integration | blocked | needs a contracted high-risk processor (PAY-1..PAY-4) |
+| P2-P10 | Payouts, creator balances settlement, tax reporting | not started | next phase |
+
+### P2 payments - evidence (GitHub Actions only)
+
+| Run | Workflow | Result | Evidence |
+| --- | --- | --- | --- |
+| 45175217633 | Backend CI | success | total coverage 67.3%; smoke: ppv post 201, intent 201, signed settlement 200, intent read 200 `succeeded`, purchased delivery issue 201 and fetch 200, ledger net 0 minor units, replayed callback 202 |
+| 45175217780 | Security | success | gosec, staticcheck, govulncheck, gitleaks, Trivy |
+
+Defects CI found in this slice and fixed:
+
+1. Every intent creation returned 500: `checkout_url` is `NOT NULL DEFAULT ''` but the update wrote `NULLIF($3,'')`. A nullable column and a non-null column were treated the same way.
+2. Ledger tests assumed an isolated database. Two packages posting in the same database made the aggregate volume and split assertions wrong; they now scope to their own transaction reference.
+3. Allowing a client-sent `amount_minor` was tested, but the API already rejects unknown JSON fields, so the test asserted the wrong status. The property is stronger than the test assumed: a price in the request is a 400, not an ignored field.
+

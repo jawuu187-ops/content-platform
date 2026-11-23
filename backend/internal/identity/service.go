@@ -21,12 +21,13 @@ const dummyHash = "argon2id$v=19$m=65536,t=3,p=2$BwcHBwcHBwcHBwcHBwcHBw$ocwVtQ2r
 
 // Service is the identity use-case layer.
 type Service struct {
-	store  *store
-	hasher *Hasher
-	now    func() time.Time
-	mailer platformmail.Sender
-	box    *secretBox
-	issuer string
+	store    *store
+	hasher   *Hasher
+	now      func() time.Time
+	mailer   platformmail.Sender
+	box      *secretBox
+	issuer   string
+	webauthn *WebAuthnConfig
 }
 
 // Option configures the service.
@@ -54,6 +55,10 @@ func WithSecretKey(key []byte) Option {
 
 // WithIssuer sets the label shown in authenticator apps.
 func WithIssuer(issuer string) Option { return func(s *Service) { s.issuer = issuer } }
+
+// Now exposes the service clock so the HTTP layer can build response timestamps
+// from the same source as the tokens.
+func (s *Service) Now() time.Time { return s.now().UTC() }
 
 // New builds the service on top of an existing pool.
 func New(pool *pgxpool.Pool, opts ...Option) *Service {

@@ -23,6 +23,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/logging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/mail"
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
 )
 
 // Set with -ldflags at build time by the release workflow.
@@ -112,7 +113,43 @@ func run() error {
 			logger.Warn("MFA_KEY is not set; TOTP enrolment will answer 503")
 		}
 
+		webauthnCfg := identity.WebAuthnConfig{
+			RPID:                    cfg.WebAuthnRPID,
+			RPName:                  cfg.WebAuthnRPName,
+			Origins:                 cfg.WebAuthnOrigins,
+			RequireUserVerification: true,
+		}
+		if err := webauthnCfg.Validate(); err != nil {
+			logger.Warn("passkeys are disabled because the relying-party configuration is invalid",
+				"error", err)
+		} else {
+			opts = append(opts, identity.WithWebAuthn(webauthnCfg))
+		}
+
 		identityService = identity.New(db.Pool(), opts...)
+	}
+
+	// Shared rate limiting. With one instance the in-process buckets are fine;
+	// with several, the allowance has to live in one place or it multiplies by
+	// the replica count. A configured-but-unreachable store is a startup failure
+	// in production, because failing closed at request time is an outage nobody
+	// asked for.
+	var limits *ratelimit.Backend
+	if cfg.ValkeyURL != "" {
+		limits, err = ratelimit.New(ctx, cfg.ValkeyURL, "ratelimit:")
+		if err != nil {
+			if cfg.IsProduction() {
+				return fmt.Errorf("connect rate-limit store: %w", err)
+			}
+			logger.Warn("rate-limit store unavailable; falling back to in-process counters",
+				slog.Any("error", err))
+			limits = nil
+		} else {
+			defer limits.Close()
+			logger.Info("shared rate limiter connected")
+		}
+	} else if cfg.IsProduction() {
+		logger.Warn("VALKEY_URL is not set: rate limits are per instance and multiply with replicas")
 	}
 
 	handler := httpapi.New(httpapi.Deps{
@@ -120,6 +157,7 @@ func run() error {
 		Logger:   logger,
 		Database: db,
 		Identity: identityService,
+		Limits:   limits,
 		Build:    httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
 )
 
 // authHandler owns the credential endpoints. It contains no SQL and no password
@@ -24,16 +25,16 @@ type authHandler struct {
 	read    *limiter
 }
 
-func newAuthHandler(svc *identity.Service, logger *slog.Logger) *authHandler {
+func newAuthHandler(svc *identity.Service, logger *slog.Logger, shared *ratelimit.Backend) *authHandler {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &authHandler{
 		svc:     svc,
 		logger:  logger,
-		login:   newLimiter(10, time.Minute),  // 10 attempts per minute per IP
-		refresh: newLimiter(60, time.Minute),  // rotation is frequent but bounded
-		read:    newLimiter(120, time.Minute), // session listing
+		login:   newLimiter(10, time.Minute, shared),  // 10 attempts per minute per IP
+		refresh: newLimiter(60, time.Minute, shared),  // rotation is frequent but bounded
+		read:    newLimiter(120, time.Minute, shared), // session listing
 	}
 }
 
@@ -330,4 +331,5 @@ func (h *authHandler) registerRoutes(mux *http.ServeMux) {
 		func(w http.ResponseWriter, r *http.Request, p identity.Principal) { h.handleMe(w, r, p) })))
 
 	h.registerMFARoutes(mux)
+	h.registerPasskeyRoutes(mux)
 }

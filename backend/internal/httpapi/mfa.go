@@ -217,5 +217,5 @@ func (h *authHandler) writeMFAError(w http.ResponseWriter, r *http.Request, err 
 			"this instance is not configured for the requested capability")
 		return true
 	}
-	return false
+	return h.writePasskeyError(w, r, err)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
 )
 
 // BuildInfo is injected at link time by the release workflow.
@@ -22,10 +23,12 @@ type BuildInfo struct {
 // pointers so the service can boot in local mode without infrastructure and
 // fail readiness instead of crashing.
 type Deps struct {
-	Config    *config.Config
-	Logger    *slog.Logger
-	Database  *database.DB
-	Identity  *identity.Service
+	Config   *config.Config
+	Logger   *slog.Logger
+	Database *database.DB
+	Identity *identity.Service
+	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
+	Limits    *ratelimit.Backend
 	Build     BuildInfo
 	StartedAt time.Time
 	Now       func() time.Time
@@ -37,6 +40,7 @@ type Server struct {
 	logger    *slog.Logger
 	db        *database.DB
 	identity  *identity.Service
+	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
 	now       func() time.Time
@@ -55,6 +59,7 @@ func New(d Deps) http.Handler {
 		logger:    d.Logger,
 		db:        d.Database,
 		identity:  d.Identity,
+		limits:    d.Limits,
 		build:     d.Build,
 		startedAt: d.StartedAt,
 		now:       d.Now,
@@ -71,7 +76,7 @@ func New(d Deps) http.Handler {
 	// than 404, which tells a client the feature exists but the dependency is
 	// down.
 	if s.identity != nil {
-		newAuthHandler(s.identity, d.Logger).registerRoutes(mux)
+		newAuthHandler(s.identity, d.Logger, s.limits).registerRoutes(mux)
 	} else {
 		mux.HandleFunc("/v1/auth/", func(w http.ResponseWriter, r *http.Request) {
 			writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",

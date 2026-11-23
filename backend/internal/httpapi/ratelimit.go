@@ -1,27 +1,31 @@
 package httpapi
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
 )
 
 // limiter is an in-process token bucket keyed by an arbitrary string. It is the
 // first line of defence for credential endpoints: it stops scripted password
 // guessing and signup floods without a database round trip.
 //
-// Limitation, stated explicitly: the counters live in one process, so with N
-// replicas a client gets N times the allowance. Moving the buckets to Redis is
-// the drop-in fix and is tracked as a P1 follow-up; the interface here
-// (`allow`) is what a Redis-backed limiter would implement too.
+// When a shared backend is configured the bucket lives in Redis/Valkey and the
+// allowance is enforced once for the whole deployment. Without one the counters
+// are per process, which is correct for a single instance and N times the
+// allowance behind N replicas; that mode is for local development only.
 type limiter struct {
 	mu      sync.Mutex
 	buckets map[string]*bucket
 	limit   float64
 	window  time.Duration
 	now     func() time.Time
+	shared  *ratelimit.Backend
 }
 
 type bucket struct {
@@ -29,19 +33,22 @@ type bucket struct {
 	last   time.Time
 }
 
-func newLimiter(limit int, window time.Duration) *limiter {
-	l := &limiter{
+func newLimiter(limit int, window time.Duration, shared *ratelimit.Backend) *limiter {
+	return &limiter{
 		buckets: make(map[string]*bucket),
 		limit:   float64(limit),
 		window:  window,
 		now:     time.Now,
+		shared:  shared,
 	}
-	return l
 }
 
 // allow consumes one token for key. When the bucket is empty it returns false and
 // the caller should respond 429 with Retry-After.
-func (l *limiter) allow(key string) (bool, time.Duration) {
+func (l *limiter) allow(ctx context.Context, key string) (bool, time.Duration, error) {
+	if l.shared != nil {
+		return l.shared.Allow(ctx, key, int(l.limit), l.window)
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -53,7 +60,7 @@ func (l *limiter) allow(key string) (bool, time.Duration) {
 	b, ok := l.buckets[key]
 	if !ok {
 		l.buckets[key] = &bucket{tokens: l.limit - 1, last: now}
-		return true, 0
+		return true, 0, nil
 	}
 
 	refill := now.Sub(b.last).Seconds() * (l.limit / l.window.Seconds())
@@ -66,10 +73,10 @@ func (l *limiter) allow(key string) (bool, time.Duration) {
 	}
 	if b.tokens < 1 {
 		needed := (1 - b.tokens) * (l.window.Seconds() / l.limit)
-		return false, time.Duration(needed * float64(time.Second))
+		return false, time.Duration(needed * float64(time.Second)), nil
 	}
 	b.tokens--
-	return true, 0
+	return true, 0, nil
 }
 
 // sweep drops buckets that have fully refilled, so the map cannot grow without
@@ -96,7 +103,14 @@ func clientKey(r *http.Request, scope string) string {
 // rateLimited wraps a handler with a per-caller bucket.
 func rateLimited(l *limiter, scope string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ok, retry := l.allow(clientKey(r, scope))
+		ok, retry, err := l.allow(r.Context(), clientKey(r, scope))
+		if err != nil {
+			// Fail closed and say so: this is a dependency failure, not a
+			// limit breach, and the client should retry elsewhere.
+			writeProblem(w, r, http.StatusServiceUnavailable, "rate_limit_unavailable",
+				"the rate limiter is unreachable; the request was not processed")
+			return
+		}
 		if !ok {
 			seconds := int(retry.Seconds() + 0.999)
 			if seconds < 1 {

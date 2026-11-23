@@ -285,6 +285,25 @@ func (s *store) revokeOwnedSession(ctx context.Context, userID, sessionID string
 	return nil
 }
 
+// userByID loads a user outside a transaction.
+func (s *store) userByID(ctx context.Context, id string) (User, error) {
+	var u User
+	var verifiedAt *time.Time
+	err := s.pool.QueryRow(ctx, `
+		SELECT id::text, email::text, status, email_verified_at, is_creator, created_at
+		FROM identity.users
+		WHERE id = $1::uuid AND deleted_at IS NULL`, id,
+	).Scan(&u.ID, &u.Email, &u.Status, &verifiedAt, &u.IsCreator, &u.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return User{}, ErrNotFound
+	}
+	if err != nil {
+		return User{}, fmt.Errorf("identity: load user by id: %w", err)
+	}
+	u.EmailVerified = verifiedAt != nil
+	return u, nil
+}
+
 func (s *store) userByIDTx(ctx context.Context, tx pgx.Tx, id string) (User, error) {
 	var u User
 	var verifiedAt *time.Time

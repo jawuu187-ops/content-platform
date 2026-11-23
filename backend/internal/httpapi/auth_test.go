@@ -307,7 +307,7 @@ func TestAuthLoginIsRateLimited(t *testing.T) {
 	pool := dbtest.Pool(t)
 	svc := identity.New(pool, identity.WithHasher(identity.NewHasher(identity.TestParams())))
 	ah := newAuthHandler(svc, slog.New(slog.NewTextHandler(discard{}, nil)))
-	ah.login = newLimiter(3, time.Minute)
+	ah.login = newLimiter(3, time.Minute, nil)
 	mux := http.NewServeMux()
 	ah.registerRoutes(mux)
 	h := http.Handler(mux)

@@ -33,6 +33,19 @@ jobs:
     timeout-minutes: 20
 
     services:
+      # The shared rate limiter needs a real Redis/Valkey: the point of the test
+      # is two independent instances agreeing on one budget, which an in-memory
+      # fake cannot demonstrate.
+      valkey:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
       postgres:
         image: postgres:18-alpine
         env:
@@ -50,6 +63,7 @@ jobs:
     env:
       APP_ENV: local
       DATABASE_URL: postgres://platform:platform@127.0.0.1:5432/platform_test?sslmode=disable
+      VALKEY_URL: redis://127.0.0.1:6379/0
 
     steps:
       - uses: actions/checkout@v4
@@ -104,6 +118,10 @@ jobs:
           # 32-byte key, base64. Enables TOTP enrolment in the smoke run so the
           # path is proven outside the test binary as well.
           MFA_KEY: a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
+          # Passkeys in the smoke run: the RP is localhost, which is the one host
+          # the WebAuthn spec allows over plain http.
+          WEBAUTHN_RP_ID: localhost
+          WEBAUTHN_ORIGINS: http://localhost:8080
         run: |
           set -u
           ./bin/api > api.log 2>&1 &
@@ -158,6 +176,12 @@ jobs:
             -H "Authorization: Bearer $access")
           echo "POST /v1/auth/email/verify/request -> $verify_code"
           [ "$verify_code" = "202" ] || fail "email verification request returned $verify_code"
+
+          pk_code=$(curl -s -o pk.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/webauthn/register/start \
+            -H "Authorization: Bearer $access" -H 'Content-Type: application/json' -d '{"label":"smoke"}')
+          echo "POST /v1/auth/webauthn/register/start -> $pk_code"
+          [ "$pk_code" = "201" ] || fail "passkey registration start returned $pk_code"
+          grep -q '"userVerification":"required"' pk.json || fail "passkey options do not require user verification"
 
           grant_code=$(curl -s -o grant.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/admin/roles/grant \
             -H "Authorization: Bearer $access" -H 'Content-Type: application/json' \

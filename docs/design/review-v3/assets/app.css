@@ -96,7 +96,7 @@ body {
 .mark::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--oxblood); }
 .mark::after { content: ""; position: absolute; top: -2px; right: -3px; width: 13px; height: 13px; border-radius: 50%; background: var(--paper); }
 .masthead .grow { flex: 1; }
-.mast-title { font-size: var(--t4); font-weight: 600; letter-spacing: -0.01em; }
+.mast-title { font-size: var(--t4); font-weight: 600; letter-spacing: 0; }
 
 /* 48dp targets, no decorative rings: shipped apps keep chrome quiet. */
 .icon {
@@ -111,7 +111,7 @@ body {
 .icon svg { display: block; }
 .icon.plain { color: var(--ink); }
 .icon.fill { background: var(--ink); color: var(--paper); border-radius: 50%; margin-left: 0; }
-.icon.sm { width: 44px; height: 44px; margin-left: 0; }
+.icon.sm { width: 48px; height: 48px; margin-left: 0; }
 
 /* ---------------- type ---------------- */
 .kicker {
@@ -121,11 +121,11 @@ body {
   text-transform: uppercase;
   color: var(--muted);
 }
-.display { font-family: var(--didone); font-weight: 400; letter-spacing: -0.015em; line-height: 1.02; }
+.display { font-family: var(--didone); font-weight: 400; letter-spacing: 0; line-height: 1.02; }
 .d-xl { font-size: var(--t1); }
 .d-l { font-size: var(--t2); }
 .d-m { font-size: var(--t3); line-height: 1.12; }
-.name { font-family: var(--didone); font-size: var(--t2); font-weight: 500; letter-spacing: -0.01em; line-height: 1.06; }
+.name { font-family: var(--didone); font-size: var(--t2); font-weight: 500; letter-spacing: 0; line-height: 1.06; }
 .body { font-size: var(--t5); line-height: 1.55; color: var(--ink-2); }
 .small { font-size: var(--t6); line-height: 1.5; }
 .meta { font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui); color: var(--muted); text-transform: uppercase; }
@@ -196,7 +196,7 @@ body {
 .flag.flag-red { color: var(--flag); border-color: rgba(168, 50, 42, 0.4); }
 .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .count {
-  min-width: 18px; height: 18px; padding: 0 5px;
+  min-width: 18px; height: 18px; padding: 0 4px;
   background: var(--oxblood); color: var(--paper);
   border-radius: 2px; display: inline-grid; place-items: center;
   font-family: var(--mono); font-size: var(--t7); letter-spacing: 0;
@@ -219,7 +219,7 @@ body {
   position: absolute; left: var(--s3); top: var(--s3);
   font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
   color: var(--paper); background: rgba(13, 11, 10, 0.55);
-  padding: 6px var(--s2); border-radius: 2px;
+  padding: 4px var(--s2); border-radius: 2px;
 }
 .photo .lockline {
   position: absolute; left: 0; right: 0; bottom: 0;
@@ -231,7 +231,7 @@ body {
 .photo .counter {
   position: absolute; right: var(--s3); bottom: var(--s3);
   font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
-  color: var(--paper); background: rgba(13, 11, 10, 0.55); padding: 5px var(--s2);
+  color: var(--paper); background: rgba(13, 11, 10, 0.55); padding: 4px var(--s2);
 }
 
 /* avatar: photograph first, monogram only as a fallback */
@@ -349,17 +349,24 @@ body {
 .viewer .batt { background: transparent; }
 .viewer .batt::after { background: var(--paper); }
 .viewer .chrome {
-  position: absolute; left: 0; right: 0; bottom: 0;
+  position: relative; flex: none;
+  padding: var(--s1) var(--margin) 0;
+}
+.viewer .foot {
+  flex: none;
   padding: var(--s4) var(--margin) var(--s5);
-  background: linear-gradient(to top, rgba(13, 11, 10, 0.92), rgba(13, 11, 10, 0));
+  background: #0d0b0a;
 }
 .viewer .icon { color: var(--paper); }
 .viewer .icon.fill { background: var(--paper); color: var(--ink); }
 .wm {
   position: absolute; font-family: var(--mono); font-size: var(--t7);
   letter-spacing: var(--track-ui); text-transform: uppercase;
-  color: rgba(244, 239, 231, 0.16); pointer-events: none;
+  color: rgba(244, 239, 231, 0.22); pointer-events: none;
 }
 
 /* display figures are for headlines; comparable figures are grotesque + tabular */
 .price-ui { font-family: var(--grotesk); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* compact ledger: used where a receipt must fit a screen without scrolling */
+.ledger-compact td { padding: var(--s2) 0; }

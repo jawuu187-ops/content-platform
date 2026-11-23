@@ -232,3 +232,24 @@ name and final mark · licensed photography · whether Alerts becomes a fifth de
 payout schedule copy · whether creator handles/links appear on profiles.
 
 No application code, schema, route, workflow or dependency was changed for this proposal.
+
+---
+
+## 10. Final correction pass (approved)
+
+Applied to the same sources, no new concepts, no new screens:
+
+1. **Viewer** — chrome anchored at the top again (it had been pushed to the bottom by the
+   shared `.viewer .chrome` rule and was landing on the caption). The frame, the counter and
+   the video controls are now laid out in flow: a flex column of status bar → chrome →
+   image → footer. Controls can no longer sit on the subject. Watermark raised to 22% and
+   placed at three fixed offsets.
+2. **Creator profile** — the sticky action bar is a flex sibling of the content, not an
+   absolute overlay, so it cannot cover the grid at any type scale. Inline tier prices moved
+   from the didone to tabular figures (the didone dollar reads as broken strokes at 16 px).
+3. **Statement** — headline reduced to the 28 step, compact ledger rows, tighter receipt
+   block: the final row and both actions stay inside the screen.
+4. **Chevrons** — the last four text glyphs in 02 and 05 replaced with the drawn icon.
+5. **Targets** — `.icon.sm` to 48 dp (compact buttons stay at 44 dp, WCAG 2.5.5).
+6. **Rhythm** — remaining 2/3/5/6 px values snapped to 4/8; display tracking set to 0 so
+   only two tracking values exist in the whole system.

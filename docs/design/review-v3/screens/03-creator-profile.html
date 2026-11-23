@@ -5,7 +5,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/app.css">
 </head><body class="screen">
-<div class="frame">
+<div class="frame" style="display:flex;flex-direction:column">
+  <div style="flex:1;overflow:hidden">
   <div class="photo" style="height:300px">
     <img src="../assets/img/hero.jpg" alt="" style="object-position:52% 26%">
     <div class="wash"></div>
@@ -64,14 +65,14 @@
           <div class="row" style="gap:8px"><span style="font-weight:600">Supporter</span><span class="meta">public letter</span></div>
           <div class="small muted" style="margin-top:4px">Every public post, monthly letter.</div>
         </div>
-        <div class="display" style="font-size:21px">$5</div>
+        <div class="num" style="font-size:16px;font-weight:600">$5</div>
       </div>
       <div class="ruled-row">
         <div class="grow">
           <div class="row" style="gap:8px"><span style="font-weight:600">Studio</span><span class="flag ox">Most chosen</span></div>
           <div class="small muted" style="margin-top:4px">Subscriber feed, full-res sets, DMs.</div>
         </div>
-        <div class="display" style="font-size:21px">$9</div>
+        <div class="num" style="font-size:16px;font-weight:600">$9</div>
       </div>
     </div>
   </div>
@@ -91,12 +92,14 @@
     </div>
   </div>
 
-  <div style="position:absolute;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule-strong);padding:12px 22px 20px">
+  </div>
+
+  <div style="flex:none;background:var(--paper);border-top:1px solid var(--rule-strong);padding:12px var(--margin) 16px">
     <div class="row between">
       <div>
         <div class="meta">Studio · monthly</div>
         <div class="row" style="gap:4px;align-items:baseline;margin-top:4px">
-          <span class="display" style="font-size:21px">$9.00</span>
+          <span class="num" style="font-size:16px;font-weight:600">$9.00</span>
           <span class="small muted">/ month</span>
         </div>
       </div>

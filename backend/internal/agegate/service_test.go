@@ -40,7 +40,7 @@ func (p *testProvider) Start(context.Context, StartInput) (StartOutput, error) {
 	p.lastRef = p.base + "_" + strconv.Itoa(p.started)
 	return StartOutput{
 		Reference: p.lastRef,
-		CheckURL:  "https://verify.example.test/session/" + p.ref,
+		CheckURL:  "https://verify.example.test/session/" + p.lastRef,
 		ExpiresAt: time.Now().Add(time.Hour),
 	}, nil
 }

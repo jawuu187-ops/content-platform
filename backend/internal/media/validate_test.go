@@ -71,7 +71,7 @@ func TestIngestAcceptsOnlyRealImagesAndMP4(t *testing.T) {
 
 func TestIngestRejectsOversizedImage(t *testing.T) {
 	store := newStore(t)
-	limits := Limits{ImageBytes: 128, VideoBytes: 1024, MaxPixels: 1_000_000}
+	limits := Limits{ImageBytes: 32, VideoBytes: 1024, MaxPixels: 1_000_000}
 	if _, err := Ingest(context.Background(), store, bytes.NewReader(pngBytes(t, 40, 40)), limits); !errors.Is(err, ErrTooLarge) {
 		t.Fatalf("want ErrTooLarge, got %v", err)
 	}

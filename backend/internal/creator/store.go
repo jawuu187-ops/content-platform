@@ -341,38 +341,64 @@ func (s *Service) subscriptionsOfFan(ctx context.Context, fanID string) ([]Subsc
 	return out, rows.Err()
 }
 
-// liveEntitlement returns the entitlement that grants scope, if any.
-func (s *Service) liveEntitlement(ctx context.Context, fanID, creatorID, scope string, now time.Time) (Access, error) {
+// liveEntitlement returns the live entitlement for a scope and, when that
+// entitlement came from a subscription, the subscription it depends on.
+func (s *Service) liveEntitlement(ctx context.Context, fanID, creatorID, scope string, now time.Time) (bool, *string, *time.Time, error) {
 	var expires *time.Time
+	var subID *string
 	err := s.pool.QueryRow(ctx, `
-		SELECT expires_at FROM creator.entitlements
+		SELECT expires_at, subscription_id::text FROM creator.entitlements
 		WHERE fan_id = $1::uuid AND creator_id = $2::uuid
 		  AND revoked_at IS NULL
 		  AND scope = ANY($3::text[])
 		  AND (expires_at IS NULL OR expires_at > $4)
 		ORDER BY granted_at DESC
-		LIMIT 1`, fanID, creatorID, []string{scope, ScopeAll}, now).Scan(&expires)
+		LIMIT 1`, fanID, creatorID, []string{scope, ScopeAll}, now).Scan(&expires, &subID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return Access{Allowed: false}, nil
+		return false, nil, nil, nil
 	}
 	if err != nil {
-		return Access{}, fmt.Errorf("creator: load entitlement: %w", err)
+		return false, nil, nil, fmt.Errorf("creator: load entitlement: %w", err)
+	}
+	return true, subID, expires, nil
+}
+
+// paidAccess is the single paid-content decision. An entitlement is required,
+// and when it was granted by a subscription that subscription must still be in
+// period: neither half alone opens content (D-035).
+func (s *Service) paidAccess(ctx context.Context, fanID, creatorID, scope string, now time.Time) (Access, error) {
+	ok, subID, expires, err := s.liveEntitlement(ctx, fanID, creatorID, scope, now)
+	if err != nil {
+		return Access{}, err
+	}
+	if !ok {
+		return Access{Allowed: false, Scope: scope, Reason: "entitlement_required"}, nil
+	}
+	if subID != nil {
+		active, err := s.subscriptionInPeriod(ctx, *subID, now)
+		if err != nil {
+			return Access{}, err
+		}
+		if !active {
+			// The entitlement outlived its subscription: refuse rather than serve.
+			return Access{Allowed: false, Scope: scope, Reason: "entitlement_required"}, nil
+		}
 	}
 	return Access{Allowed: true, Scope: scope, Reason: "entitlement", ExpiresAt: expires}, nil
 }
 
-// activeSubscription reports whether a paid, in-period subscription exists.
-func (s *Service) activeSubscription(ctx context.Context, fanID, creatorID string, now time.Time) (bool, error) {
+// subscriptionInPeriod reports whether one subscription is active and paid for
+// the current period.
+func (s *Service) subscriptionInPeriod(ctx context.Context, subscriptionID string, now time.Time) (bool, error) {
 	var exists bool
 	err := s.pool.QueryRow(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM creator.subscriptions
-			WHERE fan_id = $1::uuid AND creator_id = $2::uuid
-			  AND status = 'active'
-			  AND current_period_start <= $3 AND current_period_end > $3
-		)`, fanID, creatorID, now).Scan(&exists)
+			WHERE id = $1::uuid AND status = 'active'
+			  AND current_period_start <= $2 AND current_period_end > $2
+		)`, subscriptionID, now).Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("creator: check subscription: %w", err)
+		return false, fmt.Errorf("creator: check subscription period: %w", err)
 	}
 	return exists, nil
 }

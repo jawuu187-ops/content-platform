@@ -397,22 +397,7 @@ func (s *Service) CheckAccess(ctx context.Context, viewer *identity.Principal, h
 		return Access{Allowed: false, Scope: scope, Reason: ReasonAgeRequired}, nil
 	}
 
-	now := s.now().UTC()
-	ent, err := s.liveEntitlement(ctx, viewer.UserID, profile.UserID, scope, now)
-	if err != nil {
-		return Access{}, err
-	}
-	if ent.Allowed {
-		return ent, nil
-	}
-	subscribed, err := s.activeSubscription(ctx, viewer.UserID, profile.UserID, now)
-	if err != nil {
-		return Access{}, err
-	}
-	if subscribed {
-		return Access{Allowed: true, Scope: scope, Reason: "subscription"}, nil
-	}
-	return Access{Allowed: false, Scope: scope, Reason: "entitlement_required"}, nil
+	return s.paidAccess(ctx, viewer.UserID, profile.UserID, scope, s.now().UTC())
 }
 
 // GrantEntitlement gives a fan direct access, used by admin tooling and by the

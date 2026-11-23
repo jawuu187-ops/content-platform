@@ -375,21 +375,7 @@ func (s *Service) AuthorizePost(ctx context.Context, viewer *identity.Principal,
 
 	now := s.now().UTC()
 	if post.Visibility == VisibilitySubscriber {
-		ent, err := s.liveEntitlement(ctx, viewer.UserID, post.CreatorID, ScopeSubscriber, now)
-		if err != nil {
-			return Access{}, err
-		}
-		if ent.Allowed {
-			return ent, nil
-		}
-		subscribed, err := s.activeSubscription(ctx, viewer.UserID, post.CreatorID, now)
-		if err != nil {
-			return Access{}, err
-		}
-		if subscribed {
-			return Access{Allowed: true, Scope: post.Visibility, Reason: "subscription"}, nil
-		}
-		return Access{Allowed: false, Scope: post.Visibility, Reason: "entitlement_required"}, nil
+		return s.paidAccess(ctx, viewer.UserID, post.CreatorID, ScopeSubscriber, now)
 	}
 
 	// Pay-per-view: a live unlock for this post, or a creator-wide ppv grant.
@@ -400,7 +386,7 @@ func (s *Service) AuthorizePost(ctx context.Context, viewer *identity.Principal,
 	if unlocked {
 		return Access{Allowed: true, Scope: post.Visibility, Reason: "unlock"}, nil
 	}
-	ent, err := s.liveEntitlement(ctx, viewer.UserID, post.CreatorID, ScopePPV, now)
+	ent, err := s.paidAccess(ctx, viewer.UserID, post.CreatorID, ScopePPV, now)
 	if err != nil {
 		return Access{}, err
 	}

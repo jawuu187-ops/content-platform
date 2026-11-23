@@ -109,7 +109,7 @@ fun PlatformApp(themeController: ThemeController) {
                         Destination.Studio -> StudioScreen()
                         Destination.Account -> AccountScreen(
                             mode = themeController.mode,
-                            onModeChange = themeController::setMode,
+                            onModeChange = themeController::choose,
                         )
                     }
                 }

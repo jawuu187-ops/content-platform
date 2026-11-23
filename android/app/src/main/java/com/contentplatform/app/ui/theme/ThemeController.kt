@@ -38,7 +38,7 @@ class ThemeController(context: Context) {
     var mode: ThemeMode by mutableStateOf(ThemeMode.fromKey(prefs.getString(KEY_MODE, null)))
         private set
 
-    fun setMode(newMode: ThemeMode) {
+    fun choose(newMode: ThemeMode) {
         if (newMode == mode) return
         mode = newMode
         prefs.edit().putString(KEY_MODE, newMode.storageKey).apply()

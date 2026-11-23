@@ -190,14 +190,29 @@ expiry impossible.
 | P2-M3 | Replaceable storage seam with fail-closed driver | ✅ implemented | `media.Storage` (`Put`/`Open`/`Stat`), `Unavailable`; `TestUnavailableStorageFailsClosed` |
 | P2-M4 | Public / subscriber / PPV visibility on posts, drafts invisible | ✅ implemented | `creator/posts.go`, `0008_media_content.sql`; feed shows `locked` instead of a link |
 | P2-M5 | Short-lived single-use signed link, atomic redemption | ✅ implemented | `TestSubscriberMediaIsSingleUseAndRechecked`, `TestConcurrentRedemptionOnlyOneWins` |
-| P2-M6 | Age gate + entitlement re-checked at redemption | ✅ implemented | `TestRevocationAndCancellationCloseIssuedLinks`, `TestPPVMediaNeedsAnUnlock` |
+| P2-M6 | Age gate + entitlement re-checked at redemption | ✅ implemented | `TestLapsedSubscriptionClosesIssuedLink`, `TestRevokedVerificationClosesIssuedLink`, `TestPPVMediaNeedsAnUnlock` |
 | P2-M7 | No bypass by direct URL, foreign media pairing, or unknown token | ✅ implemented | `TestMediaCannotBePairedWithAnotherPost`, `TestUnknownTokenIsRefused`, tampered signature case |
 | P2-M8 | Object storage / CDN selection | ⬜ pending owner decision (zero-cost) | `docs/vendors/media-storage.md` (MS-1..MS-3) |
 | P2-M9 | Transcoding, thumbnails, `Range` requests, scheduled token sweep | ⬜ not implemented | documented as limitations |
 
-### P2 media — evidence (GitHub Actions only)
+### P2 media - evidence (GitHub Actions only)
 
 | Run | Workflow | Result | Evidence |
 | --- | --- | --- | --- |
-| _pending_ | Backend CI | — | — |
-| _pending_ | Security | — | — |
+| 45168844011 | Backend CI | success | total coverage 67.4%; smoke: upload 201, post 201, anonymous feed 200 with no link, delivery issue 201, first redemption 200 byte-for-byte, replay 403 |
+| 45168843926 | Security | success | gosec, staticcheck, govulncheck, gitleaks, Trivy all pass |
+
+Defects CI found in this slice and fixed:
+
+1. Subscriber posts were served when the entitlement had lapsed but the
+   subscription row was still in period. `paidAccess` now requires **both** the
+   entitlement and its subscription (D-035); the regression is pinned by
+   `TestLapsedSubscriptionClosesIssuedLink`.
+2. The image size-limit test used a limit larger than the encoded fixture, so it
+   proved nothing; it now uses a limit below the encoded size.
+3. gosec G304 flagged `os.Open` on a computed path. The key is already validated
+   against `^[a-f0-9]{64}$`, so the finding carries that justification instead of
+   a global suppression; the workflow now prints SARIF findings when gosec fails.
+4. One test covered the lapse and the revocation in a single flow and contradicted
+   itself (no link can be re-issued after the entitlement lapses). They are now
+   separate tests.

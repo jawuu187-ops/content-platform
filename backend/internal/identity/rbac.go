@@ -87,7 +87,7 @@ var rolePermissions = map[string][]Permission{
 	},
 	RoleModerator: {
 		PermContentRead, PermContentModerate,
-		PermUsersRead, PermSafetyReview,
+		PermUsersRead, PermUsersWrite, PermSafetyReview,
 	},
 	RoleFinance: {
 		PermFinanceRead, PermPayoutApprove,

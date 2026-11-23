@@ -19,7 +19,7 @@ var expectedMatrix = map[string]map[Permission]bool{
 	},
 	RoleModerator: {
 		PermContentRead: true, PermContentModerate: true,
-		PermUsersRead: true, PermSafetyReview: true,
+		PermUsersRead: true, PermUsersWrite: true, PermSafetyReview: true,
 	},
 	RoleFinance: {
 		PermFinanceRead: true, PermPayoutApprove: true, PermUsersRead: true,

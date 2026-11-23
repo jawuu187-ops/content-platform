@@ -145,7 +145,7 @@ func (s *store) sessionByAccess(ctx context.Context, accessHash []byte) (Princip
 		FROM identity.sessions s
 		JOIN identity.users u ON u.id = s.user_id
 		WHERE s.access_hash = $1`, accessHash,
-	).Scan(&p.SessionID, &p.UserID, &expires, &revokedAt, new(*time.Time))
+	).Scan(&p.SessionID, &p.UserID, &expires, &revokedAt, &verifiedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Principal{}, time.Time{}, ErrInvalidCredentials
 	}

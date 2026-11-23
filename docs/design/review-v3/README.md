@@ -22,6 +22,7 @@ Nothing here is implemented. The Android app is still the Compose shell describe
 | `render.py` | Playwright renderer used by `.github/workflows/design-render-v3.yml` |
 | `audit.py` | Re-measures type scale, spacing, targets, icons, states and figures |
 | `refinement.md` | The ten findings and the screen-by-screen plan this revision follows |
+| `category-alignment.md` | Comparison against the creator-subscription category, with the screen-by-screen recomposition proposal |
 
 ---
 

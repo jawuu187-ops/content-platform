@@ -154,7 +154,7 @@ func (s *Service) CreateIntent(ctx context.Context, p identity.Principal, in Cre
 	if opened.ProviderRef != "" || opened.Status != "" {
 		if _, err := s.pool.Exec(ctx, `
 			UPDATE payments.intents
-			SET provider_ref = NULLIF($2, ''), checkout_url = NULLIF($3, ''),
+			SET provider_ref = NULLIF($2, ''), checkout_url = $3,
 			    status = CASE WHEN status = 'created' THEN $4 ELSE status END, updated_at = now()
 			WHERE id = $1::uuid`,
 			row.ID, opened.ProviderRef, opened.CheckoutURL, nonEmpty(opened.Status, StatusPending)); err != nil {

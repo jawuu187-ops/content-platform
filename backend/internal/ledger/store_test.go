@@ -36,15 +36,26 @@ func TestPostIsBalancedAndIdempotent(t *testing.T) {
 		t.Fatalf("duplicate post: want ErrDuplicate, got %v", err)
 	}
 
-	net, volume, err := store.TrialBalance(ctx, "USD")
+	net, _, err := store.TrialBalance(ctx, "USD")
 	if err != nil {
 		t.Fatalf("trial balance: %v", err)
 	}
 	if net != 0 {
 		t.Fatalf("ledger is not balanced: net %d", net)
 	}
-	if volume != 1200 {
-		t.Fatalf("volume: %d", volume)
+	// Exactly three legs, summing to zero. The trial balance itself is shared with
+	// other packages running against the same database, so its volume is not
+	// asserted here.
+	var legs int
+	var sum int64
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*), COALESCE(sum(e.amount_minor), 0)
+		FROM ledger.entries e JOIN ledger.transactions t ON t.id = e.transaction_id
+		WHERE t.reference = 'intent-1'`).Scan(&legs, &sum); err != nil {
+		t.Fatalf("count legs: %v", err)
+	}
+	if legs != 3 || sum != 0 {
+		t.Fatalf("legs=%d sum=%d", legs, sum)
 	}
 
 	balances, err := store.Balances(ctx, "USD")

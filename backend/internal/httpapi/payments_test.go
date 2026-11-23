@@ -127,10 +127,17 @@ func TestSubscriptionPurchaseSettlesOnceAndIsIdempotent(t *testing.T) {
 	fan := registerAndGetToken(t, f.handler, "pay-fan-"+randSuffix(t)+"@example.test")
 	key := "idem-" + randSuffix(t)
 
+	// A price in the request is rejected outright: the amount is the tier's.
+	if rec := doJSON(t, f.handler, http.MethodPost, "/v1/payments/intents", fan.Tokens.AccessToken,
+		encodeBody(t, map[string]any{
+			"purpose": "subscription", "tier_id": tierID, "amount_minor": 1,
+			"idempotency_key": "idem-" + randSuffix(t),
+		})); rec.Code != http.StatusBadRequest {
+		t.Fatalf("client-supplied price: want 400, got %d", rec.Code)
+	}
+
 	intentID, status := f.intent(t, fan.Tokens.AccessToken, map[string]any{
 		"purpose": "subscription", "tier_id": tierID, "idempotency_key": key,
-		// A price in the request must be ignored: the server reads it from the tier.
-		"amount_minor": 1,
 	})
 	if status != "pending" {
 		t.Fatalf("new intent status: %s", status)

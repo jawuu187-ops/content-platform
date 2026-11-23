@@ -44,7 +44,7 @@
   --s5: 24px;
   --s6: 32px;
 
-  --margin: 20px;
+  --margin:20px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -76,7 +76,7 @@ body {
   letter-spacing: var(--track-ui);
 }
 .statusbar .right { display: flex; align-items: center; gap: var(--s1); }
-.sig { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+.sig { display: flex; align-items: flex-end; gap:2px; height: 10px; }
 .sig i { width: 2px; background: var(--ink); display: block; }
 .sig i:nth-child(1) { height: 4px; }
 .sig i:nth-child(2) { height: 6px; }
@@ -219,7 +219,7 @@ body {
   position: absolute; left: var(--s3); top: var(--s3);
   font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
   color: var(--paper); background: rgba(13, 11, 10, 0.55);
-  padding: 4px var(--s2); border-radius: 2px;
+  padding:4px var(--s2); border-radius: 2px;
 }
 .photo .lockline {
   position: absolute; left: 0; right: 0; bottom: 0;
@@ -231,7 +231,7 @@ body {
 .photo .counter {
   position: absolute; right: var(--s3); bottom: var(--s3);
   font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
-  color: var(--paper); background: rgba(13, 11, 10, 0.55); padding: 4px var(--s2);
+  color: var(--paper); background: rgba(13, 11, 10, 0.55); padding:4px var(--s2);
 }
 
 /* avatar: photograph first, monogram only as a fallback */
@@ -308,7 +308,7 @@ body {
   border-top: 1px solid var(--rule-strong);
 }
 .tab {
-  flex: 1; display: grid; justify-items: center; align-content: center; gap: 3px;
+  flex: 1; display: grid; justify-items: center; align-content: center; gap:4px;
   padding-top: var(--s2);
   font-family: var(--grotesk); font-size: var(--t7); font-weight: 500;
   letter-spacing: var(--track-ui); text-transform: none;
@@ -370,3 +370,96 @@ body {
 
 /* compact ledger: used where a receipt must fit a screen without scrolling */
 .ledger-compact td { padding: var(--s2) 0; }
+
+/* ============================================================================
+   A · media-first surface model
+   Ground is a warmer near-white so photography sits on it as a product, not as a
+   plate in a book. Bone is kept for chrome, lists and billing.
+   ========================================================================== */
+
+:root {
+  --bg: #fbf8f3;
+  --bone: #f4efe7;
+  --card: #fffdfa;
+  --media: #141110;
+  --line-soft: rgba(25, 20, 18, 0.1);
+  --r-card: 14px;
+  --r-btn: 8px;
+}
+
+body { background: var(--bg); }
+.screen { background: #1a1512; }
+.frame { background: var(--bg); }
+.screen.bone .frame { background: var(--bone); }
+.bone { background: var(--bone); }
+
+/* cards carry the separation that rules used to */
+.card { background: var(--card); border: 1px solid var(--line-soft); border-radius: var(--r-card); overflow: hidden; }
+.card-body { padding: var(--s4); }
+.card.tight .card-body { padding: var(--s3); }
+.card.flat { border-radius: var(--r-card); }
+.card.rec { border-color: rgba(122, 31, 43, 0.55); border-width: 1.5px; }
+
+/* cover: the image is the subject, so it bleeds to the card edge */
+.cover { position: relative; overflow: hidden; background: var(--media); }
+.cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* avatar that breaks the edge of a cover */
+.avatar-over {
+  width: 72px; height: 72px; border-radius: 50%; overflow: hidden;
+  border: 3px solid var(--card); background: var(--paper-3);
+  margin-top: -38px; position: relative; z-index: 2;
+}
+.avatar-over img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-xl { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; background: var(--paper-3); flex: none; }
+.avatar-xl img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* price and lock chips sit on the image, where the decision is made */
+.chip {
+  position: absolute; display: inline-flex; align-items: center; gap: var(--s1);
+  height: 26px; padding: 0 var(--s2);
+  border-radius: 999px;
+  background: rgba(13, 11, 10, 0.74);
+  color: var(--bone);
+  font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
+  backdrop-filter: blur(2px);
+}
+.chip.bl { left: var(--s2); bottom: var(--s2); }
+.chip.tr { right: var(--s2); top: var(--s2); }
+.chip.ox { background: var(--oxblood); }
+.chip.bone { background: rgba(251, 248, 243, 0.92); color: var(--ink); }
+
+/* grids: no borders, 4dp gutters, square cells */
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s1); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap:4px; }
+.cell { position: relative; aspect-ratio: 1 / 1; overflow: hidden; background: var(--paper-3); }
+.cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cell.locked img { filter: blur(7px) saturate(0.7) brightness(0.72); transform: scale(1.06); }
+
+/* the action that sells: price lives inside the button */
+.btn.cta { height: 52px; border-radius: var(--r-btn); font-size: var(--t5); justify-content: space-between; padding: 0 var(--s4); }
+.btn.cta .p { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: var(--t6); opacity: 0.92; }
+.btn.r8 { border-radius: var(--r-btn); }
+
+/* tier cards */
+.tier { padding: var(--s4); }
+.tier .price { font-family: var(--grotesk); font-weight: 700; font-size: var(--t2); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.tier .price span { font-size: var(--t6); font-weight: 500; color: var(--muted); }
+.tier ul { list-style: none; margin: var(--s2) 0 0; }
+.tier ul li { font-size: var(--t6); color: var(--ink-2); line-height: 1.5; padding-left: var(--s3); position: relative; }
+.tier ul li::before { content: "·"; position: absolute; left: 2px; color: var(--oxblood); }
+
+/* compact tier preview on the profile */
+.tier-preview { display: flex; gap: var(--s2); overflow: hidden; }
+.tier-preview .tp { flex: 1; border: 1px solid var(--line-soft); border-radius: 10px; padding: var(--s3); background: var(--card); min-width: 0; }
+.tier-preview .tp.on { border-color: rgba(122, 31, 43, 0.5); }
+.tier-preview .nm { font-size: var(--t6); font-weight: 600; }
+.tier-preview .pr { font-family: var(--mono); font-size: var(--t6); margin-top:2px; }
+
+/* sticky action bar, sitting above the ground */
+.actionbar {
+  flex: none;
+  background: var(--card);
+  border-top: 1px solid var(--line-soft);
+  padding: var(--s2) var(--margin) var(--s3);
+}

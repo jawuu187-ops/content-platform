@@ -5,118 +5,92 @@
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/app.css">
 </head><body class="screen">
-<div class="frame">
+<div class="frame" style="display:flex;flex-direction:column">
   <div class="statusbar"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
 
   <div class="masthead">
-    <div class="wordmark" style="font-size:12px"><div class="mark" style="width:13px;height:13px"></div>Vesper</div>
+    <div class="mast-title" style="font-size:21px;font-weight:600">Library</div>
     <div class="grow"></div>
-    <div class="icon plain">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
-    </div>
+    <span class="meta">14 items</span>
   </div>
 
-  <div class="pad" style="padding-top:16px">
-    <div class="kicker">Library</div>
-    <div class="display d-l" style="margin-top:4px;font-size:40px">What you<br>paid for.</div>
-    <div class="row between" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--rule-strong)">
-      <span class="meta">7 unlocks · 3 subscriptions</span>
-      <span class="meta">$128.00 spent in 2026</span>
+  <div style="flex:1;overflow:hidden">
+    <div class="pad" style="padding-top:12px">
+      <div class="seg">
+        <div class="s on">All</div>
+        <div class="s">Unlocks</div>
+        <div class="s">Included</div>
+      </div>
     </div>
-  </div>
 
-  <div class="pad" style="margin-top:4px">
-    <div class="seg" style="margin-top:8px">
-      <div class="s on">All</div>
-      <div class="s">Unlocks</div>
-      <div class="s">Subscriptions</div>
-      <div class="s">Saved</div>
-    </div>
-  </div>
-
-  <div class="pad" style="margin-top:4px">
-    <div class="ruled-row" style="gap:12px">
-      <div class="photo" style="width:64px;height:64px;flex:none"><img src="../assets/img/hero.jpg" alt="" style="object-position:48% 30%"></div>
-      <div class="grow">
-        <div class="row between">
-          <span style="font-weight:600;font-size:12px">Rooftop, after hours</span>
-          <span class="meta">$14.00</span>
+    <div class="pad" style="margin-top:12px">
+      <div class="card">
+        <div class="cover" style="height:196px">
+          <img src="../assets/img/hero.jpg" alt="" style="object-position:52% 26%">
+          <div class="chip bl">14 frames</div>
+          <div class="chip tr">Today</div>
         </div>
-        <div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:0.02em">Lina Marchetti · video 12:40</div>
-        <div class="row between" style="margin-top:4px">
-          <span class="meta" style="color:var(--oxblood)">Unlocked 25 Nov</span>
-          <span class="meta">1080p · 640 MB</span>
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <div class="grow">
+              <div style="font-size:16px;font-weight:600">Rooftop set — full resolution</div>
+              <div class="meta" style="margin-top:2px;text-transform:none">Lina Marchetti · included in Studio</div>
+            </div>
+            <span class="flag sage">Open</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="ruled-row" style="gap:12px">
-      <div class="photo" style="width:64px;height:64px;flex:none"><img src="../assets/img/hero.jpg" alt="" style="object-position:60% 42%"></div>
-      <div class="grow">
-        <div class="row between">
-          <span style="font-weight:600;font-size:12px">Studio set, fourteen frames</span>
-          <span class="meta">Included</span>
+    <div class="pad" style="margin-top:16px">
+      <div class="row between">
+        <span style="font-size:16px;font-weight:600">Unlocked</span>
+        <span class="meta">3 items</span>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:8px">
+      <div class="grid-2">
+        <div>
+          <div class="cell">
+            <img src="../assets/img/content-rooftop.jpg" alt="">
+            <div class="chip bl">12:40</div>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">Rooftop, after hours</div>
+          <div class="meta" style="margin-top:2px;text-transform:none">$14 · 12 Nov</div>
         </div>
-        <div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:0.02em">Lina Marchetti · Studio subscription</div>
-        <div class="row between" style="margin-top:4px">
-          <span class="meta" style="color:var(--sage)">Access until 26 Dec</span>
-          <span class="meta">14 images</span>
+        <div>
+          <div class="cell">
+            <img src="../assets/img/content-studio.jpg" alt="">
+            <div class="chip bl">1 / 9</div>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">Studio, late light</div>
+          <div class="meta" style="margin-top:2px;text-transform:none">$9 · 4 Nov</div>
         </div>
       </div>
     </div>
 
-    <div class="ruled-row" style="gap:12px">
-      <div class="photo" style="width:64px;height:64px;flex:none"><img src="../assets/img/hero.jpg" alt="" style="object-position:38% 55%"></div>
-      <div class="grow">
-        <div class="row between">
-          <span style="font-weight:600;font-size:12px">Morning letter, November</span>
-          <span class="meta">Included</span>
-        </div>
-        <div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:0.02em">Noor Haddad · Supporter</div>
-        <div class="row between" style="margin-top:4px">
-          <span class="meta" style="color:#a8853f">Cancelled · ends 3 Dec</span>
-          <span class="meta">text</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="ruled-row" style="gap:12px">
-      <div class="photo" style="width:64px;height:64px;flex:none"><img src="../assets/img/hero.jpg" alt="" style="object-position:66% 25%"></div>
-      <div class="grow">
-        <div class="row between">
-          <span style="font-weight:600;font-size:12px">Backstage, print week</span>
-          <span class="meta">$9.00</span>
-        </div>
-        <div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:0.02em">Lina Marchetti · video 04:02</div>
-        <div class="row between" style="margin-top:4px">
-          <span class="meta" style="color:var(--oxblood)">Unlocked 12 Nov</span>
-          <span class="meta">720p · 210 MB</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="inset" style="margin-top:16px">
-      <div class="meta" style="color:var(--oxblood)">Not available yet</div>
-      <p class="small" style="margin-top:4px;color:var(--ink-2)">Saving to device is not built. Library items open in the protected viewer while your access is live, and close when it ends.</p>
+    <div class="pad" style="margin-top:16px">
+      <p class="note">Saving to device is not built. Items open in the protected viewer while access is live, and close when it ends.</p>
     </div>
   </div>
 
   <div class="tabbar">
     <div class="tab">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 11l8-7 8 7v9H4z"/></svg>
-      <span>Home</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20H4z"/></svg>
+      Home
     </div>
     <div class="tab on">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 9h17M8 4.5v15"/></svg>
-      <span>Library</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 14l4-4 5 5 3-3 4 4"/></svg>
+      Library
     </div>
     <div class="tab">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 5v14M5 12h14"/></svg>
-      <span>Create</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Create
     </div>
     <div class="tab">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="9" r="3.4"/><path d="M5.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5"/></svg>
-      <span>You</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></svg>
+      You
     </div>
   </div>
 </div>

@@ -6,104 +6,96 @@
 <link rel="stylesheet" href="../assets/app.css">
 </head><body class="screen">
 <div class="frame" style="display:flex;flex-direction:column">
-  <div style="flex:1;overflow:hidden;padding-bottom:8px">
-  <div class="photo" style="height:268px">
-    <img src="../assets/img/hero.jpg" alt="" style="object-position:52% 26%">
-    <div class="wash"></div>
-    <div class="statusbar" style="position:relative;z-index:3;color:#f4efe7"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
-    <div style="position:relative;z-index:3;display:flex;gap:8px;padding:0 18px;margin-top:4px">
-      <div class="icon" style="border-color:rgba(244,239,231,.4);color:#f4efe7"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></div>
-      <div class="grow"></div>
-      <div class="icon" style="border-color:rgba(244,239,231,.4);color:#f4efe7">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 4v16M4 12h16"/></svg>
-      </div>
-      <div class="icon" style="border-color:rgba(244,239,231,.4);color:#f4efe7">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg>
+  <div style="flex:1;overflow:hidden;position:relative">
+    <!-- cover: full-bleed, chrome floats on it -->
+    <div class="cover" style="height:200px">
+      <img src="../assets/img/hero.jpg" alt="" style="object-position:52% 22%">
+      <div class="statusbar" style="position:relative;z-index:3;color:#f4efe7"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
+      <div style="position:absolute;top:0;left:0;right:0;display:flex;padding:8px 12px;z-index:3">
+        <div class="icon" style="color:#f4efe7">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+        </div>
+        <div class="grow"></div>
+        <div class="icon" style="color:#f4efe7">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/></svg>
+        </div>
       </div>
     </div>
-    <div class="stamp" style="top:auto;bottom:12px;left:18px">Cover · shot on film</div>
-  </div>
 
-  <div style="background:var(--paper);margin-top:-1px;padding:0 22px">
-    <div class="row between" style="align-items:flex-start;padding-top:16px">
-      <div>
-        <div class="row" style="gap:8px">
+    <!-- identity block: avatar breaks the cover edge -->
+    <div class="pad" style="position:relative">
+      <div class="avatar-over">
+        <img src="../assets/img/hero.jpg" alt="" style="object-position:52% 14%">
+      </div>
+      <div class="row" style="margin-top:8px;align-items:flex-start">
+        <div class="grow">
           <div class="name" style="font-size:28px">Lina Marchetti</div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="#7a1f2b" style="margin-top:4px"><path d="M12 2l2.3 2 3-.3.9 2.9 2.6 1.6-1.2 2.8L21 14.8l-2.7 1.3-.6 3-3-.2L12 21.5l-2.2-2.6-3 .2-.6-3L3.5 14.8 4.7 12 3.5 9.2l2.6-1.6.9-2.9 3 .3z"/></svg>
+          <div class="row" style="gap:8px;margin-top:4px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a1f2b" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>
+            <span class="meta" style="text-transform:none">@lina.m · verified 18+</span>
+          </div>
         </div>
-        <div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:0.02em">@lina.m · Milan · Photography</div>
       </div>
-      <div class="plate round ox" style="width:44px;height:44px;font-size:16px">LM</div>
-    </div>
 
-    <div class="row" style="gap:0;margin-top:16px;border-top:1px solid var(--rule-strong);border-bottom:1px solid var(--rule)">
-      <div style="flex:1;padding:12px 0">
-        <div class="display" style="font-size:21px">12,412</div>
-        <div class="meta" style="margin-top:4px">Subscribers</div>
+      <div class="row" style="margin-top:12px;gap:0">
+        <div style="flex:1"><div class="num" style="font-size:16px;font-weight:600">12,412</div><div class="meta" style="margin-top:2px">Members</div></div>
+        <div style="flex:1"><div class="num" style="font-size:16px;font-weight:600">48</div><div class="meta" style="margin-top:2px">Posts</div></div>
+        <div style="flex:1"><div class="num" style="font-size:16px;font-weight:600">3</div><div class="meta" style="margin-top:2px">Tiers</div></div>
       </div>
-      <div style="width:1px;height:34px;background:var(--rule)"></div>
-      <div style="flex:1;padding:12px 0 11px 14px">
-        <div class="display" style="font-size:21px">48</div>
-        <div class="meta" style="margin-top:4px">Posts</div>
-      </div>
-      <div style="width:1px;height:34px;background:var(--rule)"></div>
-      <div style="flex:1;padding:12px 0 11px 14px">
-        <div class="display" style="font-size:21px">2021</div>
-        <div class="meta" style="margin-top:4px">Since</div>
-      </div>
-    </div>
 
-    <p class="body" style="margin-top:12px;font-size:12px">
-      Editorial photography, slow mornings, and the occasional rooftop. Studio work and
-      behind-the-scenes for subscribers. Print drops twice a year.
-    </p>
+      <p class="body" style="margin-top:12px;font-size:14px">Film photography, mostly rooftops and the hour before dark. Studio members see the full sets first.</p>
 
-    <div class="sec" style="margin-top:16px"><span class="n">01</span><span class="t">Membership</span><span class="g"></span></div>
-    <div class="ruled" style="margin-top:8px">
-      <div class="ruled-row">
-        <div class="grow">
-          <div class="row" style="gap:8px"><span style="font-weight:600">Supporter</span><span class="meta">public letter</span></div>
-          <div class="small muted" style="margin-top:4px">Every public post, monthly letter.</div>
+      <div class="row between" style="margin-top:16px">
+        <span style="font-size:16px;font-weight:600">Membership</span>
+        <span class="meta">from $5</span>
+      </div>
+
+      <div class="tier-preview" style="margin-top:8px">
+        <div class="tp">
+          <div class="nm">Supporter</div>
+          <div class="pr">$5 / mo</div>
+          <div class="meta" style="margin-top:4px;text-transform:none">Feed + archive</div>
         </div>
-        <div class="num" style="font-size:16px;font-weight:600">$5</div>
-      </div>
-      <div class="ruled-row">
-        <div class="grow">
-          <div class="row" style="gap:8px"><span style="font-weight:600">Studio</span><span class="flag ox">Most chosen</span></div>
-          <div class="small muted" style="margin-top:4px">Subscriber feed, full-res sets, DMs.</div>
+        <div class="tp on">
+          <div class="nm">Studio</div>
+          <div class="pr">$9 / mo</div>
+          <div class="meta" style="margin-top:4px;text-transform:none">Full sets · 1 PPV credit</div>
         </div>
-        <div class="num" style="font-size:16px;font-weight:600">$9</div>
       </div>
-    </div>
-  </div>
+      <div class="row" style="margin-top:8px">
+        <span class="link small">Compare all 3 tiers</span>
+      </div>
 
-  <div class="pad" style="margin-top:16px">
-    <div class="sec"><span class="n">02</span><span class="t">Recent work</span><span class="g"></span><span class="meta">48</span></div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px">
-      <div class="photo" style="height:76px"><img src="../assets/img/hero.jpg" alt="" style="object-position:40% 20%"></div>
-      <div class="photo" style="height:76px"><img src="../assets/img/hero.jpg" alt="" style="object-position:62% 40%"></div>
-      <div class="photo duo" style="height:76px;filter:saturate(.6)">
-        <img src="../assets/img/hero.jpg" alt="" style="object-position:50% 62%;filter:grayscale(1)">
-        <div class="lockline">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="5" y="10" width="14" height="10" rx="1.5"/><path d="M8.5 10V8a3.5 3.5 0 017 0v2"/></svg>
-          Subscribers
+      <div class="row between" style="margin-top:16px">
+        <span style="font-size:16px;font-weight:600">Recent work</span>
+        <span class="meta">48 posts</span>
+      </div>
+
+      <div class="grid-3" style="margin-top:8px">
+        <div class="cell"><img src="../assets/img/content-rooftop.jpg" alt=""></div>
+        <div class="cell"><img src="../assets/img/hero.jpg" alt="" style="object-position:46% 30%"></div>
+        <div class="cell locked">
+          <img src="../assets/img/content-studio.jpg" alt="">
+          <div class="chip bl">$14</div>
         </div>
+        <div class="cell"><img src="../assets/img/content-studio.jpg" alt=""></div>
+        <div class="cell locked">
+          <img src="../assets/img/hero.jpg" alt="" style="object-position:62% 40%">
+          <span class="chip tr">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="10" width="14" height="10" rx="1.5"/><path d="M8.5 10V8a3.5 3.5 0 017 0v2"/></svg>
+          </span>
+        </div>
+        <div class="cell"><img src="../assets/img/content-rooftop.jpg" alt="" style="object-position:40% 60%"></div>
       </div>
     </div>
   </div>
 
-  </div>
-
-  <div style="flex:none;background:var(--paper);border-top:1px solid var(--rule-strong);padding:12px var(--margin) 16px">
-    <div class="row between">
-      <div>
-        <div class="meta">Studio · monthly</div>
-        <div class="row" style="gap:4px;align-items:baseline;margin-top:4px">
-          <span class="num" style="font-size:16px;font-weight:600">$9.00</span>
-          <span class="small muted">/ month</span>
-        </div>
+  <div class="actionbar">
+    <div class="row" style="gap:8px">
+      <div class="btn outline r8" style="flex:none;padding:0 16px;height:52px">Tiers</div>
+      <div class="btn cta" style="flex:1">
+        <span>Join Studio</span><span class="p">$9.00 / mo</span>
       </div>
-      <div class="btn" style="min-width:170px">Join Studio</div>
     </div>
   </div>
 </div>

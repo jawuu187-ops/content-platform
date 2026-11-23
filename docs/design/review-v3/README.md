@@ -1,12 +1,17 @@
 # Visual direction 03 — “Paper, not plastic.”
 
-**Status: awaiting owner review of the refined board (26 Nov 2026).** Supersedes v2 as
-the proposed direction. v2 and v1 remain in the repository untouched, for comparison.
+**Status: recomposed to the product benchmark; awaiting owner review of the rendered board
+(26 Nov 2026).** Supersedes v2 as the proposed direction. v2 and v1 remain untouched, for
+comparison.
 
-This revision applies the refinement findings in [`refinement.md`](refinement.md):
-seven type sizes instead of 35, six spacings instead of 20, 48 dp targets, drawn
-chevrons instead of text glyphs, one reconciled dataset, a states section, and the
-screen-specific fixes. It is still a proposal: **0 implemented, 0 partial, 18 proposed.**
+This revision keeps the identity and changes the composition. The first refinement round
+([`refinement.md`](refinement.md)) fixed craft: seven type sizes instead of 35, seven
+spacings instead of 20, 48 dp targets, drawn chevrons, one reconciled dataset. The second
+round ([`recomposition.md`](recomposition.md)) answered the category review in
+[`category-alignment.md`](category-alignment.md): photography first, price on the action,
+cards where a buyer compares, and Studio opening with posting rather than revenue.
+
+It is still a proposal: **0 implemented, 0 partial, 18 proposed.**
 
 Nothing here is implemented. The Android app is still the Compose shell described in
 `review-v2/README.md`; no route, schema, dependency or production screen changed.
@@ -23,6 +28,7 @@ Nothing here is implemented. The Android app is still the Compose shell describe
 | `audit.py` | Re-measures type scale, spacing, targets, icons, states and figures |
 | `refinement.md` | The ten findings and the screen-by-screen plan this revision follows |
 | `category-alignment.md` | Comparison against the creator-subscription category, with the screen-by-screen recomposition proposal |
+| `recomposition.md` | Rounds A–F: what changed after the owner approved the category direction |
 
 ---
 
@@ -39,7 +45,7 @@ typographic rather than badges.
 
 | Product | What is professional about it | Taken | Rejected |
 | --- | --- | --- | --- |
-| OnlyFans | One unmistakable identity; price sits next to the action; creator page states plainly what a subscription buys | price adjacency, blunt copy | SaaS dashboard furniture, neon-blue identity |
+| **OnlyFans** (primary benchmark) | One unmistakable identity; a creator page that is mostly photograph; price on the subscribe button; plain statement of what a subscription buys | media-first pages, price adjacency, three-tap purchase, blunt copy | neon-blue identity, generic dashboard chrome |
 | Fansly · Patreon | Dense tier tables scanned in one pass; benefits are typographic; states written in words | tier tables, word-based status | card-per-tier, pastel gradients |
 | Substack | Editorial typography *is* the product; subscription framed as a sentence | type-led reading, text-first framing | newsletter furniture |
 | Apple TV · MUBI | Media full-bleed; chrome recedes where content is the subject | full-bleed imagery, dark viewer only | cinematic black everywhere |
@@ -60,17 +66,22 @@ palette.
 muted `#6F635A` 5.1:1 · sage `#2F6B4F` 5.5:1 · paper on oxblood 8.9:1. Brass marks pending,
 sage paid, red refusal; nothing else is coloured.
 
-**Type:** Bodoni Moda (names, prices, pull quotes) · Archivo (everything touchable) ·
-IBM Plex Mono (money, dates, ids, ledger rows, tabular). Scale 92/46/34/26/19/13.5/12/10.
+**Type:** Bodoni Moda (names, decision prices, pull quotes) · Archivo (headings and
+everything touchable) · IBM Plex Mono (money, dates, ids, ledger rows, tabular).
+Seven steps only: 40 / 28 / 21 / 16 / 14 / 12 / 11. Two trackings: 0.02 UI, 0.10 labels.
+Six spacings: 4/8/12/16/24/32.
 
-**Structure:** 1 px rules at 16% ink (32% for section heads), 22 dp page margin, 3 dp button
-radius, media corners square, 64 dp tab bar. Separation by rule and space, not by boxes.
+**Surfaces:** browsing ground a warm near-white `#FBF8F3`; bone `#F4EFE7` for chrome,
+lists and billing; cards `#FFFDFA` at 14 px radius with a 10% border; media ink `#141110`
+for full-bleed and the viewer. Rules survive only in settings, statements and ledgers.
+20 dp page margin, 72 dp tab bar, 48 dp targets (44 dp compact), 8 dp button radius.
 
-## 4. Components (eight, no card library)
+## 4. Components
 
-Actions (filled / outline / ink) · flags (subscribers, PPV, paid, pending, declined) ·
-price-as-type · ledger rows · ruled list rows · single-underline fields · bottom sheet ·
-skeleton and empty treatments.
+One card (media or text, 14 px radius, 10% border) · cover with edge-to-edge image ·
+overlapping avatar · three chips (counter, price, lock) · action with the price inside it ·
+tier card · segmented control · flags (subscribers, PPV, paid, pending, declined) ·
+ledger rows · bottom sheet · skeleton and empty treatments.
 
 ## 5. Screens, with what is actually behind each
 
@@ -107,11 +118,11 @@ states which tier opens it and what it costs.
 
 ## 7. Review questions
 
-1. Does paper / oxblood / didone / photography feel like the product?
-2. Four destinations, studio inside Create — agreed?
-3. One photographer-voice brand, or a neutral platform mark?
-4. Should fans see the fee split (as the statement does), or only the total?
-5. Anything missing before the token set and shell are built?
+1. Does this now read as a creator subscription product rather than a publication?
+2. Is the photograph large enough on Discover, Creator and Feed, and is the type around it quiet enough?
+3. Is the price on the action the right amount of selling, or still too much?
+4. Does Studio leading with posting match how a creator actually works?
+5. What still feels like a design object rather than an app a subscriber uses?
 
 Approval must be given on the images. No UI work starts before it.
 

@@ -5,108 +5,89 @@
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../assets/app.css">
 </head><body class="screen">
-<div class="frame">
+<div class="frame" style="display:flex;flex-direction:column">
   <div class="statusbar"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
 
   <div class="masthead">
-    <div class="wordmark"><div class="mark"></div>Vesper</div>
+    <div class="mark"></div>
+    <div class="wordmark">Vesper</div>
     <div class="grow"></div>
-    <div class="icon plain">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="6.4"/><path d="M15.8 15.8L21 21"/></svg>
-    </div>
-    <div class="icon plain" style="position:relative">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 9.5a6 6 0 1112 0c0 3.8 1.4 5.2 1.4 5.2H4.6S6 13.3 6 9.5z"/><path d="M10 18.4a2.2 2.2 0 004 0"/></svg>
-      <span class="count" style="position:absolute;top:0;right:-2px">3 new</span>
+    <div class="avatar round" style="width:36px;height:36px;margin-right:-6px">
+      <img src="../assets/img/hero.jpg" alt="" style="object-position:52% 16%">
     </div>
   </div>
 
-  <div class="pad" style="padding-top:16px">
-    <div class="row between">
-      <span class="kicker">Thursday, 26 November</span>
-      <span class="kicker">Cairo · 18+</span>
+  <div style="flex:1;overflow:hidden">
+    <!-- featured creator: the photograph is the screen -->
+    <div class="pad" style="padding-top:12px">
+      <div class="cover" style="height:236px;border-radius:var(--r-card)">
+        <img src="../assets/img/hero.jpg" alt="" style="object-position:50% 26%">
+        <div class="chip tr">Tonight · new set</div>
+        <div class="chip bl">12,412 members</div>
+      </div>
+      <div class="row" style="margin-top:12px;gap:12px">
+        <div class="grow">
+          <div class="name" style="font-size:21px">Lina Marchetti</div>
+          <div class="meta" style="margin-top:2px;text-transform:none">@lina.m · creator since 2024 · 48 posts</div>
+        </div>
+        <div class="num" style="font-size:16px;font-weight:600">$9<span class="small muted" style="font-weight:400">/mo</span></div>
+      </div>
+      <div class="btn cta wide" style="margin-top:12px">
+        <span>Join Studio</span><span class="p">$9.00 / month</span>
+      </div>
+      <p class="note" style="margin-top:8px">18+ accounts only. Cancel any time.</p>
     </div>
-    <div class="display d-l" style="margin-top:8px;font-size:40px">Tonight.</div>
-    <p class="small muted" style="margin-top:4px;max-width:300px">Eleven creators published in the last hour. Two of them you already pay for.</p>
-  </div>
 
-  <div class="pad" style="margin-top:16px">
-    <div class="sec"><span class="n">01</span><span class="t">Featured</span><span class="g"></span></div>
-
-    <div class="photo" style="margin-top:12px;height:186px">
-      <img src="../assets/img/hero.jpg" alt="" style="object-position:50% 32%">
-      <div class="wash"></div>
-      <div class="stamp">Milan · Photography</div>
-    </div>
-
-    <div style="border-left:1px solid var(--rule-strong);border-right:1px solid var(--rule-strong);border-bottom:1px solid var(--rule-strong);padding:12px 14px 13px">
+    <div class="pad" style="margin-top:16px">
       <div class="row between">
-        <div>
-          <div class="name">Lina Marchetti</div>
-          <div class="meta" style="margin-top:4px">@lina.m · 12,412 subscribers</div>
-        </div>
-        <div style="text-align:right">
-          <div class="display" style="font-size:21px">$9</div>
-          <div class="meta">per month</div>
-        </div>
-      </div>
-      <p class="small muted" style="margin-top:8px">Fourteen frames from a set she has been sitting on for weeks. Subscriber-only.</p>
-      <div class="row" style="margin-top:12px;gap:8px">
-        <div class="btn sm" style="flex:1">Subscribe</div>
-        <div class="btn sm outline" style="flex:1">View profile</div>
+        <span style="font-size:16px;font-weight:600">New this week</span>
+        <span class="meta">7 creators</span>
       </div>
     </div>
-  </div>
 
-  <div class="pad" style="margin-top:24px">
-    <div class="sec"><span class="n">02</span><span class="t">Index — new this week</span><span class="g"></span></div>
-    <div class="ruled" style="margin-top:8px">
-      <div class="ruled-row tight">
-        <div class="plate round">NH</div>
-        <div class="grow">
-          <div class="row" style="gap:8px"><span style="font-weight:600">Noor Haddad</span><span class="flag sage">Subscribed</span></div>
-          <div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:0.02em">Movement · 8.1k · from $5</div>
+    <div class="pad" style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="card">
+        <div class="cover" style="height:150px"><img src="../assets/img/creator-noor.jpg" alt=""></div>
+        <div class="card-body" style="padding:10px">
+          <div style="font-size:14px;font-weight:600">Noor Haddad</div>
+          <div class="row between" style="margin-top:4px">
+            <span class="meta" style="text-transform:none">8,120 · movement</span>
+            <span class="num" style="font-size:12px;font-weight:600">$6</span>
+          </div>
         </div>
-        <span class="chev muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></span>
       </div>
-      <div class="ruled-row tight">
-        <div class="plate round ink">SR</div>
-        <div class="grow">
-          <div style="font-weight:600">Sofia Reyes</div>
-          <div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:0.02em">Studio film · 4.7k · from $12</div>
+      <div class="card">
+        <div class="cover" style="height:150px"><img src="../assets/img/creator-sofia.jpg" alt=""></div>
+        <div class="card-body" style="padding:10px">
+          <div class="row between" style="align-items:flex-start">
+            <span style="font-size:14px;font-weight:600">Sofia Reyes</span>
+            <span class="flag sage">Subscribed</span>
+          </div>
+          <div class="row between" style="margin-top:4px">
+            <span class="meta" style="text-transform:none">21,004 · portrait</span>
+            <span class="num" style="font-size:12px;font-weight:600">$12</span>
+          </div>
         </div>
-        <span class="chev muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></span>
       </div>
-      <div class="ruled-row tight">
-        <div class="plate round">DK</div>
-        <div class="grow">
-          <div style="font-weight:600">Dana Kamal</div>
-          <div class="meta" style="margin-top:4px;text-transform:none;letter-spacing:0.02em">Fitness · 2.2k · from $6</div>
-        </div>
-        <span class="chev muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg></span>
-      </div>
-    </div>
-    <div class="row between" style="margin-top:12px">
-      <span class="note">Every creator is age-verified before publishing.</span>
-      <span class="link small">All creators</span>
     </div>
   </div>
 
   <div class="tabbar">
     <div class="tab on">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 11l8-7 8 7v9H4z"/></svg>
-      <span>Home</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20H4z"/></svg>
+      Home
     </div>
     <div class="tab">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M3.5 9h17M8 4.5v15"/></svg>
-      <span>Library</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 14l4-4 5 5 3-3 4 4"/></svg>
+      Library
     </div>
     <div class="tab">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 5v14M5 12h14"/></svg>
-      <span>Create</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Create
     </div>
     <div class="tab">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="9" r="3.4"/><path d="M5.5 20c.8-3.4 3.4-5 6.5-5s5.7 1.6 6.5 5"/></svg>
-      <span>You</span>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></svg>
+      You
     </div>
   </div>
 </div>

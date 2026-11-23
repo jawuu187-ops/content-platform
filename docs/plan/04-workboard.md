@@ -245,3 +245,13 @@ Defects CI found in this slice and fixed:
 2. Ledger tests assumed an isolated database. Two packages posting in the same database made the aggregate volume and split assertions wrong; they now scope to their own transaction reference.
 3. Allowing a client-sent `amount_minor` was tested, but the API already rejects unknown JSON fields, so the test asserted the wrong status. The property is stronger than the test assumed: a price in the request is a 400, not an ignored field.
 
+## Design review v2 - pending owner approval
+
+| ID | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| D2-1 | Full implementation audit of the Android client | done | `docs/design/review-v2/README.md` section 1: app shell only, 0 screens implemented |
+| D2-2 | 20-screen journey board (proposed) | done | `docs/design/review-v2/board.png` (1720 x 5361) |
+| D2-3 | Individual screen renders | done | `docs/design/review-v2/png/01..20-*.png` (824 x 1830) |
+| D2-4 | Render pipeline on GitHub-hosted runners | done | `.github/workflows/design-render.yml`, runs 45183589894 / 45185190145 / 45185918848 |
+| D2-5 | Owner review and written approval | **blocked** | awaiting owner; no UI work starts before it |
+

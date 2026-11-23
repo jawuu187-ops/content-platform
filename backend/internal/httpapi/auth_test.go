@@ -302,11 +302,20 @@ func TestAuthSessionListingAndRevocation(t *testing.T) {
 }
 
 func TestAuthLoginIsRateLimited(t *testing.T) {
-	h, _ := authServer(t)
+	// A tight bucket keeps the test fast and deterministic; production uses ten
+	// attempts per minute, which is exercised by the limiter's own unit tests.
+	pool := dbtest.Pool(t)
+	svc := identity.New(pool, identity.WithHasher(identity.NewHasher(2000)))
+	ah := newAuthHandler(svc, slog.New(slog.NewTextHandler(discard{}, nil)))
+	ah.login = newLimiter(3, time.Minute)
+	mux := http.NewServeMux()
+	ah.registerRoutes(mux)
+	h := http.Handler(mux)
+
 	body := registerBody("ratelimit@example.test", "a-very-long-password")
 
 	var limited *httptest.ResponseRecorder
-	for i := 0; i < 12; i++ {
+	for i := 0; i < 6; i++ {
 		rec := doJSON(t, h, http.MethodPost, "/v1/auth/login", "", body)
 		if rec.Code == http.StatusTooManyRequests {
 			limited = rec
@@ -314,7 +323,7 @@ func TestAuthLoginIsRateLimited(t *testing.T) {
 		}
 	}
 	if limited == nil {
-		t.Fatal("login was never rate limited after 12 attempts")
+		t.Fatal("login was never rate limited after 6 attempts with a bucket of 3")
 	}
 	if limited.Header().Get("Retry-After") == "" {
 		t.Fatal("429 response is missing Retry-After")

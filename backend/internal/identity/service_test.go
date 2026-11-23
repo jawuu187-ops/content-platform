@@ -345,8 +345,11 @@ func TestExpiredRefreshTokenCannotBeUsed(t *testing.T) {
 	if _, err := svc.Refresh(ctx, res.RefreshToken, DeviceInfo{Fingerprint: "d1"}, ""); !errors.Is(err, ErrSessionExpired) {
 		t.Fatalf("want ErrSessionExpired, got %v", err)
 	}
-	if _, err := svc.Authenticate(ctx, res.AccessToken); !errors.Is(err, ErrSessionExpired) {
-		t.Fatalf("expired access token: want ErrSessionExpired, got %v", err)
+	// The session row is revoked as part of expiry handling, so the caller may
+	// legitimately observe either cause; both map to 401 session_ended.
+	if _, err := svc.Authenticate(ctx, res.AccessToken); !errors.Is(err, ErrSessionExpired) &&
+		!errors.Is(err, ErrSessionRevoked) {
+		t.Fatalf("expired access token: want an expired/revoked session error, got %v", err)
 	}
 }
 

@@ -1,75 +1,90 @@
 // Package dbtest provides the database fixture used by integration tests. It is
-// not imported by any production binary; it exists so every package's tests can
-// share one correct way to reach a migrated, empty database.
+// not imported by any production binary; it exists so every package's tests get
+// the same migrated, isolated database.
 package dbtest
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
+	"net/url"
 	"os"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/migrations"
 )
 
-// migrationLockKey serialises migration runs between test binaries. `go test`
-// runs packages in parallel processes, and the migration runner records versions
-// after committing each file, so two processes applying the same pending file
-// would race on the schema_migrations primary key. A session-level advisory lock
-// held while migrating removes that race without slowing the tests down.
-const migrationLockKey int64 = 7712_2026
-
+// Each test binary (go test runs one per package, in parallel) gets its own
+// database. Sharing one database made two packages truncate each other's rows
+// and race on the migration version table. A private database removes both
+// problems at the source instead of hiding them with locks.
 var (
-	once       sync.Once
-	migrateErr error
+	once   sync.Once
+	pool   *pgxpool.Pool
+	setErr error
 )
 
-// Pool returns a pool against TEST_DATABASE_URL with all migrations applied and
-// the identity tables emptied. The test is skipped when the variable is unset, so
-// `go test ./...` still works on a machine without PostgreSQL.
+// Pool returns a pooled connection to a private, migrated database for this test
+// process. Identity tables are emptied before each call so tests start clean.
 func Pool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	url := os.Getenv("TEST_DATABASE_URL")
-	if url == "" {
+	base := os.Getenv("TEST_DATABASE_URL")
+	if base == "" {
 		t.Skip("TEST_DATABASE_URL is not set; skipping database integration test")
 	}
 
+	once.Do(func() { setErr = setup(base) })
+	if setErr != nil {
+		t.Fatalf("dbtest: %v", setErr)
+	}
+
 	ctx := context.Background()
+	if _, err := pool.Exec(ctx, `TRUNCATE identity.users CASCADE`); err != nil {
+		t.Fatalf("dbtest: reset identity tables: %v", err)
+	}
+	return pool
+}
+
+func setup(base string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	name := fmt.Sprintf("cp_test_%d_%04d", os.Getpid(), rand.Intn(10000))
+
+	admin, err := pgx.Connect(ctx, base)
+	if err != nil {
+		return fmt.Errorf("connect to create the test database: %w", err)
+	}
+	_, err = admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize())
+	_ = admin.Close(ctx)
+	if err != nil {
+		return fmt.Errorf("create test database %s: %w", name, err)
+	}
+
+	target, err := url.Parse(base)
+	if err != nil {
+		return fmt.Errorf("parse TEST_DATABASE_URL: %w", err)
+	}
+	target.Path = "/" + name
+
 	db, err := database.Open(ctx, database.Options{
-		URL:             url,
+		URL:             target.String(),
 		MaxConns:        8,
 		ApplicationName: "integration-tests",
 	})
 	if err != nil {
-		t.Fatalf("dbtest: open: %v", err)
+		return fmt.Errorf("open test database: %w", err)
 	}
-	t.Cleanup(db.Close)
-
-	once.Do(func() {
-		conn, err := db.Pool().Acquire(ctx)
-		if err != nil {
-			migrateErr = err
-			return
-		}
-		defer conn.Release()
-		if _, err := conn.Exec(ctx, `SELECT pg_advisory_lock($1)`, migrationLockKey); err != nil {
-			migrateErr = err
-			return
-		}
-		defer func() {
-			_, _ = conn.Exec(ctx, `SELECT pg_advisory_unlock($1)`, migrationLockKey)
-		}()
-		_, migrateErr = db.Migrate(ctx, migrations.FS, ".")
-	})
-	if migrateErr != nil {
-		t.Fatalf("dbtest: migrate: %v", migrateErr)
+	if _, err := db.Migrate(ctx, migrations.FS, "."); err != nil {
+		db.Close()
+		return fmt.Errorf("migrate test database: %w", err)
 	}
-
-	if _, err := db.Pool().Exec(ctx, `TRUNCATE identity.users CASCADE`); err != nil {
-		t.Fatalf("dbtest: reset identity tables: %v", err)
-	}
-	return db.Pool()
+	pool = db.Pool()
+	return nil
 }

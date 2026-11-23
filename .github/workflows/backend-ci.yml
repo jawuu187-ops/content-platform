@@ -101,32 +101,56 @@ jobs:
 
       - name: smoke test the API against the migrated database
         run: |
+          set -u
           ./bin/api > api.log 2>&1 &
-          for i in $(seq 1 30); do
+          for i in $(seq 1 40); do
             if curl -sf http://127.0.0.1:8080/readyz > ready.json; then break; fi
             sleep 0.5
           done
-          cat ready.json
-          grep -q '"database":"ok"' ready.json
-          grep -q '"minimum_age":18' <(curl -sf http://127.0.0.1:8080/v1/meta)
+          fail() {
+            echo "SMOKE FAILURE: $1"
+            echo "--- last responses ---"
+            for f in ready.json meta.json me.json register.json; do
+              [ -f "$f" ] && { echo "== $f"; cat "$f"; echo; }
+            done
+            echo "--- api.log ---"
+            tail -n 60 api.log || true
+            exit 1
+          }
+          cat ready.json; echo
+          grep -q '"database":"ok"' ready.json || fail "readiness did not report the database"
 
-          # Auth must be reachable and must reject anonymous access.
-          test "$(curl -s -o /dev/null -w '%%{http_code}' http://127.0.0.1:8080/v1/auth/me)" = "401"
+          meta_code=$(curl -s -o meta.json -w '%{http_code}' http://127.0.0.1:8080/v1/meta)
+          echo "GET /v1/meta -> $meta_code"
+          [ "$meta_code" = "200" ] || fail "meta endpoint returned $meta_code"
+          grep -q '"minimum_age":18' meta.json || fail "meta payload is missing the age floor"
 
-          # Register, read the caller, then replay the session list.
-          curl -sf -X POST http://127.0.0.1:8080/v1/auth/register \
+          me_code=$(curl -s -o me.json -w '%{http_code}' http://127.0.0.1:8080/v1/auth/me)
+          echo "GET /v1/auth/me (anonymous) -> $me_code"
+          [ "$me_code" = "401" ] || fail "anonymous access to /v1/auth/me returned $me_code"
+
+          register_code=$(curl -s -o register.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/register \
             -H 'Content-Type: application/json' \
-            -d '{"email":"smoke@example.test","password":"a-very-long-password","device":{"fingerprint":"ci","platform":"web"}}' \
-            > register.json
-          access="$(sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p' register.json)"
-          test -n "$access"
-          grep -q '"roles":\["fan"\]' register.json
-          curl -sf http://127.0.0.1:8080/v1/auth/sessions -H "Authorization: Bearer $access" \
-            | grep -q '"sessions":\['
-          test "$(curl -s -o /dev/null -w '%%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/register \
+            -d '{"email":"smoke@example.test","password":"a-very-long-password","device":{"fingerprint":"ci","platform":"web"}}')
+          echo "POST /v1/auth/register -> $register_code"
+          [ "$register_code" = "201" ] || fail "registration returned $register_code"
+          grep -q '"roles":\["fan"\]' register.json || fail "registration did not grant the fan role"
+
+          access=$(python3 -c 'import json,sys; print(json.load(open("register.json"))["tokens"]["access_token"])') \
+            || fail "registration response carried no access token"
+          sessions_code=$(curl -s -o sessions.json -w '%{http_code}' http://127.0.0.1:8080/v1/auth/sessions \
+            -H "Authorization: Bearer $access")
+          echo "GET /v1/auth/sessions (bearer) -> $sessions_code"
+          [ "$sessions_code" = "200" ] || fail "authenticated session listing returned $sessions_code"
+          grep -q '"sessions":\[' sessions.json || fail "session listing payload is empty"
+
+          dup_code=$(curl -s -o duplicate.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/register \
             -H 'Content-Type: application/json' \
-            -d '{"email":"smoke@example.test","password":"a-very-long-password","device":{"fingerprint":"ci","platform":"web"}}')" = "409"
-          kill %1 || true
+            -d '{"email":"smoke@example.test","password":"a-very-long-password","device":{"fingerprint":"ci","platform":"web"}}')
+          echo "POST /v1/auth/register (duplicate) -> $dup_code"
+          [ "$dup_code" = "409" ] || fail "duplicate registration returned $dup_code"
+
+          kill %1 2>/dev/null || true
 
       - name: upload coverage
         if: always()

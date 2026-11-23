@@ -187,7 +187,7 @@ func (s *store) applyCallback(ctx context.Context, provider string, cb Callback,
 	}
 	if _, err := tx.Exec(ctx, `
 		SELECT ops.append_audit('user', $1, $2, 'age_verification', $3, NULL,
-			jsonb_build_object('assurance', $4, 'provider', $5), NULL)`,
+			jsonb_build_object('assurance', $4::text, 'provider', $5::text), NULL)`,
 		existing.UserID, "age_verification."+string(cb.Status), existing.ID,
 		cb.Assurance, provider); err != nil {
 		return Check{}, fmt.Errorf("agegate: audit callback: %w", err)
@@ -239,7 +239,7 @@ func (s *store) revoke(ctx context.Context, userID, actorID, reason string, now 
 		}
 		if _, err := tx.Exec(ctx, `
 			SELECT ops.append_audit('user', NULLIF($1, ''), 'age_verification.revoked',
-				'user', $2, NULL, jsonb_build_object('reason', $3), NULL)`,
+				'user', $2, NULL, jsonb_build_object('reason', $3::text), NULL)`,
 			actorID, userID, reason); err != nil {
 			return 0, fmt.Errorf("agegate: audit revocation: %w", err)
 		}

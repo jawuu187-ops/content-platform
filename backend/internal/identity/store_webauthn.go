@@ -67,7 +67,21 @@ func (s *store) auditTyped(ctx context.Context, actorType, actorID, action, targ
 		actorType, actorID, action, targetType, targetID, requestID)
 }
 
+// counterValue converts an authenticator signature counter for storage. The
+// value comes from a 32-bit field in authenticator data, so the bound is checked
+// rather than assumed.
+func counterValue(count uint64) (int64, error) {
+	if count > 0xFFFFFFFF {
+		return 0, fmt.Errorf("%w: signature counter out of range", ErrInvalidAssertion)
+	}
+	return int64(count), nil // #nosec G115 -- bounded to 32 bits above
+}
+
 func (s *store) insertCredential(ctx context.Context, userID string, c verifiedCredential, label string) (storedCredential, error) {
+	count, err := counterValue(c.signCount)
+	if err != nil {
+		return storedCredential{}, err
+	}
 	out := storedCredential{
 		UserID:       userID,
 		CredentialID: c.credentialID,
@@ -91,12 +105,12 @@ func (s *store) insertCredential(ctx context.Context, userID string, c verifiedC
 			aaguid = &g
 		}
 	}
-	err := s.pool.QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, `
 		INSERT INTO identity.webauthn_credentials
 			(user_id, credential_id, public_key_cose, alg, sign_count, aaguid, transports, label)
 		VALUES ($1::uuid, $2, $3, $4, $5, $6::uuid, $7, $8)
 		RETURNING id::text, created_at`,
-		userID, c.credentialID, c.publicKey, c.alg, int64(c.signCount), aaguid, c.transports, label,
+		userID, c.credentialID, c.publicKey, c.alg, count, aaguid, c.transports, label,
 	).Scan(&out.ID, &out.CreatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -159,10 +173,14 @@ func (s *store) credentialsOf(ctx context.Context, userID string) ([]storedCrede
 }
 
 func (s *store) touchCredential(ctx context.Context, id string, signCount uint64) error {
-	_, err := s.pool.Exec(ctx, `
+	count, err := counterValue(signCount)
+	if err != nil {
+		return err
+	}
+	_, err = s.pool.Exec(ctx, `
 		UPDATE identity.webauthn_credentials
 		SET sign_count = $2, last_used_at = now()
-		WHERE id = $1::uuid`, id, int64(signCount))
+		WHERE id = $1::uuid`, id, count)
 	if err != nil {
 		return fmt.Errorf("identity: update webauthn credential: %w", err)
 	}

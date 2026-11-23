@@ -271,12 +271,22 @@ func parseCOSEKey(raw []byte) (cosePublicKey, error) {
 	return cosePublicKey{}, fmt.Errorf("%w: kty=%d alg=%d", ErrUnsupportedAlgorithm, kty, alg)
 }
 
+// cborInt extracts a small integer from a decoded CBOR value. COSE keys and
+// algorithm identifiers are small by definition, so anything outside the int32
+// range is rejected instead of narrowed.
 func cborInt(v any) (int, bool) {
+	const limit = 1 << 31
 	switch n := v.(type) {
 	case int64:
-		return int(n), true
+		if n < -limit || n > limit {
+			return 0, false
+		}
+		return int(n), true // #nosec G115 -- range checked above
 	case uint64:
-		return int(n), true
+		if n > limit {
+			return 0, false
+		}
+		return int(n), true // #nosec G115 -- range checked above
 	case int:
 		return n, true
 	}

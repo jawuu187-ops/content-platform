@@ -306,7 +306,6 @@ func TestPasskeyRegistrationRejectsWrongChallenge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	auth := newTestAuthenticator(t, cfg.RPID, cfg.Origins[0])
 	opts, err := svc.StartRegistration(ctx, res.Principal, "")
 	if err != nil {
 		t.Fatalf("start registration: %v", err)

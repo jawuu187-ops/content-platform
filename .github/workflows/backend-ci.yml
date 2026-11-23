@@ -204,7 +204,8 @@ jobs:
             -d '{"handle":"smoke_studio","display_name":"Smoke Studio","bio":"CI fixture","category":"art"}')
           echo "POST /v1/creators -> $creator_code"
           [ "$creator_code" = "201" ] || fail "creator profile creation returned $creator_code"
-          grep -q '"roles":\["fan","creator"\]' creator.json || fail "creator profile creation did not grant the creator role"
+          python3 -c 'import json,sys; r=json.load(open("creator.json"))["roles"]; sys.exit(0 if "creator" in r and "fan" in r else 1)' \
+            || fail "creator profile creation did not grant the creator role: $(cat creator.json)"
 
           draft_code=$(curl -s -o draft.json -w '%{http_code}' http://127.0.0.1:8080/v1/creators/smoke_studio)
           echo "GET /v1/creators/smoke_studio (unpublished) -> $draft_code"

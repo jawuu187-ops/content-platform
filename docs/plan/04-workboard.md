@@ -126,3 +126,31 @@ field name, `newAuthHandler` call sites, `Result` shape in tests, case-sensitive
 comparison, three gosec integer-narrowing findings, deprecated `ecdsa.PublicKey.X/Y`
 construction (staticcheck SA1019), `PublicKey.Bytes` arity.
 
+
+## P2 — الملفات والأدوار والاشتراكات (creator surface)
+
+| ID | البند | الحالة | الدليل |
+| --- | --- | --- | --- |
+| P2-1 | مخطط المبدعين: ملف، مستويات، اشتراكات، استحقاقات (`0006_creators.sql`) | ✅ مُنفَّذ | قيود على المال (وحدات صغرى + ISO-4217)، فهرس اشتراك حيّ واحد لكل (مشترك، مبدع)، فهرس استحقاق حيّ واحد لكل نطاق |
+| P2-2 | خدمة الملف: تحقق المقبض/الفئة/الطول، مسودة غير قابلة للاستكشاف | ✅ مُنفَّذ | `TestProfileLifecycle` — الملف غير المنشور يُعيد 404 عامًّا |
+| P2-3 | المستويات: حدود السعر والعملة، تقاعد بدل حذف، أسماء فريدة بلا حساسية لحالة الأحرف | ✅ مُنفَّذ | `TestTierValidationAndRetirement` + فهرس `lower(name)` |
+| P2-4 | الاشتراك والدفع: حالة معلّقة عند غياب مزوّد، تفعيل ذرّي مع الاستحقاق | ✅ مُنفَّذ | `TestSubscriptionGrantsAndRevokesAccess`؛ `ENABLE_FAKE_PAYMENTS` مرفوض في الإنتاج |
+| P2-5 | بوابة الوصول: مالك > مدير > عام > استحقاق حيّ > اشتراك داخل الفترة | ✅ مُنفَّذ | `TestPublishingAndOwnership`, `TestDirectGrantScopeAndExpiry`, `TestCancelKeepsAccessUntilPeriodEnd` |
+| P2-6 | صلاحية ذاتية لأن تصبح مبدعًا (مسجّلة في التدقيق) | ✅ مُنفَّذ | `identity.BecomeCreator` + التدقيق `role.self_granted` |
+| P2-7 | واجهة HTTP: 12 مسارًا مع تفويض بالصلاحيات | ✅ مُنفَّذ | `creators_test.go` ومسار الدخان في CI |
+| P2-8 | فحص الجاهزية يقيس المخزن المشترك للحدود | ✅ مُنفَّذ | `TestReadinessFailsWhenTheSharedLimiterIsDown` → 503/degraded، `rate_limit:"unreachable"` |
+| P2-9 | شاشات Android للملف/المستويات/الاشتراك | ⬜ | موقوفة على بوابة التصميم البصري |
+
+## P2 evidence (GitHub Actions only)
+
+| Run | Workflow | Result | Evidence |
+| --- | --- | --- | --- |
+| 45133688918 / 45133688903 | Backend CI | success | total coverage 69.3%; smoke creator journey: create 201 (roles include `creator`), unpublished 404, publish 200, tier 201, public profile 200 with the tier, subscriber register 201, access before subscribing `allowed:false`, subscribe 201, access after `allowed:true`; readiness reported `rate_limit:"in_process"` |
+| 45133688xxx | Security | success | gitleaks, govulncheck, Trivy, gosec, staticcheck |
+
+Defects CI found in these slices and fixed: createProfile ignored the publish flag (so every
+access check correctly said "not found"); PATCH without `published` would have unpublished a
+live profile; a tier created without perks violated NOT NULL; partial tier updates nulled the
+perk list; tier uniqueness was case-sensitive; `revokeEntitlementFor` was dead code; the smoke
+assertion assumed a role order; gitleaks and dependency-review cannot run on Dependabot PRs
+(read-only token, no dependency graph on the free plan).

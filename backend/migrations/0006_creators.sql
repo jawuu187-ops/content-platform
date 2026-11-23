@@ -50,9 +50,13 @@ CREATE TABLE IF NOT EXISTS creator.tiers (
     CONSTRAINT tiers_price_positive CHECK (price_minor BETWEEN 100 AND 1000000),
     CONSTRAINT tiers_period CHECK (period_days BETWEEN 1 AND 366),
     CONSTRAINT tiers_currency CHECK (currency ~ '^[A-Z]{3}$'),
-    CONSTRAINT tiers_name_len CHECK (char_length(name) BETWEEN 1 AND 40),
-    UNIQUE (creator_id, name)
+    CONSTRAINT tiers_name_len CHECK (char_length(name) BETWEEN 1 AND 40)
 );
+
+-- Tier names are unique per creator ignoring case: two tiers called "Inner
+-- Circle" and "inner circle" would be indistinguishable in the subscribe sheet.
+CREATE UNIQUE INDEX IF NOT EXISTS tiers_creator_name_idx
+    ON creator.tiers (creator_id, lower(name));
 
 CREATE INDEX IF NOT EXISTS tiers_creator_active_idx
     ON creator.tiers (creator_id, sort_order) WHERE is_active;

@@ -18,6 +18,10 @@ concurrency:
 jobs:
   secrets:
     name: secret scanning (gitleaks)
+    # Dependabot pull requests run with a read-only token and cannot call the
+    # gitleaks API; every push to a branch runs this job with full access, so the
+    # commit set is still scanned.
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -73,7 +77,11 @@ jobs:
 
   dependency-review:
     name: dependency review (pull requests)
-    if: github.event_name == 'pull_request'
+    # The action needs the dependency graph and GitHub Advanced Security, which a
+    # private repository on the free plan does not have. Dependabot PRs are
+    # therefore skipped rather than failed; docs/operations/ci.md records the
+    # upgrade that would enable them.
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

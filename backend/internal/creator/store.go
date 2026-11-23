@@ -421,15 +421,3 @@ func (s *Service) cancel(ctx context.Context, sub Subscription) (Subscription, e
 	}
 	return out, nil
 }
-
-// revokeEntitlementFor lets an owner remove a direct grant (not a subscription).
-func (s *Service) revokeEntitlementFor(ctx context.Context, fanID, creatorID, scope string) error {
-	_, err := s.pool.Exec(ctx, `
-		UPDATE creator.entitlements SET revoked_at = now()
-		WHERE fan_id = $1::uuid AND creator_id = $2::uuid AND scope = $3 AND revoked_at IS NULL`,
-		fanID, creatorID, scope)
-	if err != nil {
-		return fmt.Errorf("creator: revoke entitlement: %w", err)
-	}
-	return nil
-}

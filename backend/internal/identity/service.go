@@ -10,20 +10,21 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/jawuu187-ops/content-platform/backend/internal/platform/mail"
+	platformmail "github.com/jawuu187-ops/content-platform/backend/internal/platform/mail"
 )
 
-// dummyHash is a real PBKDF2 hash of a password nobody knows. A failed login for
-// an unknown address runs a full verification against it, so response time does
-// not reveal whether an account exists (account enumeration).
-const dummyHash = "pbkdf2-sha256$600000$/i2mAVdNrxnlT3SIs27j4w$/MVYqhYdgiW4Vvc/IavDENsbMQZdNcDPWa1MIDhBras"
+// dummyHash is a real Argon2id hash of a password nobody knows, produced with the
+// production parameters. A failed login for an unknown address runs a full
+// verification against it, so the response time matches the real path and cannot
+// be used to enumerate accounts.
+const dummyHash = "argon2id$v=19$m=65536,t=3,p=2$BwcHBwcHBwcHBwcHBwcHBw$ocwVtQ2rPX+WNy4qd5V96k/rWRxoMNyC4BD61FDOf88"
 
 // Service is the identity use-case layer.
 type Service struct {
 	store  *store
 	hasher *Hasher
 	now    func() time.Time
-	mailer mail.Sender
+	mailer platformmail.Sender
 	box    *secretBox
 	issuer string
 }
@@ -39,7 +40,7 @@ func WithClock(now func() time.Time) Option { return func(s *Service) { s.now = 
 
 // WithMailer sets the transactional email sender. Without it, verification
 // requests fail with ErrMailUnavailable instead of pretending to send.
-func WithMailer(sender mail.Sender) Option { return func(s *Service) { s.mailer = sender } }
+func WithMailer(sender platformmail.Sender) Option { return func(s *Service) { s.mailer = sender } }
 
 // WithSecretKey enables multi-factor enrolment by providing the AES-256 key used
 // to encrypt TOTP secrets at rest.

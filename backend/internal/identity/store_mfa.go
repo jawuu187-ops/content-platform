@@ -87,14 +87,15 @@ func (s *store) consumeEmailCode(ctx context.Context, userID string, codeHash []
 // ---------------------------------------------------------------------------
 
 func (s *store) insertTOTPFactor(ctx context.Context, userID, label string, cipherText []byte) (string, error) {
+	// A pending (unconfirmed) factor is replaced, so a user who abandoned
+	// enrolment does not accumulate orphan secrets.
+	if _, err := s.pool.Exec(ctx, `
+		DELETE FROM identity.mfa_factors
+		WHERE user_id = $1::uuid AND kind = 'totp' AND confirmed_at IS NULL`, userID); err != nil {
+		return "", fmt.Errorf("identity: clear pending totp factor: %w", err)
+	}
 	var id string
 	err := s.pool.QueryRow(ctx, `
-		-- A pending (unconfirmed) factor is replaced, so a user who abandoned
-		-- enrolment does not accumulate orphan secrets.
-		DELETE FROM identity.mfa_factors
-		WHERE user_id = $1::uuid AND kind = 'totp' AND confirmed_at IS NULL`, userID)
-	_ = err
-	err = s.pool.QueryRow(ctx, `
 		INSERT INTO identity.mfa_factors (user_id, kind, label, secret_cipher)
 		VALUES ($1::uuid, 'totp', $2, $3)
 		RETURNING id::text`, userID, label, cipherText).Scan(&id)

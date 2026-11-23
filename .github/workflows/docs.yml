@@ -20,8 +20,9 @@ jobs:
       - name: check links
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --no-progress --offline --include-fragments './**/*.md'
+          args: --no-progress --offline --include-fragments .
           fail: true
+          failIfEmpty: false
       - name: reject tabs and trailing whitespace in docs
         run: |
           if grep -rnP '\t' --include='*.md' docs README.md SECURITY.md; then

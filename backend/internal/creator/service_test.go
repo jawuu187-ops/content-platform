@@ -14,18 +14,30 @@ import (
 
 const goodPassword = "a-very-long-password"
 
+// stubGate stands in for the age-verification service so creator logic can be
+// tested without a provider. The real gate is exercised in package agegate and
+// over HTTP in package httpapi.
+type stubGate struct {
+	allow bool
+	err   error
+}
+
+func (g stubGate) AllowAdult(context.Context, string) (bool, error) { return g.allow, g.err }
+
 type harness struct {
 	svc *Service
 	ids *identity.Service
 	now time.Time
 }
 
-func newHarness(t *testing.T) *harness {
+func newHarness(t *testing.T) *harness { return newHarnessWithGate(t, stubGate{allow: true}) }
+
+func newHarnessWithGate(t *testing.T, gate AdultGate) *harness {
 	t.Helper()
 	h := &harness{now: time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC)}
 	pool := dbtest.Pool(t)
 	h.ids = identity.New(pool, identity.WithHasher(identity.NewHasher(identity.TestParams())))
-	h.svc = New(pool, WithFakePayments(true), WithClock(func() time.Time { return h.now }))
+	h.svc = New(pool, WithFakePayments(true), WithAgeGate(gate), WithClock(func() time.Time { return h.now }))
 	return h
 }
 
@@ -326,3 +338,51 @@ func TestCancelKeepsAccessUntilPeriodEnd(t *testing.T) {
 		t.Fatalf("cancel expired: want ErrInvalidInput, got %v", err)
 	}
 }
+
+func TestPaidScopeRequiresAgeVerification(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	_, profile, tier := h.creator(t)
+	fan := h.account(t)
+
+	sub, err := h.svc.Subscribe(ctx, fan, profile.Handle, tier.ID, "")
+	if err != nil || sub.Status != StatusActive {
+		t.Fatalf("subscribe: %+v err=%v", sub, err)
+	}
+
+	// The subscription is live, but the account has not completed age
+	// verification: the gate is independent of billing.
+	unverified := New(h.svc.pool, WithFakePayments(true), WithAgeGate(stubGate{allow: false}),
+		WithClock(func() time.Time { return h.now }))
+	decision, err := unverified.CheckAccess(ctx, &fan, profile.Handle, ScopeSubscriber)
+	if err != nil {
+		t.Fatalf("access: %v", err)
+	}
+	if decision.Allowed || decision.Reason != ReasonAgeRequired {
+		t.Fatalf("unverified subscriber was allowed: %+v", decision)
+	}
+
+	// Without a gate at all the answer is the same: fail closed, never open.
+	ungated := New(h.svc.pool, WithFakePayments(true))
+	decision, err = ungated.CheckAccess(ctx, &fan, profile.Handle, ScopeSubscriber)
+	if err != nil {
+		t.Fatalf("access: %v", err)
+	}
+	if decision.Allowed || decision.Reason != ReasonAgeRequired {
+		t.Fatalf("a service with no gate allowed paid content: %+v", decision)
+	}
+
+	// A gate that errors must not become an allow.
+	broken := New(h.svc.pool, WithFakePayments(true), WithAgeGate(stubGate{err: errGateDown}))
+	if _, err := broken.CheckAccess(ctx, &fan, profile.Handle, ScopeSubscriber); err == nil {
+		t.Fatal("a failing gate produced a decision instead of an error")
+	}
+
+	// Public scope never needs verification.
+	publicDecision, err := unverified.CheckAccess(ctx, &fan, profile.Handle, ScopePublic)
+	if err != nil || !publicDecision.Allowed {
+		t.Fatalf("public scope denied: %+v err=%v", publicDecision, err)
+	}
+}
+
+var errGateDown = errors.New("verification service unavailable")

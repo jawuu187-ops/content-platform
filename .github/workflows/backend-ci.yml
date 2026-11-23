@@ -126,6 +126,12 @@ jobs:
           # proven end to end without a payment provider. Production refuses to
           # start with it on (config validation).
           ENABLE_FAKE_PAYMENTS: "true"
+          DATABASE_URL: postgres://platform:platform@127.0.0.1:5432/platform_test?sslmode=disable
+          # Age verification: the callback receiver is real code; its secret is a
+          # CI value and no hosted provider session exists, so the pending check is
+          # seeded directly below to prove the callback -> gate path.
+          AGE_PROVIDER: smoke
+          AGE_CALLBACK_SECRET: smoke-age-secret-0123456789
         run: |
           set -u
           ./bin/api > api.log 2>&1 &
@@ -249,12 +255,55 @@ jobs:
           echo "POST /v1/creators/smoke_studio/subscribe -> $sub_code"
           [ "$sub_code" = "201" ] || fail "subscription activation returned $sub_code"
 
+          gated_code=$(curl -s -o gated.json -w '%{http_code}' \
+            "http://127.0.0.1:8080/v1/creators/smoke_studio/access?scope=subscriber" \
+            -H "Authorization: Bearer $fan_access")
+          echo "GET access (subscribed, unverified) -> $gated_code"
+          [ "$gated_code" = "200" ] || fail "the access decision returned $gated_code"
+          grep -q '"reason":"age_verification_required"' gated.json || fail "an unverified subscriber was not gated by age verification: $(cat gated.json)"
+
+          fan_id=$(python3 -c 'import json; print(json.load(open("fan.json"))["user"]["id"])') \
+            || fail "subscriber response carried no user id"
+          ref="smoke_ref_$$"
+          psql "$DATABASE_URL" -q -c "INSERT INTO verify.checks (user_id, status, method, provider, provider_ref) \
+            VALUES ('$fan_id', 'pending', 'provider', 'smoke', '$ref')" \
+            || fail "could not seed a pending verification check"
+          python3 - "$fan_id" "$ref" <<'PY'
+          import hashlib, hmac, json, sys, time
+          fan, ref = sys.argv[1], sys.argv[2]
+          body = json.dumps({
+              "event_id": "smoke_evt_" + ref,
+              "reference": ref,
+              "account_id": fan,
+              "status": "verified",
+              "assurance": "ci_signed_callback",
+              "min_age": 18,
+              "verified_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+          }).encode()
+          ts = str(int(time.time()))
+          sig = hmac.new(b"smoke-age-secret-0123456789", ts.encode() + b"." + body, hashlib.sha256).hexdigest()
+          open("age_body.json", "wb").write(body)
+          open("age_sig.txt", "w").write("t=%s,v1=%s" % (ts, sig))
+          PY
+
+          cb_code=$(curl -s -o age_cb.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/verify/age/callback \
+            -H "X-Age-Signature: $(cat age_sig.txt)" -H 'Content-Type: application/json' \
+            --data-binary @age_body.json)
+          echo "POST /v1/verify/age/callback (signed) -> $cb_code"
+          [ "$cb_code" = "202" ] || fail "the signed verification callback returned $cb_code"
+
           allow_code=$(curl -s -o allow.json -w '%{http_code}' \
             "http://127.0.0.1:8080/v1/creators/smoke_studio/access?scope=subscriber" \
             -H "Authorization: Bearer $fan_access")
-          echo "GET access (after subscribing) -> $allow_code"
+          echo "GET access (subscribed, verified) -> $allow_code"
           [ "$allow_code" = "200" ] || fail "the access decision returned $allow_code"
-          grep -q '"allowed":true' allow.json || fail "a subscriber was refused subscriber access"
+          grep -q '"allowed":true' allow.json || fail "a verified subscriber was refused subscriber access"
+
+          verify_code=$(curl -s -o age_status.json -w "%{http_code}" http://127.0.0.1:8080/v1/verify/age \
+            -H "Authorization: Bearer $fan_access")
+          echo "GET /v1/verify/age -> $verify_code"
+          [ "$verify_code" = "200" ] || fail "verification status returned $verify_code"
+          grep -q '"verified":true' age_status.json || fail "verification status did not report the account as verified"
 
           kill %1 2>/dev/null || true
 

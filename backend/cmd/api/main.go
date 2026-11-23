@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jawuu187-ops/content-platform/backend/internal/agegate"
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/httpapi"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
@@ -135,9 +136,29 @@ func run() error {
 	// the replica count. A configured-but-unreachable store is a startup failure
 	// in production, because failing closed at request time is an outage nobody
 	// asked for.
+	var ageGate *agegate.Service
 	var creatorService *creator.Service
 	if db != nil {
-		creatorService = creator.New(db.Pool(), creator.WithFakePayments(cfg.FakePayments))
+		ageProvider := agegate.Provider(agegate.NewUnavailable("no provider configured"))
+		if cfg.AgeCallbackSecret != "" {
+			webhook, err := agegate.NewWebhookProvider(cfg.AgeProvider, []byte(cfg.AgeCallbackSecret))
+			if err != nil {
+				return fmt.Errorf("configure age verification provider: %w", err)
+			}
+			ageProvider = webhook
+		}
+		ageGate = agegate.New(db.Pool(),
+			agegate.WithProvider(ageProvider),
+			agegate.WithLogger(logger),
+			agegate.WithMinAge(cfg.AgeMinAge),
+			agegate.WithValidity(time.Duration(cfg.AgeValidityDays)*24*time.Hour),
+		)
+		if cfg.AgeCallbackSecret == "" {
+			logger.Warn("AGE_CALLBACK_SECRET is not set: 18+ content stays locked because verification cannot complete")
+		}
+		creatorService = creator.New(db.Pool(),
+			creator.WithFakePayments(cfg.FakePayments),
+			creator.WithAgeGate(ageGate))
 		if cfg.FakePayments {
 			logger.Warn("ENABLE_FAKE_PAYMENTS is on: subscriptions activate without payment (development only)")
 		}
@@ -167,6 +188,7 @@ func run() error {
 		Database: db,
 		Identity: identityService,
 		Creators: creatorService,
+		AgeGate:  ageGate,
 		Limits:   limits,
 		Build:    httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

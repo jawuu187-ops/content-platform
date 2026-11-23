@@ -7,6 +7,7 @@
 package creator
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -30,6 +31,12 @@ const (
 	ScopeSubscriber = "subscriber"
 	ScopePPV        = "ppv"
 	ScopeAll        = "all"
+)
+
+// Reasons in an Access decision. They are stable strings so clients can branch
+// on them without parsing prose.
+const (
+	ReasonAgeRequired = "age_verification_required"
 )
 
 // Subscription statuses, mirrored by a CHECK constraint.
@@ -83,6 +90,13 @@ type Subscription struct {
 	PeriodEnd         *time.Time `json:"current_period_end,omitempty"`
 	CancelAtPeriodEnd bool       `json:"cancel_at_period_end"`
 	CreatedAt         time.Time  `json:"created_at"`
+}
+
+// AdultGate answers whether an account has completed age verification. The
+// creator package depends on this narrow interface, not on the verification
+// package, so the two can evolve independently.
+type AdultGate interface {
+	AllowAdult(ctx context.Context, accountID string) (bool, error)
 }
 
 // Access is the answer to "may this viewer see this scope".

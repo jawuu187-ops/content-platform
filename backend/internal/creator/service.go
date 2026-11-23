@@ -381,6 +381,21 @@ func (s *Service) CheckAccess(ctx context.Context, viewer *identity.Principal, h
 	if viewer == nil {
 		return Access{Allowed: false, Scope: scope, Reason: "authentication_required"}, nil
 	}
+	// Age verification is checked before any entitlement, for every non-admin
+	// viewer including the creator: a paid subscription is not a substitute for
+	// it, and a verification that lapses closes the door again.
+	if s.adult == nil {
+		return Access{Allowed: false, Scope: scope, Reason: ReasonAgeRequired}, nil
+	}
+	adult, err := s.adult.AllowAdult(ctx, viewer.UserID)
+	if err != nil {
+		// Fail closed. The HTTP layer reports the error; the access decision does
+		// not become "allowed" because a dependency is unwell.
+		return Access{}, fmt.Errorf("creator: age verification check: %w", err)
+	}
+	if !adult {
+		return Access{Allowed: false, Scope: scope, Reason: ReasonAgeRequired}, nil
+	}
 
 	now := s.now().UTC()
 	ent, err := s.liveEntitlement(ctx, viewer.UserID, profile.UserID, scope, now)

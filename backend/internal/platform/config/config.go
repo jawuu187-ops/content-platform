@@ -70,6 +70,13 @@ type Config struct {
 	TokenSigningKey   string
 	WebhookSecretKey  string
 
+	// Age verification. A provider callback is authenticated with an HMAC secret;
+	// without one, verification cannot complete and 18+ content stays locked.
+	AgeProvider       string
+	AgeCallbackSecret string
+	AgeMinAge         int
+	AgeValidityDays   int
+
 	// FakePayments activates subscriptions without a payment provider. It exists
 	// for local development and CI; production refuses to start with it on.
 	FakePayments bool
@@ -125,6 +132,10 @@ func Load(serviceName string) (*Config, error) {
 		TokenSigningKey:   get("TOKEN_SIGNING_KEY", ""),
 		WebhookSecretKey:  get("WEBHOOK_SECRET_KEY", ""),
 
+		AgeProvider:            get("AGE_PROVIDER", "generic"),
+		AgeCallbackSecret:      get("AGE_CALLBACK_SECRET", ""),
+		AgeMinAge:              int(getInt64("AGE_MIN_AGE", 18)),
+		AgeValidityDays:        int(getInt64("AGE_VALIDITY_DAYS", 365)),
 		FakePayments:           getBool("ENABLE_FAKE_PAYMENTS", false),
 		RequireAgeVerification: getBool("REQUIRE_AGE_VERIFICATION", true),
 		EnableCryptoRails:      getBool("ENABLE_CRYPTO_RAILS", false),
@@ -190,6 +201,19 @@ func (c *Config) validate() error {
 		}
 	}
 
+	if c.AgeMinAge != 18 && c.AgeMinAge != 21 {
+		problems = append(problems, "AGE_MIN_AGE must be 18 or 21")
+	}
+	if c.AgeValidityDays < 1 || c.AgeValidityDays > 3650 {
+		problems = append(problems, "AGE_VALIDITY_DAYS must be between 1 and 3650")
+	}
+	if c.IsProduction() && c.AgeCallbackSecret == "" {
+		problems = append(problems, "AGE_CALLBACK_SECRET is required in production: 18+ content must not be reachable without a working verification path")
+	}
+	if c.AgeCallbackSecret != "" && len(c.AgeCallbackSecret) < 16 {
+		problems = append(problems, "AGE_CALLBACK_SECRET must be at least 16 characters")
+	}
+
 	if c.IsProduction() && c.FakePayments {
 		problems = append(problems, "ENABLE_FAKE_PAYMENTS must be off in production: it grants access without payment")
 	}
@@ -214,6 +238,8 @@ func (c *Config) Redacted() map[string]any {
 		"public_base_url":          c.PublicBaseURL,
 		"require_age_verification": c.RequireAgeVerification,
 		"fake_payments":            c.FakePayments,
+		"age_provider":             c.AgeProvider,
+		"age_min_age":              c.AgeMinAge,
 		"enable_crypto_rails":      c.EnableCryptoRails,
 		"media_delivery_base_url":  c.MediaDeliveryBaseURL,
 		"session_signing_key":      redact(c.SessionSigningKey),

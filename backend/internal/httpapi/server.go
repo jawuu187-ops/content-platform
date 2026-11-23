@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jawuu187-ops/content-platform/backend/internal/agegate"
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
@@ -30,6 +31,8 @@ type Deps struct {
 	Identity *identity.Service
 	// Creators is the creator profile, tier, subscription and access service.
 	Creators *creator.Service
+	// AgeGate is the age-verification service. Nil answers 503 on its routes.
+	AgeGate *agegate.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -44,6 +47,7 @@ type Server struct {
 	db        *database.DB
 	identity  *identity.Service
 	creators  *creator.Service
+	ageGate   *agegate.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -64,6 +68,7 @@ func New(d Deps) http.Handler {
 		db:        d.Database,
 		identity:  d.Identity,
 		creators:  d.Creators,
+		ageGate:   d.AgeGate,
 		limits:    d.Limits,
 		build:     d.Build,
 		startedAt: d.StartedAt,
@@ -83,6 +88,14 @@ func New(d Deps) http.Handler {
 	if s.identity != nil {
 		authHandler := newAuthHandler(s.identity, d.Logger, s.limits)
 		authHandler.registerRoutes(mux)
+		if s.ageGate != nil {
+			newAgeGateHandler(authHandler, s.ageGate, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("/v1/verify/", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"age verification is not configured on this instance")
+			})
+		}
 		if s.creators != nil {
 			newCreatorHandler(authHandler, s.creators, d.Logger, s.limits).registerRoutes(mux)
 		} else {

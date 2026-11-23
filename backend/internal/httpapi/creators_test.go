@@ -13,6 +13,13 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
 )
 
+// permissiveGate lets the creator-flow tests focus on billing and entitlement
+// mechanics. The age gate itself is proven by the agegate acceptance tests,
+// which use the real service.
+type permissiveGate struct{}
+
+func (permissiveGate) AllowAdult(context.Context, string) (bool, error) { return true, nil }
+
 // A server with the creator service wired, using fake payments so activation and
 // the entitlement path can be exercised over HTTP. Production activation is a
 // payment-provider concern and is documented as pending.
@@ -22,7 +29,7 @@ func creatorServer(t *testing.T) (http.Handler, *creator.Service) {
 	ids := identity.New(pool,
 		identity.WithHasher(identity.NewHasher(identity.TestParams())),
 		identity.WithIssuer("Content Platform Test"))
-	creators := creator.New(pool, creator.WithFakePayments(true))
+	creators := creator.New(pool, creator.WithFakePayments(true), creator.WithAgeGate(permissiveGate{}))
 	return New(Deps{
 		Config:   testConfig(),
 		Logger:   loggerDiscard(),

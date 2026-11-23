@@ -121,7 +121,8 @@ func validateTier(in TierInput, creating bool) (TierInput, error) {
 	if in.PeriodDays != nil && (*in.PeriodDays < 1 || *in.PeriodDays > 366) {
 		return in, fmt.Errorf("%w: period_days must be between 1 and 366", ErrInvalidInput)
 	}
-	if in.Perks == nil {
+	if in.Perks == nil && creating {
+		// The column is NOT NULL; an omitted perk list on create means "none".
 		in.Perks = []string{}
 	}
 	if len(in.Perks) > 10 {

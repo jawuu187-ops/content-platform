@@ -152,7 +152,7 @@ func (s *Service) updateTier(ctx context.Context, creatorID, tierID string, in T
 		    description = $4,
 		    price_minor = COALESCE($5, price_minor),
 		    period_days = COALESCE($6, period_days),
-		    perks = $7,
+		    perks = COALESCE($7, perks),
 		    sort_order = COALESCE($8, sort_order),
 		    is_active = COALESCE($9, is_active),
 		    updated_at = now()

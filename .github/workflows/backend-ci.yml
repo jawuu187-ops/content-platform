@@ -136,6 +136,10 @@ jobs:
           # interface is the same one an object store would implement.
           MEDIA_LOCAL_DIR: ${{ runner.temp }}/media
           MEDIA_SIGNING_KEY: smoke-media-signing-key-0123456789abcdef
+          # Development fake: proves the settlement, ledger and grant path. The
+          # API refuses this provider outside local/test.
+          PAY_PROVIDER: fake
+          PAY_WEBHOOK_SECRET: smoke-payment-webhook-secret-0123456789
         run: |
           set -u
           ./bin/api > api.log 2>&1 &
@@ -358,6 +362,72 @@ jobs:
           replay_code=$(curl -s -o replay.json -w '%{http_code}' "http://127.0.0.1:8080$delivery_url")
           echo "GET delivery link (replay) -> $replay_code"
           [ "$replay_code" = "403" ] || fail "a delivery link was reusable ($replay_code)"
+
+          # Payments: buy the pay-per-view post, settle it with a signed callback,
+          # and prove the ledger balances.
+          ppv_code=$(curl -s -o ppv.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/posts \
+            -H "Authorization: Bearer $access" -H 'Content-Type: application/json' \
+            -d "{\"body\":\"paid post\",\"visibility\":\"ppv\",\"price_minor\":500,\"currency\":\"USD\",\"published\":true,\"media_ids\":[\"$media_id\"]}")
+          echo "POST /v1/posts (ppv) -> $ppv_code"
+          [ "$ppv_code" = "201" ] || fail "pay-per-view post creation returned $ppv_code"
+          ppv_id=$(python3 -c 'import json; print(json.load(open("ppv.json"))["post"]["id"])') \
+            || fail "ppv post carried no id"
+
+          intent_code=$(curl -s -o intent.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/payments/intents \
+            -H "Authorization: Bearer $fan_access" -H 'Content-Type: application/json' \
+            -d "{\"purpose\":\"ppv\",\"post_id\":\"$ppv_id\",\"idempotency_key\":\"smoke-$ppv_id\"}")
+          echo "POST /v1/payments/intents -> $intent_code"
+          [ "$intent_code" = "201" ] || fail "payment intent creation returned $intent_code"
+          grep -q '"amount_minor":500' intent.json || fail "the intent amount did not come from the post price"
+          intent_id=$(python3 -c 'import json; print(json.load(open("intent.json"))["payment"]["id"])') \
+            || fail "intent carried no id"
+
+          python3 - "$intent_id" <<'PY'
+          import hashlib, hmac, json, sys, time
+          intent = sys.argv[1]
+          body = json.dumps({
+              "event_id": "smoke_pay_" + intent,
+              "kind": "payment.succeeded",
+              "intent_id": intent,
+              "amount_minor": 500,
+              "currency": "USD",
+          }).encode()
+          ts = str(int(time.time()))
+          sig = hmac.new(b"smoke-payment-webhook-secret-0123456789", ts.encode() + b"." + body, hashlib.sha256).hexdigest()
+          open("pay_body.json", "wb").write(body)
+          open("pay_sig.txt", "w").write("t=%s,v1=%s" % (ts, sig))
+          PY
+
+          settle_code=$(curl -s -o settle.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/payments/webhook \
+            -H "X-Payment-Signature: $(cat pay_sig.txt)" -H 'Content-Type: application/json' \
+            --data-binary @pay_body.json)
+          echo "POST /v1/payments/webhook -> $settle_code"
+          [ "$settle_code" = "200" ] || fail "the signed payment callback returned $settle_code"
+
+          status_code=$(curl -s -o pay_status.json -w '%{http_code}' "http://127.0.0.1:8080/v1/payments/$intent_id" \
+            -H "Authorization: Bearer $fan_access")
+          echo "GET /v1/payments/{id} -> $status_code"
+          [ "$status_code" = "200" ] || fail "payment status returned $status_code"
+          grep -q '"status":"succeeded"' pay_status.json || fail "the payment did not settle: $(cat pay_status.json)"
+
+          paid_link=$(curl -s -o paid_link.json -w '%{http_code}' -X POST "http://127.0.0.1:8080/v1/media/$media_id/delivery" \
+            -H "Authorization: Bearer $fan_access" -H 'Content-Type: application/json' -d "{\"post_id\":\"$ppv_id\"}")
+          echo "POST delivery for the purchased post -> $paid_link"
+          [ "$paid_link" = "201" ] || fail "the purchased post did not issue a link ($paid_link)"
+          paid_url=$(python3 -c 'import json; print(json.load(open("paid_link.json"))["delivery"]["url"])')
+          paid_fetch=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8080$paid_url")
+          echo "GET purchased delivery -> $paid_fetch"
+          [ "$paid_fetch" = "200" ] || fail "the purchased post did not deliver ($paid_fetch)"
+
+          tb=$(psql "$DATABASE_URL" -tAq -c "SELECT COALESCE(sum(amount_minor),0) FROM ledger.entries")
+          echo "ledger net minor units -> $tb"
+          [ "$tb" = "0" ] || fail "the ledger does not balance: $tb"
+
+          replay_code=$(curl -s -o replay_pay.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/payments/webhook \
+            -H "X-Payment-Signature: $(cat pay_sig.txt)" -H 'Content-Type: application/json' \
+            --data-binary @pay_body.json)
+          echo "POST /v1/payments/webhook (replay) -> $replay_code"
+          [ "$replay_code" = "202" ] || fail "a replayed payment callback returned $replay_code"
 
           kill %1 2>/dev/null || true
 

@@ -177,9 +177,9 @@ func subscribe(t *testing.T, f *mediaFixture, token, handle, tierID string) {
 	}
 }
 
-func makeAdmin(t *testing.T, f *mediaFixture, account authBody) {
+func makeAdmin(t *testing.T, ids *identity.Service, account authBody) {
 	t.Helper()
-	if _, err := f.ids.GrantRole(context.Background(), identity.Principal{UserID: account.User.ID, Roles: []string{identity.RoleAdmin}},
+	if _, err := ids.GrantRole(context.Background(), identity.Principal{UserID: account.User.ID, Roles: []string{identity.RoleAdmin}},
 		account.User.ID, identity.RoleAdmin, ""); err != nil {
 		t.Fatalf("grant admin: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestRevokedVerificationClosesIssuedLink(t *testing.T) {
 		t.Fatalf("issue: %d", code)
 	}
 	admin := registerAndGetToken(t, f.handler, "media-admin-"+randSuffix(t)+"@example.test")
-	makeAdmin(t, f, admin)
+	makeAdmin(t, f.ids, admin)
 	rec := doJSON(t, f.handler, http.MethodPost, "/v1/admin/verify/age/"+fan.User.ID+"/revoke",
 		admin.Tokens.AccessToken, encodeBody(t, map[string]any{"reason": "boundary test"}))
 	if rec.Code != http.StatusOK {
@@ -322,7 +322,7 @@ func TestPPVMediaNeedsAnUnlock(t *testing.T) {
 		t.Fatalf("ppv without unlock: want 403, got %d", code)
 	}
 	admin := registerAndGetToken(t, f.handler, "media-admin-"+randSuffix(t)+"@example.test")
-	makeAdmin(t, f, admin)
+	makeAdmin(t, f.ids, admin)
 	rec := doJSON(t, f.handler, http.MethodPost, "/v1/posts/"+postID+"/unlocks", admin.Tokens.AccessToken,
 		encodeBody(t, map[string]any{"fan_id": fan.User.ID}))
 	if rec.Code != http.StatusCreated {
@@ -347,7 +347,7 @@ func TestPPVUnlockDoesNotOpenSubscriberPosts(t *testing.T) {
 	verifyAccount(t, f.ageFixture(), fan.Tokens.AccessToken, fan.User.ID, "evt_scope_"+randSuffix(t),
 		time.Now().Add(24*time.Hour))
 	admin := registerAndGetToken(t, f.handler, "media-admin-"+randSuffix(t)+"@example.test")
-	makeAdmin(t, f, admin)
+	makeAdmin(t, f.ids, admin)
 	if rec := doJSON(t, f.handler, http.MethodPost, "/v1/posts/"+ppvPost+"/unlocks", admin.Tokens.AccessToken,
 		encodeBody(t, map[string]any{"fan_id": fan.User.ID})); rec.Code != http.StatusCreated {
 		t.Fatalf("grant unlock: %d", rec.Code)

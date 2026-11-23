@@ -70,6 +70,12 @@ type Config struct {
 	TokenSigningKey   string
 	WebhookSecretKey  string
 
+	// Payments. "none" boots with the fail-closed provider; "fake" is a
+	// development-only stand-in and is refused in production.
+	PayProvider      string
+	PayWebhookSecret string
+	PayCommissionBPS int64
+
 	// Media. Without a storage directory and a signing key, media endpoints answer
 	// 503 and no content can be uploaded or delivered.
 	MediaDir        string
@@ -140,6 +146,9 @@ func Load(serviceName string) (*Config, error) {
 		TokenSigningKey:   get("TOKEN_SIGNING_KEY", ""),
 		WebhookSecretKey:  get("WEBHOOK_SECRET_KEY", ""),
 
+		PayProvider:            get("PAY_PROVIDER", "none"),
+		PayWebhookSecret:       get("PAY_WEBHOOK_SECRET", ""),
+		PayCommissionBPS:       getInt64("PAY_COMMISSION_BPS", 2000),
 		MediaDir:               get("MEDIA_LOCAL_DIR", ""),
 		MediaSigningKey:        get("MEDIA_SIGNING_KEY", ""),
 		MediaTokenTTL:          getDuration("MEDIA_TOKEN_TTL", 60*time.Second),
@@ -214,6 +223,22 @@ func (c *Config) validate() error {
 		}
 	}
 
+	switch c.PayProvider {
+	case "none":
+	case "fake":
+		if c.IsProduction() {
+			problems = append(problems, "PAY_PROVIDER=fake is refused in production")
+		}
+		if len(c.PayWebhookSecret) < 16 {
+			problems = append(problems, "PAY_WEBHOOK_SECRET must be at least 16 characters when a provider is configured")
+		}
+	default:
+		problems = append(problems, "PAY_PROVIDER must be none or fake until a real gateway is contracted")
+	}
+	if c.PayCommissionBPS < 0 || c.PayCommissionBPS > 5000 {
+		problems = append(problems, "PAY_COMMISSION_BPS must be between 0 and 5000")
+	}
+
 	if c.MediaSigningKey != "" && len(c.MediaSigningKey) < 32 {
 		problems = append(problems, "MEDIA_SIGNING_KEY must be at least 32 characters")
 	}
@@ -267,6 +292,7 @@ func (c *Config) Redacted() map[string]any {
 		"age_provider":             c.AgeProvider,
 		"age_min_age":              c.AgeMinAge,
 		"media_configured":         c.MediaDir != "",
+		"payment_provider":         c.PayProvider,
 		"enable_crypto_rails":      c.EnableCryptoRails,
 		"media_delivery_base_url":  c.MediaDeliveryBaseURL,
 		"session_signing_key":      redact(c.SessionSigningKey),

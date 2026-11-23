@@ -10,6 +10,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
+	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
@@ -32,6 +33,8 @@ type Deps struct {
 	Identity *identity.Service
 	// Creators is the creator profile, tier, subscription and access service.
 	Creators *creator.Service
+	// Payments is the payment-intent and ledger service.
+	Payments *payments.Service
 	// Media is the media ingestion and delivery service.
 	Media *media.Service
 	// AgeGate is the age-verification service. Nil answers 503 on its routes.
@@ -52,6 +55,7 @@ type Server struct {
 	creators  *creator.Service
 	ageGate   *agegate.Service
 	media     *media.Service
+	payments  *payments.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -74,6 +78,7 @@ func New(d Deps) http.Handler {
 		creators:  d.Creators,
 		ageGate:   d.AgeGate,
 		media:     d.Media,
+		payments:  d.Payments,
 		limits:    d.Limits,
 		build:     d.Build,
 		startedAt: d.StartedAt,
@@ -93,6 +98,18 @@ func New(d Deps) http.Handler {
 	if s.identity != nil {
 		authHandler := newAuthHandler(s.identity, d.Logger, s.limits)
 		authHandler.registerRoutes(mux)
+		if s.payments != nil && s.creators != nil {
+			newPaymentHandler(authHandler, s.payments, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("/v1/payments/", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"payments are not configured on this instance")
+			})
+			mux.HandleFunc("/v1/admin/ledger/", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"the ledger is not configured on this instance")
+			})
+		}
 		if s.media != nil && s.creators != nil {
 			newMediaHandler(authHandler, s.media, s.creators, d.Logger, s.limits).registerRoutes(mux)
 		} else {

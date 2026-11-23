@@ -21,7 +21,9 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/httpapi"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
+	"github.com/jawuu187-ops/content-platform/backend/internal/ledger"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
+	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/logging"
@@ -138,6 +140,7 @@ func run() error {
 	// in production, because failing closed at request time is an outage nobody
 	// asked for.
 	var mediaService *media.Service
+	var paymentService *payments.Service
 	var ageGate *agegate.Service
 	var creatorService *creator.Service
 	if db != nil {
@@ -187,6 +190,25 @@ func run() error {
 		if cfg.FakePayments {
 			logger.Warn("ENABLE_FAKE_PAYMENTS is on: subscriptions activate without payment (development only)")
 		}
+
+		provider := payments.Provider(payments.Unavailable{})
+		switch cfg.PayProvider {
+		case "fake":
+			fake, err := payments.NewFake([]byte(cfg.PayWebhookSecret))
+			if err != nil {
+				return fmt.Errorf("configure payment provider: %w", err)
+			}
+			provider = fake
+			logger.Warn("payment provider is the development fake: no money can move")
+		}
+		ledgerStore := ledger.New(db.Pool(), ledger.WithLogger(logger))
+		paymentService = payments.New(db.Pool(),
+			payments.WithProvider(provider),
+			payments.WithLedger(ledgerStore),
+			payments.WithCreators(creatorService),
+			payments.WithCommission(cfg.PayCommissionBPS),
+			payments.WithLogger(logger),
+		)
 	}
 
 	var limits *ratelimit.Backend
@@ -215,6 +237,7 @@ func run() error {
 		Creators: creatorService,
 		AgeGate:  ageGate,
 		Media:    mediaService,
+		Payments: paymentService,
 		Limits:   limits,
 		Build:    httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

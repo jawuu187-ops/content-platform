@@ -122,8 +122,11 @@ func TestUnknownRoleGrantsNothing(t *testing.T) {
 
 func TestEveryPermissionBelongsToAtLeastOneRole(t *testing.T) {
 	// A permission nobody holds is either dead code or a matrix omission.
+	// Two are deliberately admin-only: admin.all (the superset marker) and
+	// roles.grant (privilege escalation stays in one place).
+	adminOnly := map[Permission]bool{PermAdminAll: true, PermRolesGrant: true}
 	for _, perm := range AllPermissions {
-		if perm == PermAdminAll {
+		if adminOnly[perm] {
 			continue
 		}
 		held := false

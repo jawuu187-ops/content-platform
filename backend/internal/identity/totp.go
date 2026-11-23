@@ -3,7 +3,7 @@ package identity
 import (
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- TOTP (RFC 6238) interoperates with HMAC-SHA1 by default; the construction is not a signature. See the comment above.
 	"crypto/subtle"
 	"encoding/base32"
 	"encoding/binary"
@@ -79,7 +79,12 @@ func decodeTOTPSecret(secret string) ([]byte, error) {
 
 // TOTPCodeAt is exported for tests and administrative tooling.
 func TOTPCodeAt(secret string, at time.Time) (string, error) {
-	return totpCode(secret, uint64(at.Unix()/int64(totpPeriod/time.Second)), totpDigits)
+	seconds := at.Unix()
+	if seconds < 0 {
+		return "", errors.New("identity: totp time is before the unix epoch")
+	}
+	// #nosec G115 -- seconds is checked non-negative above.
+	return totpCode(secret, uint64(seconds/int64(totpPeriod/time.Second)), totpDigits)
 }
 
 // VerifyTOTP checks a user-supplied code against the current step and the two
@@ -90,7 +95,14 @@ func VerifyTOTP(secret, code string, at time.Time) bool {
 		return false
 	}
 	step := at.Unix() / int64(totpPeriod/time.Second)
+	if step < 0 {
+		return false
+	}
 	for delta := -totpSkewSteps; delta <= totpSkewSteps; delta++ {
+		if step+int64(delta) < 0 {
+			continue
+		}
+		// #nosec G115 -- the value is checked non-negative on the line above.
 		candidate, err := totpCode(secret, uint64(step+int64(delta)), totpDigits)
 		if err != nil {
 			return false

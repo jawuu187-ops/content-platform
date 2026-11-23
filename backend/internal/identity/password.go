@@ -158,11 +158,13 @@ func (h *Hasher) verifyArgon2id(password, encoded string) (bool, bool) {
 		return false, false
 	}
 	want, err := enc.DecodeString(parts[4])
-	if err != nil || len(want) < 16 {
+	if err != nil || len(want) < 16 || len(want) > 1024 {
 		return false, false
 	}
 
-	got := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(len(want)))
+	// #nosec G115 -- the length is bounded to 1024 bytes above.
+	keyLen := uint32(len(want))
+	got := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, keyLen)
 	if subtle.ConstantTimeCompare(got, want) != 1 {
 		return false, false
 	}

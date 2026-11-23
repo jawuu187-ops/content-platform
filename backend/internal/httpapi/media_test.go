@@ -253,13 +253,21 @@ func TestSubscriberMediaIsSingleUseAndRechecked(t *testing.T) {
 	}
 }
 
-func TestLapsedSubscriptionAndRevocationCloseIssuedLinks(t *testing.T) {
-	f := newMediaFixture(t)
+// subscribedVerifiedFan returns a fan with a live subscription and a live
+// verification, plus the subscriber-scoped post and media they may open.
+func subscribedVerifiedFan(t *testing.T, f *mediaFixture) (authBody, string, string) {
+	t.Helper()
 	_, handle, tierID, postID, mediaID := newPost(t, f, creator.VisibilitySubscriber, nil)
 	fan := registerAndGetToken(t, f.handler, "media-fan-"+randSuffix(t)+"@example.test")
 	subscribe(t, f, fan.Tokens.AccessToken, handle, tierID)
-	verifyAccount(t, f.ageFixture(), fan.Tokens.AccessToken, fan.User.ID, "evt_rev_"+randSuffix(t),
+	verifyAccount(t, f.ageFixture(), fan.Tokens.AccessToken, fan.User.ID, "evt_"+randSuffix(t),
 		time.Now().Add(24*time.Hour))
+	return fan, postID, mediaID
+}
+
+func TestLapsedSubscriptionClosesIssuedLink(t *testing.T) {
+	f := newMediaFixture(t)
+	fan, postID, mediaID := subscribedVerifiedFan(t, f)
 
 	code, url := issueDelivery(t, f.handler, fan.Tokens.AccessToken, mediaID, postID)
 	if code != http.StatusCreated {
@@ -267,7 +275,7 @@ func TestLapsedSubscriptionAndRevocationCloseIssuedLinks(t *testing.T) {
 	}
 	// A cancellation request keeps access until the period ends, so the boundary
 	// that must close the link is the lapse itself: expire the entitlement the way
-	// the scheduler would and the already-issued link has to fail.
+	// the scheduler would.
 	if _, err := f.pool.Exec(context.Background(), `
 		UPDATE creator.entitlements SET expires_at = now() - interval '1 second'
 		WHERE fan_id = $1::uuid`, fan.User.ID); err != nil {
@@ -276,11 +284,19 @@ func TestLapsedSubscriptionAndRevocationCloseIssuedLinks(t *testing.T) {
 	if res := fetchDelivery(t, f.handler, url); res.Code != http.StatusForbidden {
 		t.Fatalf("link survived the subscription lapsing: %d", res.Code)
 	}
+	// And no new link may be minted.
+	if code, _ := issueDelivery(t, f.handler, fan.Tokens.AccessToken, mediaID, postID); code != http.StatusForbidden {
+		t.Fatalf("new link after lapse: %d", code)
+	}
+}
 
-	// Verification revocation closes a freshly issued link too.
-	code, url = issueDelivery(t, f.handler, fan.Tokens.AccessToken, mediaID, postID)
+func TestRevokedVerificationClosesIssuedLink(t *testing.T) {
+	f := newMediaFixture(t)
+	fan, postID, mediaID := subscribedVerifiedFan(t, f)
+
+	code, url := issueDelivery(t, f.handler, fan.Tokens.AccessToken, mediaID, postID)
 	if code != http.StatusCreated {
-		t.Fatalf("re-issue: %d", code)
+		t.Fatalf("issue: %d", code)
 	}
 	admin := registerAndGetToken(t, f.handler, "media-admin-"+randSuffix(t)+"@example.test")
 	makeAdmin(t, f, admin)

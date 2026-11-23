@@ -1,0 +1,31 @@
+PROPRIETARY SOFTWARE LICENSE
+Copyright (c) 2026. All rights reserved.
+
+This software and its source code, documentation, architecture descriptions, database
+schemas, infrastructure definitions and all associated materials (the "Software") are
+proprietary and confidential.
+
+No permission is granted to any person or entity to use, copy, modify, merge, publish,
+distribute, sublicense, sell, host, deploy, or create derivative works of the Software,
+in whole or in part, without the prior written consent of the copyright holder.
+
+The Software is developed with the intention of being licensed, transferred, or sold as a
+whole to a future operator. Any such transfer must be executed by a written agreement that
+explicitly assigns the copyright and all intellectual property rights.
+
+THIRD-PARTY COMPONENTS
+The Software depends on third-party open-source packages, each governed by its own
+license. The authoritative list of direct and transitive dependencies, together with their
+license identifiers, is generated in CI (`backend` license report artifact and
+`android` license report artifact). Redistribution or commercial exploitation of the
+Software must respect every third-party license listed there. Notably, the project
+deliberately avoids copyleft dependencies in product code paths (see
+`docs/decisions-log.md`, ADR-0010).
+
+NO WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.

@@ -1,0 +1,56 @@
+# ---- secrets (never commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+secrets/
+*_secret*.json
+service-account*.json
+google-services.json
+!android/app/google-services.example.json
+
+# ---- Go ----
+/backend/bin/
+/backend/dist/
+*.test
+*.out
+coverage.*
+
+# ---- Android / Gradle ----
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+android/.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+android/app/release/
+
+# ---- Node / admin console ----
+node_modules/
+admin/.next/
+admin/out/
+.pnpm-store/
+
+# ---- Editors / OS ----
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+*~
+
+# ---- Local infra state ----
+infra/local/data/
+infra/local/pgdata/
+*.tfstate
+*.tfstate.*
+.terraform/

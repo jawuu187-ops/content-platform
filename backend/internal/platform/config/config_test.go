@@ -109,3 +109,30 @@ func TestDurationParsingFallsBackOnGarbage(t *testing.T) {
 		t.Fatalf("ReadTimeout = %v, want the default 15s", cfg.ReadTimeout)
 	}
 }
+
+func TestPoolSizesOutsideTheAcceptedWindowFallBack(t *testing.T) {
+	cases := map[string]struct {
+		max, min         string
+		wantMax, wantMin int32
+	}{
+		"huge":         {"99999999", "2", 20, 2},
+		"zero max":     {"0", "0", 20, 0},
+		"negative min": {"20", "-5", 20, 2},
+		"valid custom": {"64", "8", 64, 8},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			base(t)
+			t.Setenv("DATABASE_MAX_CONNS", tc.max)
+			t.Setenv("DATABASE_MIN_CONNS", tc.min)
+			cfg, err := Load("api")
+			if err != nil {
+				t.Fatalf("load: %v", err)
+			}
+			if cfg.DatabaseMaxConns != tc.wantMax || cfg.DatabaseMinConns != tc.wantMin {
+				t.Fatalf("got max=%d min=%d, want max=%d min=%d",
+					cfg.DatabaseMaxConns, cfg.DatabaseMinConns, tc.wantMax, tc.wantMin)
+			}
+		})
+	}
+}

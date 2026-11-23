@@ -81,8 +81,8 @@ func Load(serviceName string) (*Config, error) {
 		TrustedProxyCIDR: splitAndTrim(get("TRUSTED_PROXY_CIDRS", "")),
 
 		DatabaseURL:              get("DATABASE_URL", ""),
-		DatabaseMaxConns:         int32(getInt64("DATABASE_MAX_CONNS", 20)),
-		DatabaseMinConns:         int32(getInt64("DATABASE_MIN_CONNS", 2)),
+		DatabaseMaxConns:         getInt32("DATABASE_MAX_CONNS", 20, 1, 10000),
+		DatabaseMinConns:         getInt32("DATABASE_MIN_CONNS", 2, 0, 10000),
 		DatabaseMaxConnTTL:       getDuration("DATABASE_MAX_CONN_TTL", 30*time.Minute),
 		DatabaseStatementTimeout: getDuration("DATABASE_STATEMENT_TIMEOUT", 10*time.Second),
 
@@ -205,6 +205,18 @@ func get(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// getInt32 reads an integer, falls back when the value is missing or outside the
+// accepted window, and only then narrows to int32. The window is a subset of the
+// int32 range, so the conversion cannot overflow (the cast is marked for the
+// static analyser with that invariant).
+func getInt32(key string, fallback, min, max int64) int32 {
+	v := getInt64(key, fallback)
+	if v < min || v > max {
+		return int32(fallback) // #nosec G115 -- fallback is a compile-time constant in range
+	}
+	return int32(v) // #nosec G115 -- v is clamped to [min,max] inside the int32 range above
 }
 
 func getInt64(key string, fallback int64) int64 {

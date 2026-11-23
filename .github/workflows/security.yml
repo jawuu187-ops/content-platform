@@ -83,22 +83,35 @@ jobs:
           fail-on-severity: high
           deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
 
-  codeql:
-    name: CodeQL (Go)
+  go-static-analysis:
+    # CodeQL code scanning requires GitHub Advanced Security on private
+    # repositories (a paid feature) and is therefore not enabled on this plan.
+    # gosec and staticcheck cover the same ground at no cost; CodeQL can be
+    # re-added by uncommenting the job in docs/operations/ci.md once the owner
+    # upgrades the plan or the repository becomes public.
+    name: static analysis (gosec + staticcheck)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      security-events: write
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: actions/setup-go@v5
         with:
-          languages: go
-          queries: security-extended
-      - uses: github/codeql-action/autobuild@v3
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: gosec (medium and above fail the build)
+        run: go run github.com/securego/gosec/v2/cmd/gosec@v2.30.0 -severity medium -fmt sarif -out gosec.sarif ./...
+
+      - name: staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
+
+      - name: upload gosec report
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          working-directory: backend
-      - uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:go"
+          name: gosec-sarif
+          path: backend/gosec.sarif
+          if-no-files-found: ignore

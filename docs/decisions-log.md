@@ -22,3 +22,6 @@ significant, hard-to-reverse consequences live as ADRs in `docs/architecture/adr
 | D-015 | 2026-11-23 | Delivery is staged in 13 phases (P0–P12) with hard exit gates; no phase is "done" without CI-proven tests | Accepted | `docs/roadmap.md`, `docs/plan/02-delivery-timeline-cost-risk.md` |
 | D-016 | 2026-11-23 | Age assurance (HEAA-class) is enforced from P2 and gated at the entitlement layer, not at the UI | Accepted | `docs/plan/01-product-and-architecture.md` §2.7 |
 | D-017 | 2026-11-23 | Actual payment vendor terms must be verified in writing before integration code is written; no vendor assumed accepted | Accepted | `docs/vendors/payments-and-distribution.md` §7 |
+| D-018 | 2026-11-23 | Private repo on the free plan: branch protection and CodeQL are unavailable (Pro/GHAS only); gosec + staticcheck + govulncheck + gitleaks replace CodeQL until the owner upgrades | Accepted | `docs/operations/ci.md` §2 |
+| D-019 | 2026-11-23 | Toolchain is pinned and advances only after a green CI run on a branch: Go 1.27, PG 18, AGP 8.13.2, Gradle 8.14.3, Kotlin 2.2.20, Compose BOM 2026.05.01, compileSdk 36 | Accepted | `docs/operations/ci.md` §3 |
+| D-020 | 2026-11-23 | Android builds run only on GitHub-hosted runners and the produced APK/AAB are the acceptance evidence for the client | Accepted | ADR-0005, `docs/operations/ci.md` §4 |

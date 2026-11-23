@@ -69,9 +69,18 @@ jobs:
       - name: go vet
         run: go vet ./...
 
+      - name: create the isolated identity test database
+        run: |
+          psql "postgres://platform:platform@127.0.0.1:5432/platform_test" -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE platform_identity_test' 
+
       - name: unit + integration tests (race detector needs cgo)
         env:
           CGO_ENABLED: "1"
+          # Integration tests create their own schema via the embedded migrations
+          # and truncate only identity tables, so they run against a dedicated
+          # database and never disturb the smoke-test database below.
+          TEST_DATABASE_URL: postgres://platform:platform@127.0.0.1:5432/platform_identity_test?sslmode=disable
         run: go test -race -shuffle=on -covermode=atomic -coverprofile=coverage.out ./...
 
       - name: coverage summary
@@ -100,6 +109,23 @@ jobs:
           cat ready.json
           grep -q '"database":"ok"' ready.json
           grep -q '"minimum_age":18' <(curl -sf http://127.0.0.1:8080/v1/meta)
+
+          # Auth must be reachable and must reject anonymous access.
+          test "$(curl -s -o /dev/null -w '%%{http_code}' http://127.0.0.1:8080/v1/auth/me)" = "401"
+
+          # Register, read the caller, then replay the session list.
+          curl -sf -X POST http://127.0.0.1:8080/v1/auth/register \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"smoke@example.test","password":"a-very-long-password","device":{"fingerprint":"ci","platform":"web"}}' \
+            > register.json
+          access="$(sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p' register.json)"
+          test -n "$access"
+          grep -q '"roles":\["fan"\]' register.json
+          curl -sf http://127.0.0.1:8080/v1/auth/sessions -H "Authorization: Bearer $access" \
+            | grep -q '"sessions":\['
+          test "$(curl -s -o /dev/null -w '%%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/register \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"smoke@example.test","password":"a-very-long-password","device":{"fingerprint":"ci","platform":"web"}}')" = "409"
           kill %1 || true
 
       - name: upload coverage

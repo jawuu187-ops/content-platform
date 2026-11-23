@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/httpapi"
+	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/logging"
@@ -74,10 +75,16 @@ func run() error {
 		logger.Warn("DATABASE_URL is not set: starting without persistence (readiness will report not_configured)")
 	}
 
+	var identityService *identity.Service
+	if db != nil {
+		identityService = identity.New(db.Pool())
+	}
+
 	handler := httpapi.New(httpapi.Deps{
 		Config:   cfg,
 		Logger:   logger,
 		Database: db,
+		Identity: identityService,
 		Build:    httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})
 

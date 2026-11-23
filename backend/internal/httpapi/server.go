@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 )
@@ -24,6 +25,7 @@ type Deps struct {
 	Config    *config.Config
 	Logger    *slog.Logger
 	Database  *database.DB
+	Identity  *identity.Service
 	Build     BuildInfo
 	StartedAt time.Time
 	Now       func() time.Time
@@ -34,6 +36,7 @@ type Server struct {
 	cfg       *config.Config
 	logger    *slog.Logger
 	db        *database.DB
+	identity  *identity.Service
 	build     BuildInfo
 	startedAt time.Time
 	now       func() time.Time
@@ -51,6 +54,7 @@ func New(d Deps) http.Handler {
 		cfg:       d.Config,
 		logger:    d.Logger,
 		db:        d.Database,
+		identity:  d.Identity,
 		build:     d.Build,
 		startedAt: d.StartedAt,
 		now:       d.Now,
@@ -61,6 +65,19 @@ func New(d Deps) http.Handler {
 	mux.HandleFunc("GET /readyz", s.handleReady)
 	mux.HandleFunc("GET /version", s.handleVersion)
 	mux.HandleFunc("GET /v1/meta", s.handleMeta)
+
+	// Identity is optional so the process can boot for operations endpoints
+	// without a database. When it is absent the auth surface answers 503 rather
+	// than 404, which tells a client the feature exists but the dependency is
+	// down.
+	if s.identity != nil {
+		newAuthHandler(s.identity, d.Logger).registerRoutes(mux)
+	} else {
+		mux.HandleFunc("/v1/auth/", func(w http.ResponseWriter, r *http.Request) {
+			writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+				"the identity service is not configured on this instance")
+		})
+	}
 	// Anything else under a known method is a 404 with our error shape; other
 	// methods produce 405 so clients can distinguish route from method errors.
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

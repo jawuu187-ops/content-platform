@@ -20,6 +20,9 @@ type Service struct {
 	// so the entitlement machinery can be tested end to end, and it is refused
 	// outside local/test environments by configuration.
 	fakePayments bool
+	// adult is the age-verification gate. Nil means "not configured", which
+	// denies paid scopes rather than allowing them.
+	adult AdultGate
 }
 
 // Option configures the service.
@@ -27,6 +30,9 @@ type Option func(*Service)
 
 // WithClock overrides the clock for deterministic tests.
 func WithClock(now func() time.Time) Option { return func(s *Service) { s.now = now } }
+
+// WithAgeGate installs the age-verification gate that paid scopes depend on.
+func WithAgeGate(g AdultGate) Option { return func(s *Service) { s.adult = g } }
 
 // WithFakePayments enables immediate activation without a payment provider.
 func WithFakePayments(enabled bool) Option {

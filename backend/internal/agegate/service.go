@@ -173,9 +173,8 @@ func (s *Service) Start(ctx context.Context, userID string) (State, error) {
 		_ = s.store.recordAttemptPool(ctx, userID, "rejected", "provider start failed")
 		return State{}, err
 	}
-	check, err := s.store.insertCheck(ctx, userID, "provider", s.provider.Name(), out.Reference, "",
-		s.minAge)
-	if err != nil {
+	if _, err := s.store.insertCheck(ctx, userID, "provider", s.provider.Name(), out.Reference, "",
+		s.minAge); err != nil {
 		return State{}, err
 	}
 	if err := s.store.recordAttemptPool(ctx, userID, "started", ""); err != nil {

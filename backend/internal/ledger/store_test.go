@@ -58,13 +58,27 @@ func TestPostIsBalancedAndIdempotent(t *testing.T) {
 		t.Fatalf("legs=%d sum=%d", legs, sum)
 	}
 
-	balances, err := store.Balances(ctx, "USD")
+	// Balances are shared across the database, so the per-transaction split is
+	// what this test asserts. The aggregate reads are covered by the service tests.
+	rows, err := pool.Query(ctx, `
+		SELECT a.code, sum(e.amount_minor)::bigint
+		FROM ledger.entries e
+		JOIN ledger.accounts a ON a.id = e.account_id
+		JOIN ledger.transactions t ON t.id = e.transaction_id
+		WHERE t.reference = 'intent-1'
+		GROUP BY a.code`)
 	if err != nil {
-		t.Fatalf("balances: %v", err)
+		t.Fatalf("per-reference balances: %v", err)
 	}
+	defer rows.Close()
 	seen := map[string]int64{}
-	for _, b := range balances {
-		seen[b.Code] = b.AmountMinor
+	for rows.Next() {
+		var code string
+		var amount int64
+		if err := rows.Scan(&code, &amount); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		seen[code] = amount
 	}
 	if seen[AccountProviderClearing] != 1200 || seen[AccountRevenue] != -240 {
 		t.Fatalf("unexpected balances: %+v", seen)

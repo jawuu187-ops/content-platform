@@ -181,7 +181,10 @@ func TestSubscriptionPurchaseSettlesOnceAndIsIdempotent(t *testing.T) {
 	if err := f.pool.QueryRow(context.Background(), `
 		SELECT COALESCE(-sum(CASE WHEN a.code LIKE 'creator:%' THEN e.amount_minor ELSE 0 END), 0),
 		       COALESCE(-sum(CASE WHEN a.code = 'platform:revenue' THEN e.amount_minor ELSE 0 END), 0)
-		FROM ledger.entries e JOIN ledger.accounts a ON a.id = e.account_id`).Scan(&payable, &revenue); err != nil {
+		FROM ledger.entries e
+		JOIN ledger.accounts a ON a.id = e.account_id
+		JOIN ledger.transactions t ON t.id = e.transaction_id
+		WHERE t.reference = $1`, intentID).Scan(&payable, &revenue); err != nil {
 		t.Fatalf("read balances: %v", err)
 	}
 	if payable != 960 || revenue != 240 {

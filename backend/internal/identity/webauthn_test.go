@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -294,7 +295,8 @@ func TestPasskeyLoginWithoutEmailDiscoversTheAccount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("finish login: %v", err)
 	}
-	if got.User.Email != email {
+	// Addresses are stored lower-cased, so compare without case.
+	if !strings.EqualFold(got.User.Email, email) {
 		t.Fatalf("logged in as %q, want %q", got.User.Email, email)
 	}
 }

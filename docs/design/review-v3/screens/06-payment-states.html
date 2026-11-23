@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>06 Payment states</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen">
+<div class="frame">
+  <div class="statusbar"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
+
+  <div class="masthead">
+    <div class="icon plain" style="margin-left:-6px">✕</div>
+    <div class="mast-title">Payment</div>
+    <div class="grow"></div>
+    <span class="meta">int_7f3a…c19</span>
+  </div>
+
+  <div class="pad" style="padding-top:18px">
+    <div class="display d-l" style="font-size:33px">Three outcomes,<br>one source of truth.</div>
+    <p class="small muted" style="margin-top:8px;max-width:305px">The screen never decides. It reads the intent, and the intent is written by the processor's signed confirmation.</p>
+
+    <div style="margin-top:22px;border-top:1px solid var(--rule-strong)">
+      <div style="padding:14px 0;border-bottom:1px solid var(--rule);box-shadow:inset 2px 0 0 #a8853f;padding-left:12px">
+        <div class="row between">
+          <span class="row" style="gap:6px"><span class="dot" style="background:#a8853f"></span><span class="meta" style="color:var(--ink)">Pending</span></span>
+          <span class="meta">09:41:02</span>
+        </div>
+        <div style="font-weight:600;margin-top:8px;font-size:13.5px">Waiting for confirmation</div>
+        <p class="small muted" style="margin-top:3px">Access opens when the confirmation arrives. Do not pay twice — the processor holds the same intent.</p>
+        <div style="height:2px;background:var(--rule);margin-top:10px;position:relative">
+          <div style="position:absolute;left:0;top:0;bottom:0;width:38%;background:#a8853f"></div>
+        </div>
+      </div>
+
+      <div style="padding:14px 0;border-bottom:1px solid var(--rule);box-shadow:inset 2px 0 0 var(--sage);padding-left:12px">
+        <div class="row between">
+          <span class="row" style="gap:6px"><span class="dot" style="background:var(--sage)"></span><span class="meta" style="color:var(--ink)">Paid</span></span>
+          <span class="display" style="font-size:17px">$9.00</span>
+        </div>
+        <div style="font-weight:600;margin-top:8px;font-size:13.5px">Studio is open</div>
+        <p class="small muted" style="margin-top:3px">Lina Marchetti · renews 26 Dec 2026. Receipt saved to your statement.</p>
+        <div class="row" style="gap:8px;margin-top:10px">
+          <span class="flag sage">Entitlement active</span>
+          <span class="flag">Ledger balanced</span>
+        </div>
+        <div class="btn sm ink" style="margin-top:11px;width:100%">Open the feed</div>
+      </div>
+
+      <div style="padding:14px 0;border-bottom:1px solid var(--rule);box-shadow:inset 2px 0 0 var(--flag);padding-left:12px">
+        <div class="row between">
+          <span class="row" style="gap:6px"><span class="dot" style="background:var(--flag)"></span><span class="meta" style="color:var(--ink)">Declined</span></span>
+          <span class="meta">card_3ds_failed</span>
+        </div>
+        <div style="font-weight:600;margin-top:8px;font-size:13.5px">The bank refused this payment</div>
+        <p class="small muted" style="margin-top:3px">Nothing was charged and nothing was unlocked. The same intent can be retried without creating a duplicate.</p>
+        <div class="row" style="gap:8px;margin-top:10px">
+          <div class="btn sm outline" style="flex:1">Try another method</div>
+          <div class="btn sm quiet" style="flex:1">Dismiss</div>
+        </div>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:14px">A replayed or duplicated confirmation changes nothing: it is recognised by its provider event id and acknowledged with 202.</p>
+  </div>
+</div>
+</body></html>

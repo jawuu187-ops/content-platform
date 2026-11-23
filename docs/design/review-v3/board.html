@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Vesper — visual direction v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f4efe7; --paper-2:#ebe4d8; --paper-3:#e1d8c9;
+    --ink:#191412; --muted:#6f635a; --faint:#a1958a;
+    --rule:rgba(25,20,18,.16); --rule-strong:rgba(25,20,18,.32);
+    --oxblood:#7a1f2b; --sage:#2f6b4f; --flag:#a8322a; --brass:#a8853f;
+    --didone:"Bodoni Moda",Didot,serif;
+    --grotesk:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{width:1720px;background:var(--paper);color:var(--ink);font-family:var(--grotesk);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .wrap{padding:60px 56px 72px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--rule-strong);padding-bottom:14px}
+  .brandline{display:flex;align-items:center;gap:12px}
+  .mark{width:16px;height:16px;position:relative}
+  .mark::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--oxblood)}
+  .mark::after{content:"";position:absolute;top:-2px;right:-3px;width:14px;height:14px;border-radius:50%;background:var(--paper)}
+  .wm{font-family:var(--didone);font-size:16px;letter-spacing:.26em;text-transform:uppercase}
+  .top .meta{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);text-align:right;line-height:1.9}
+
+  .hero{margin-top:40px;display:grid;grid-template-columns:1.35fr .65fr;gap:52px;align-items:end}
+  h1{font-family:var(--didone);font-weight:400;font-size:92px;line-height:.92;letter-spacing:-.028em}
+  h1 em{font-style:italic}
+  .lede{font-size:15px;line-height:1.62;color:#3a312c;margin-top:22px;max-width:660px}
+  .lede b{font-weight:600;color:var(--ink)}
+  .hero-side{border-left:1px solid var(--rule-strong);padding-left:24px}
+  .hero-side .k{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--oxblood)}
+  .hero-side p{font-size:12.5px;line-height:1.6;color:#3a312c;margin-top:8px}
+
+  h2{font-family:var(--didone);font-weight:400;font-size:34px;letter-spacing:-.01em;line-height:1.1}
+  .sechead{display:flex;align-items:baseline;gap:14px;margin-top:56px;border-top:1px solid var(--rule-strong);padding-top:14px}
+  .sechead .n{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--oxblood)}
+  .sechead .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase}
+  .sechead .g{flex:1}
+  .sechead .note{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+
+  .three{display:grid;grid-template-columns:repeat(3,1fr);gap:34px;margin-top:26px}
+  .three h3{font-size:13px;font-weight:600;margin-bottom:7px}
+  .three p{font-size:12.5px;line-height:1.62;color:#3a312c}
+
+  table{width:100%;border-collapse:collapse;margin-top:20px}
+  th{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:400;text-align:left;padding:0 0 9px;border-bottom:1px solid var(--rule-strong)}
+  td{padding:12px 12px 12px 0;border-bottom:1px solid var(--rule);font-size:12px;line-height:1.5;vertical-align:top;color:#3a312c}
+  td b{color:var(--ink);font-weight:600}
+  td.mono{font-family:var(--mono);font-size:11px}
+
+  .brandgrid{display:grid;grid-template-columns:1.1fr .9fr .9fr;gap:34px;margin-top:26px}
+  .panel{border:1px solid var(--rule-strong);padding:20px 22px}
+  .panel .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+  .lockup{display:flex;align-items:center;gap:14px;margin-top:16px}
+  .lockup .bigmark{width:44px;height:44px;position:relative}
+  .lockup .bigmark::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--oxblood)}
+  .lockup .bigmark::after{content:"";position:absolute;top:-5px;right:-7px;width:38px;height:38px;border-radius:50%;background:var(--paper)}
+  .lockup .word{font-family:var(--didone);font-size:34px;letter-spacing:.16em;text-transform:uppercase}
+  .sw{display:grid;grid-template-columns:repeat(2,1fr);gap:0;margin-top:14px;border-top:1px solid var(--rule)}
+  .sw div{padding:9px 0;border-bottom:1px solid var(--rule);display:flex;align-items:center;gap:9px;font-size:10.5px}
+  .sw i{width:16px;height:16px;border:1px solid var(--rule-strong);display:block;flex:none}
+  .sw .h{font-family:var(--mono);font-size:9px;color:var(--muted)}
+  .type .row{display:flex;align-items:baseline;gap:16px;margin-top:12px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+  .type .n{font-family:var(--mono);font-size:9px;color:var(--muted);width:74px;flex:none}
+
+  .components{display:grid;grid-template-columns:repeat(4,1fr);gap:28px;margin-top:26px}
+  .comp .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  .btnr{display:inline-flex;align-items:center;justify-content:center;height:42px;padding:0 18px;font-size:12px;font-weight:600;letter-spacing:.02em;border-radius:3px;border:1px solid var(--oxblood);background:var(--oxblood);color:var(--paper)}
+  .btnr.out{background:transparent;color:var(--ink);border-color:var(--rule-strong)}
+  .btnr.ink{background:var(--ink);border-color:var(--ink)}
+  .flagr{display:inline-flex;align-items:center;gap:5px;height:19px;padding:0 6px;border:1px solid var(--rule-strong);border-radius:2px;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+  .flagr.solid{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+  .flagr.ox{background:var(--oxblood);color:var(--paper);border-color:var(--oxblood)}
+  .flagr.sage{color:var(--sage);border-color:rgba(47,107,79,.5)}
+
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:18px;margin-top:26px}
+  .tile{border:1px solid var(--rule);background:#f8f4ec}
+  .tile .cap{padding:9px 10px 10px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
+  .tile .id{font-family:var(--mono);font-size:8.5px;color:var(--oxblood)}
+  .tile .nm{font-size:10px;font-weight:600;margin-top:2px;line-height:1.25}
+  .tile .st{font-family:var(--mono);font-size:7.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--rule-strong);padding:2px 3px;white-space:nowrap}
+  .vp{width:100%;height:562px;overflow:hidden;position:relative}
+  .vp iframe{width:412px;height:915px;border:0;transform:scale(.614);transform-origin:top left;position:absolute;left:0;top:0}
+  .tile .foot{font-size:8.5px;line-height:1.45;color:var(--muted);padding:8px 10px 9px;border-top:1px solid var(--rule)}
+
+  .qa{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin-top:26px}
+  ol{margin:10px 0 0 16px}
+  li{font-size:12.5px;line-height:1.65;color:#3a312c;margin-bottom:5px}
+  .footnote{margin-top:40px;border-top:1px solid var(--rule-strong);padding-top:12px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+</style>
+</head><body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brandline"><div class="mark"></div><div class="wm">Vesper</div></div>
+    <div class="meta">Visual direction · review 03<br>26 November 2026 · supersedes v2<br>18 screens · 0 implemented</div>
+  </div>
+
+  <div class="hero">
+    <div>
+      <h1>Paper,<br>not <em>plastic.</em></h1>
+      <p class="lede">
+        A subscription platform for adult creators should look like a <b>photographer's catalogue</b>, not a
+        social network. This direction is built from print: bone stock, oxblood ink, hairline rules, a didone
+        face for names and money, and photography that is allowed to run edge to edge. Chrome is deliberately
+        thin so the work, the price and the person carry the screen.
+      </p>
+      <p class="lede" style="margin-top:14px">
+        It is a full reconsideration, not a recolour of v2. Different structure (rules and ledgers instead of
+        floating cards), different typography (didone display, grotesque UI, mono for money), different
+        relationship between image and interface, and a brand that exists as a mark and a wordmark rather than
+        an accent colour.
+      </p>
+    </div>
+    <div class="hero-side">
+      <div class="k">What changed and why</div>
+      <p><b>v2 read as generated:</b> every surface was a rounded card, every gap equal, gradients standing in for photography, a serif used decoratively.</p>
+      <p><b>v3 is art-directed:</b> one photographic subject, one ink, one rule weight, prices set as type rather than in badges, and empty space used to separate rather than boxes.</p>
+      <p><b>Not a template:</b> no borrowed palette or component library; the system is 5 tokens, 3 typefaces and 8 components.</p>
+    </div>
+  </div>
+
+  <div class="sechead"><span class="n">01</span><span class="t">What the category actually does well</span><span class="g"></span><span class="note">benchmark, not template</span></div>
+  <table>
+    <tr><th style="width:190px">Product</th><th>What reads as professional</th><th>What we take, and what we reject</th></tr>
+    <tr>
+      <td><b>OnlyFans</b><br><span class="mono" style="color:var(--muted)">reference, not model</span></td>
+      <td>One unmistakable brand blue; the price sits next to the action, never in a separate step; creator pages lead with the person and a plain statement of what a subscription buys.</td>
+      <td>Take: price adjacency and blunt subscription copy. Reject: the generic SaaS dashboard look and the neon-blue identity.</td>
+    </tr>
+    <tr>
+      <td><b>Fansly · Patreon</b></td>
+      <td>Dense tier tables that a buyer can scan in one pass; the “what you get” list is typographic, not iconographic; states (active, ending, declined) are written in words.</td>
+      <td>Take: tier tables and word-based status. Reject: card-per-tier layouts and pastel gradients.</td>
+    </tr>
+    <tr>
+      <td><b>Substack</b></td>
+      <td>Editorial typography as the product; a subscription is presented as a sentence, with the writer's voice intact; minimal chrome around reading.</td>
+      <td>Take: type-led reading and text-first subscription framing. Reject: the newsletter furniture.</td>
+    </tr>
+    <tr>
+      <td><b>Apple TV · MUBI</b></td>
+      <td>Media presented full-bleed; interface recedes to near-black only where content is the subject; no chrome fighting a photograph.</td>
+      <td>Take: full-bleed imagery and a dark viewer. Reject: cinematic black everywhere else.</td>
+    </tr>
+  </table>
+
+  <div class="sechead"><span class="n">02</span><span class="t">Identity</span><span class="g"></span><span class="note">name is a placeholder — D-006 still open</span></div>
+  <div class="brandgrid">
+    <div class="panel">
+      <div class="k">Wordmark and mark</div>
+      <div class="lockup"><div class="bigmark"></div><div class="word">Vesper</div></div>
+      <p style="font-size:11.5px;line-height:1.6;color:#3a312c;margin-top:16px">
+        The mark is an eclipse: two circles, oxblood and paper. It survives at 16 px, prints in one ink, and
+        never needs a gradient. The wordmark is set in the didone at 0.16 em tracking — the only place type is
+        tracked that wide.
+      </p>
+      <p style="font-size:11.5px;line-height:1.6;color:#3a312c;margin-top:10px">
+        Vesper: the evening star. Adult without being explicit, and it reads as a place rather than a feature.
+      </p>
+    </div>
+    <div class="panel">
+      <div class="k">Ink system · measured contrast</div>
+      <div class="sw">
+        <div><i style="background:#191412"></i><span>Ink<br><span class="h">#191412 · 15.9:1</span></span></div>
+        <div><i style="background:#7a1f2b"></i><span>Oxblood<br><span class="h">#7A1F2B · 8.9:1</span></span></div>
+        <div><i style="background:#f4efe7"></i><span>Paper<br><span class="h">#F4EFE7</span></span></div>
+        <div><i style="background:#ebe4d8"></i><span>Paper 2<br><span class="h">#EBE4D8 · 14.4:1</span></span></div>
+        <div><i style="background:#6f635a"></i><span>Muted<br><span class="h">#6F635A · 5.1:1</span></span></div>
+        <div><i style="background:#2f6b4f"></i><span>Sage<br><span class="h">#2F6B4F · 5.5:1</span></span></div>
+      </div>
+      <p style="font-size:11px;line-height:1.6;color:var(--muted);margin-top:10px">
+        Oxblood is the only accent. Brass marks pending, sage marks paid, red marks refusal. Nothing else gets colour.
+      </p>
+    </div>
+    <div class="panel type">
+      <div class="k">Type</div>
+      <div class="row"><span class="n">DIDONE</span><span style="font-family:var(--didone);font-size:27px;line-height:1">Bodoni Moda</span></div>
+      <div class="row"><span class="n">UI</span><span style="font-size:19px;font-weight:600">Archivo 400–700</span></div>
+      <div class="row"><span class="n">MONEY</span><span style="font-family:var(--mono);font-size:15px">IBM Plex Mono</span></div>
+      <p style="font-size:11px;line-height:1.6;color:var(--muted);margin-top:12px">
+        Names, prices and pull quotes are didone. Everything a thumb touches is grotesque. Every figure a buyer
+        might compare is mono and tabular, so columns align without effort.
+      </p>
+      <p style="font-size:11px;line-height:1.6;color:var(--muted);margin-top:8px">
+        Scale 92 / 46 / 34 / 26 / 19 / 13.5 / 12 / 10. Rules are 1 px at 16% ink; the strong rule is 32%.
+      </p>
+    </div>
+  </div>
+
+  <div class="sechead"><span class="n">03</span><span class="t">Components</span><span class="g"></span><span class="note">8 total, no card library</span></div>
+  <div class="components">
+    <div class="comp">
+      <div class="k">Actions</div>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+        <span class="btnr">Join Studio — $9</span>
+        <span class="btnr out">View profile</span>
+        <span class="btnr ink">Publish</span>
+      </div>
+    </div>
+    <div class="comp">
+      <div class="k">States, written not coloured</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="flagr solid">Subscribers</span>
+        <span class="flagr ox">Pay-per-view</span>
+        <span class="flagr sage">Paid</span>
+        <span class="flagr">Pending</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="flagr" style="color:var(--flag);border-color:rgba(168,50,42,.45)">Declined</span></div>
+    </div>
+    <div class="comp">
+      <div class="k">Price as type</div>
+      <div style="font-family:var(--didone);font-size:34px;line-height:1">$9<span style="font-size:13px;font-family:var(--grotesk)"> / month</span></div>
+      <div class="mono" style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px">renews 26 Dec · cancel anytime</div>
+    </div>
+    <div class="comp">
+      <div class="k">Ledger row</div>
+      <div style="border-top:1px solid var(--rule-strong);padding-top:7px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--rule)"><span>Studio · subscription</span><span style="font-family:var(--mono)">$9.00</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0"><span>Platform fee</span><span style="font-family:var(--mono)">−$1.80</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sechead"><span class="n">04</span><span class="t">Screens · 18</span><span class="g"></span><span class="note">all proposed · nothing shipped</span></div>
+  <div class="grid">
+
+    <div class="tile"><div class="cap"><div><div class="id">01</div><div class="nm">Splash</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/01-splash.html" scrolling="no"></iframe></div><div class="foot">Brand only. No API.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">02</div><div class="nm">Discover</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/02-discover.html" scrolling="no"></iframe></div><div class="foot">Profiles and feeds exist; search does not.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">03</div><div class="nm">Creator</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/03-creator-profile.html" scrolling="no"></iframe></div><div class="foot">Profile, tiers, locked grid: served.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">04</div><div class="nm">Membership</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/04-membership.html" scrolling="no"></iframe></div><div class="foot">Tier price, perks, period: served.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">05</div><div class="nm">Payment</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/05-checkout.html" scrolling="no"></iframe></div><div class="foot">Intent + ledger work; no live processor.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">06</div><div class="nm">States</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/06-payment-states.html" scrolling="no"></iframe></div><div class="foot">Pending, paid, declined, replay-safe.</div></div>
+
+    <div class="tile"><div class="cap"><div><div class="id">07</div><div class="nm">Feed</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/07-feed.html" scrolling="no"></iframe></div><div class="foot">Feed and lock flags exist; no reactions.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">08</div><div class="nm">Locked post</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/08-locked-post.html" scrolling="no"></iframe></div><div class="foot">Access decided server-side.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">09</div><div class="nm">Viewer</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/09-viewer.html" scrolling="no"></iframe></div><div class="foot">Single-use delivery live; watermark pending.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">10</div><div class="nm">Unlock</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/10-ppv-sheet.html" scrolling="no"></iframe></div><div class="foot">PPV unlock + refund revocation served.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">11</div><div class="nm">Library</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/11-library.html" scrolling="no"></iframe></div><div class="foot">Unlocks and entitlements exist; downloads do not.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">12</div><div class="nm">Account</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/12-account.html" scrolling="no"></iframe></div><div class="foot">Identity, security, verification served.</div></div>
+
+    <div class="tile"><div class="cap"><div><div class="id">13</div><div class="nm">Subscriptions</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/13-subscriptions.html" scrolling="no"></iframe></div><div class="foot">List and cancel served.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">14</div><div class="nm">Statement</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/14-statement.html" scrolling="no"></iframe></div><div class="foot">History and ledger split served; no PDF.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">15</div><div class="nm">Alerts</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/15-alerts.html" scrolling="no"></iframe></div><div class="foot">No notification backend yet.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">16</div><div class="nm">Studio</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/16-studio.html" scrolling="no"></iframe></div><div class="foot">Balance from ledger; aggregates and payouts missing.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">17</div><div class="nm">Composer</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/17-composer.html" scrolling="no"></iframe></div><div class="foot">Upload, visibility, PPV price served.</div></div>
+    <div class="tile"><div class="cap"><div><div class="id">18</div><div class="nm">Tiers &amp; audience</div></div><span class="st">Proposed</span></div><div class="vp"><iframe src="screens/18-tiers-audience.html" scrolling="no"></iframe></div><div class="foot">CRUD and retirement served; counts are not.</div></div>
+
+  </div>
+
+  <div class="sechead"><span class="n">05</span><span class="t">Status, navigation, open questions</span><span class="g"></span></div>
+  <div class="qa">
+    <div>
+      <h2 style="font-size:24px">What is real today</h2>
+      <table>
+        <tr><th>Surface</th><th>Status</th></tr>
+        <tr><td><b>App shell</b> (Compose, theme, FLAG_SECURE)</td><td class="mono">PARTIAL</td></tr>
+        <tr><td><b>Design tokens</b> in <code>ui/theme</code></td><td class="mono">PLACEHOLDER</td></tr>
+        <tr><td><b>Navigation, all 18 screens</b></td><td class="mono">PROPOSED</td></tr>
+        <tr><td><b>Backend</b> (identity, creators, media, payments, ledger, age gate)</td><td class="mono">IMPLEMENTED + TESTED</td></tr>
+      </table>
+      <p style="font-size:12.5px;line-height:1.6;color:#3a312c;margin-top:14px">
+        Four destinations: <b>Home</b>, <b>Library</b>, <b>Create</b> (studio, hidden for non-creators), <b>You</b>.
+        Pushed screens keep one back path; unlocking and confirmation are sheets. Money is never more than one
+        step from the thing it buys.
+      </p>
+    </div>
+    <div>
+      <h2 style="font-size:24px">Before implementation</h2>
+      <ol>
+        <li>Does this direction — paper, oxblood, didone, photography — feel like the product?</li>
+        <li>Is the four-destination bar right, with studio inside Create rather than a fifth tab?</li>
+        <li>One photographer-voice brand (Vesper) or a neutral platform mark?</li>
+        <li>Should fans see the fee split, as the statement does, or only the total?</li>
+        <li>Anything missing before the tokens and shell are built?</li>
+      </ol>
+      <p style="font-size:11.5px;line-height:1.6;color:var(--muted);margin-top:14px">
+        No production screen, route, schema or dependency was changed to produce this board. The single
+        photograph is an original generated stand-in; licensed photography is a separate decision.
+      </p>
+    </div>
+  </div>
+
+  <div class="footnote">
+    <span>Vesper · visual direction 03 · 18 screens</span>
+    <span>Rendered on GitHub-hosted runners · design-render-v3</span>
+  </div>
+</div>
+</body></html>

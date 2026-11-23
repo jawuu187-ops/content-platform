@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>05 Checkout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen">
+<div class="frame">
+  <div class="statusbar"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
+
+  <div class="masthead">
+    <div class="icon plain" style="margin-left:-6px">‹</div>
+    <div class="mast-title">Payment</div>
+    <div class="grow"></div>
+    <span class="flag">Sandbox</span>
+  </div>
+
+  <div class="pad" style="padding-top:16px">
+    <div class="sec"><span class="n">01</span><span class="t">Order</span><span class="g"></span></div>
+    <div class="ruled" style="margin-top:8px">
+      <div class="ruled-row">
+        <div class="plate round ox" style="width:34px;height:34px;font-size:13px">LM</div>
+        <div class="grow">
+          <div style="font-weight:600;font-size:13px">Lina Marchetti · Studio</div>
+          <div class="meta" style="margin-top:3px;text-transform:none;letter-spacing:.03em">Monthly · first charge today · renews 26 Dec</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" style="margin-top:20px"><span class="n">02</span><span class="t">Method</span><span class="g"></span></div>
+    <div class="ruled" style="margin-top:4px">
+      <div class="ruled-row">
+        <div class="radio on"></div>
+        <div class="grow">
+          <div class="row between">
+            <span style="font-weight:600;font-size:13px">Visa ···· 4242</span>
+            <span class="meta">Default</span>
+          </div>
+          <div class="meta" style="margin-top:3px;text-transform:none;letter-spacing:.03em">Expires 08 / 2029 · 3-D Secure</div>
+        </div>
+      </div>
+      <div class="ruled-row">
+        <div class="radio"></div>
+        <div class="grow">
+          <div style="font-size:13px">Add another method</div>
+          <div class="meta" style="margin-top:3px;text-transform:none;letter-spacing:.03em">Card details open in the processor's sheet</div>
+        </div>
+        <span class="num">›</span>
+      </div>
+      <div class="ruled-row" style="opacity:.5">
+        <div class="radio" style="opacity:.4"></div>
+        <div class="grow">
+          <div class="row between"><span style="font-size:13px">Prepaid wallet</span><span class="flag">Soon</span></div>
+          <div class="meta" style="margin-top:3px;text-transform:none;letter-spacing:.03em">Not enabled in this build</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec" style="margin-top:20px"><span class="n">03</span><span class="t">Totals</span><span class="g"></span></div>
+    <table class="ledger" style="margin-top:6px">
+      <tr><td style="border:0;padding-bottom:6px">Studio, one month</td><td class="r" style="border:0;padding-bottom:6px">$9.00</td></tr>
+      <tr><td style="border:0;padding:3px 0">Platform fee · included</td><td class="r" style="border:0;padding:3px 0">$1.80</td></tr>
+      <tr><td style="border:0;padding:3px 0">Creator share</td><td class="r" style="border:0;padding:3px 0">$7.20</td></tr>
+      <tr><td style="border:0;padding:3px 0">Tax</td><td class="r" style="border:0;padding:3px 0">$0.00</td></tr>
+      <tr>
+        <td style="border-top:1px solid var(--rule-strong);border-bottom:0;padding-top:10px;font-weight:600">Due today</td>
+        <td class="r amount" style="border-top:1px solid var(--rule-strong);border-bottom:0;padding-top:10px;font-size:15px">$9.00</td>
+      </tr>
+    </table>
+
+    <div class="toast" style="margin-top:16px">
+      <span class="flag ox">Dev</span>
+      <div class="grow">
+        <div class="small" style="font-weight:600">No processor is connected</div>
+        <div class="note" style="margin-top:2px">This build records the intent and the ledger entries against a test provider. No card is charged.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;background:var(--paper);border-top:1px solid var(--rule-strong);padding:10px 22px 20px">
+    <div class="btn wide">Pay $9.00</div>
+    <p class="note center" style="margin-top:9px">Renews monthly at $9.00. Cancel before 26 Dec to stop the next charge.</p>
+  </div>
+</div>
+</body></html>

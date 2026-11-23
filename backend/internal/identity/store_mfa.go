@@ -203,16 +203,6 @@ func (s *store) countUnusedRecoveryCodes(ctx context.Context, userID string) (in
 	return n, nil
 }
 
-func (s *store) setEmailVerified(ctx context.Context, userID string) error {
-	_, err := s.pool.Exec(ctx, `
-		UPDATE identity.users SET email_verified_at = COALESCE(email_verified_at, now())
-		WHERE id = $1::uuid`, userID)
-	if err != nil {
-		return fmt.Errorf("identity: set email verified: %w", err)
-	}
-	return nil
-}
-
 func (s *store) emailVerifiedState(ctx context.Context, userID string) (bool, error) {
 	var verified bool
 	err := s.pool.QueryRow(ctx, `

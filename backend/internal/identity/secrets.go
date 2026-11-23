@@ -15,8 +15,6 @@ type secretBox struct {
 	aead cipher.AEAD
 }
 
-var errNoSecretKey = errors.New("identity: multi-factor secrets cannot be stored without an encryption key")
-
 func newSecretBox(key []byte) (*secretBox, error) {
 	if len(key) != 32 {
 		return nil, fmt.Errorf("identity: encryption key must be 32 bytes, got %d", len(key))

@@ -1,7 +1,8 @@
 # Visual direction 03 — “Paper, not plastic.”
 
-**Status: recomposed to the product benchmark and rendered; awaiting the owner's review of
-the images (26 Nov 2026, render `e6d3650`).** Supersedes v2 as the proposed direction. v2 and
+**Status: recomposed to the product benchmark, and now extended with dark mode and motion;
+awaiting the owner's review of the images (26 Nov 2026, renders `9dbf0aa` light +
+`board-dark.png` dark).** Supersedes v2 as the proposed direction. v2 and
 v1 remain untouched, for comparison.
 
 This revision keeps the identity and changes the composition. The first refinement round

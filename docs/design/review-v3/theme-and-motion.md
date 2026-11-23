@@ -132,13 +132,30 @@ Fonts are bundled at `res/font` (6 TTFs, ~570 KB) with the SIL OFL text at
 
 ## 5. What is verified, and how
 
-- `VesperPaletteTest` — contrast thresholds and dark-theme composition rules (JVM unit test).
-- `MotionTest` — reduced-motion resolution, zeroed durations, stagger cap.
-- `ThemeModeTest` — default to System, round trip, corrupt value fallback.
-- `android-ci.yml` — compiles, runs the unit tests, lints and assembles the debug APK on a
-  GitHub-hosted runner. There is no emulator in the pipeline, so no screenshot of the running
-  app exists; the dark screens in this folder are HTML renders of the approved compositions,
-  driven by the same palette values that the Kotlin theme holds.
+Evidence, all on GitHub-hosted runners:
+
+| Check | Where | Result |
+| --- | --- | --- |
+| Kotlin compile, unit tests, lint, debug APK, release AAB | `android-ci.yml`, run `45227154869` | success |
+| Palette, motion and mode tests | same run, `:app:testDebugUnitTest` | success |
+| Security scanners (gosec, staticcheck, govulncheck, gitleaks, Trivy) | `security.yml`, run `45227154822` | success |
+| Dark board and all eighteen light screens rendered | `design-render-v3.yml`, run `45229078418` → `9dbf0aa` | success |
+| Documentation links and structure | `docs.yml` | success |
+
+Tests: `VesperPaletteTest` (contrast thresholds, dark-is-not-an-inversion rules),
+`MotionTest` (reduced-motion resolution, zeroed durations, stagger cap),
+`ThemeModeTest` (System default, round trip, corrupt value fallback).
+
+There is no emulator in the pipeline, so no screenshot of the running app exists; the dark
+screens in this folder are HTML renders of the approved compositions, driven by the same
+palette values the Kotlin theme holds. Motion was reviewed as a specification plus code, not
+as a recording — a frame-accurate capture needs a device or emulator runner.
+
+Dark-mode review of the render found five real defects, all fixed before this note:
+a cream tab bar and sheets (the light theme used one token for both page substrate and
+on-fill type), chips whose type became bone-on-dark, a cream "Open the feed" button,
+a cream ink-plate avatar, and two frames whose content ran under the tab bar (04, 12).
+The light compositions are unchanged except for those last two clipping fixes.
 
 ## 6. Still open
 

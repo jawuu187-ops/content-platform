@@ -1,8 +1,8 @@
 # Visual direction 03 — “Paper, not plastic.”
 
-**Status: recomposed to the product benchmark; awaiting owner review of the rendered board
-(26 Nov 2026).** Supersedes v2 as the proposed direction. v2 and v1 remain untouched, for
-comparison.
+**Status: recomposed to the product benchmark and rendered; awaiting the owner's review of
+the images (26 Nov 2026, render `e6d3650`).** Supersedes v2 as the proposed direction. v2 and
+v1 remain untouched, for comparison.
 
 This revision keeps the identity and changes the composition. The first refinement round
 ([`refinement.md`](refinement.md)) fixed craft: seven type sizes instead of 35, seven

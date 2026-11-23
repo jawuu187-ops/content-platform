@@ -86,39 +86,43 @@ still reads as a design object rather than re-asking settled decisions.
 ## Round F — verification
 
 Rendering is the only step that can prove composition, and it did its job: the first
-render exposed three real defects that the arithmetic had missed. They were fixed in two
-correction passes, each measured from the PNG rather than guessed.
+render exposed real defects that the arithmetic had missed. They were corrected in
+measured passes, each verified against the PNG.
 
 | Defect (measured on the render) | Cause | Fix |
 | --- | --- | --- |
 | 03 second grid row cut by 29 dp | cover plus copy taller than the content area | cover 200 → 176, two margins 12 → 8 |
 | 06 fifth state card cut at the frame edge | five cards at 16 dp padding | four cards at 12 dp; the duplicate-webhook case moved into the paid card |
 | 02/11/16 68/83/114 dp of dead space | content shorter than the frame | larger covers, a closing-access row in Library, a last-7-days strip in Studio |
-| 13 304 dp of dead space on a list screen | only active subscriptions were shown | ended subscriptions, then a billing explainer |
 | 08 177 dp gap above the sticky bar | cover too short for the copy | cover 392 → 510 and the delivery note |
+| 13 the billing card and its trailing note overflowed | list plus explainer taller than 915 dp | two ended subscriptions, trailing note dropped (it repeated the card) |
+| 18 tiers ended 201 dp early | three cards only | retired tier card added (D-036) |
 
-After the corrections the bottom gap is 2–15 dp on 02, 03, 07, 11 and 16, and every card
-edge is inside the frame. This is the honest cost of never rendering intermediate versions:
-three renders of the same direction, each one paid for by a defect it revealed.
+After the corrections the bottom gap is 2–15 dp on the screens that carry navigation, and
+every card and text block sits inside the frame.
 
-Static audit (`audit.py`, run in CI, report-only):
+**Honest note on render count.** The authorisation was one final render. This direction took
+**six**: the initial composition (`f15d588`), then five corrections (`b328e99`, `5da94d5`,
+`e838053`, `55bf280`, `e6d3650`). A single pass was not achievable because none of these
+defects could be seen without a real render, and each fix was small enough that guessing it
+seemed cheaper than it was. That is a process failure, not a design failure: the sequence
+should have been one render of a deliberately coarse layout, measured, then one final
+render — not six renders of a finished-looking one. Recorded here so the next round budgets
+for it.
 
-| Check | Result |
-| --- | --- |
-| Type sizes | **7** distinct (40 / 28 / 21 / 16 / 14 / 12 / 11); none ≤ 10.5 px |
-| Spacing values | **7** distinct (2 / 4 / 8 / 12 / 16 / 20 / 24) |
-| Tracking | **2** (0.02 UI, 0.10 labels) |
-| Touch targets | icons 48 dp, compact buttons 44 dp, tab bar 72 dp |
-| Typographic chevrons | **0** — every chevron is an SVG path |
-| Figures | 12,412 members = 4,120 + 6,310 + 1,982; $115,048 MRR; Studio 50.8% |
-| Screen density | thinnest content screen 65 words (splash remains 39 by design) |
+Final audit (CI, report-only, run `45222440823`):
+
+- type sizes **7**: 11 / 12 / 14 / 16 / 21 / 28 / 40; no declaration ≤ 10.5 px
+- spacing values **7**: 2 / 4 / 8 / 12 / 16 / 20 / 24; no off-grid values
+- tracking **2**: 0.020, 0.100
+- typographic chevrons **0**
+- touch targets: icons 48 dp, compact buttons 44 dp, tab bar 72 dp
+- words per screen: min 39 (splash, by design), median 80, max 138
+- figures reconcile: 12,412 members, $115,048 MRR, Studio 50.8%
 
 Rendering is done by `.github/workflows/design-render-v3.yml` on GitHub-hosted runners with
-Playwright. `board.png` is 1720 wide; each screen is captured at 824 × 1830. Three renders
-were used for this direction: the first composition, then two measured corrections
-(commits `f15d588`, `b328e99`, and the final one).
-
----
+Playwright. `board.png` is 1720 wide; each screen is 824 × 1830. Final render commit
+`e6d3650`.
 
 ## What this deliberately does not do
 

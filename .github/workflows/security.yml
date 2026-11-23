@@ -113,6 +113,25 @@ jobs:
       - name: gosec (medium and above fail the build)
         run: go run github.com/securego/gosec/v2/cmd/gosec@v2.30.0 -severity medium -fmt sarif -out gosec.sarif ./...
 
+      - name: gosec findings (printed on failure)
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import json
+          try:
+              data = json.load(open("gosec.sarif"))
+          except Exception as exc:
+              print("no SARIF report:", exc)
+              raise SystemExit(0)
+          for run in data.get("runs", []):
+              for result in run.get("results", []):
+                  loc = result["locations"][0]["physicalLocation"]
+                  print(result["ruleId"],
+                        loc["artifactLocation"]["uri"],
+                        loc["region"]["startLine"],
+                        result["message"]["text"])
+          PY
+
       - name: staticcheck
         run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...
 

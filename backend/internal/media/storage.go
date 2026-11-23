@@ -108,6 +108,8 @@ func (s *LocalStore) Open(_ context.Context, key string) (io.ReadCloser, int64, 
 	if err != nil {
 		return nil, 0, err
 	}
+	// #nosec G304 -- path is root + shard + key, and pathOf has already rejected
+	// any key that is not exactly 64 lowercase hex characters.
 	f, err := os.Open(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, 0, ErrNotFound

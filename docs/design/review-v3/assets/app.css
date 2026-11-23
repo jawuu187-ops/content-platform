@@ -341,3 +341,7 @@ body.screen {
   font-family: var(--mono); font-size: 9px; letter-spacing: 0.16em;
   color: #fff; text-align: center; line-height: 2.6; white-space: nowrap;
 }
+
+/* Display figures are for headline numbers; anything inside a ruled row or table uses
+   the grotesque with tabular figures so columns align exactly. */
+.price-ui { font-family: var(--grotesk); font-weight: 600; font-variant-numeric: tabular-nums; }

@@ -96,6 +96,20 @@ def render_board(browser) -> pathlib.Path:
             print(f"warning: frame settle failed: {exc}")
     page.wait_for_timeout(1200)
 
+    # Chromium paints iframes lazily. With full_page on a viewport shorter than the
+    # document, every iframe below the fold comes out blank. Grow the viewport to the
+    # document height and walk it instead, so each phone is painted before capture.
+    height = int(page.evaluate("() => document.body.scrollHeight"))
+    page.set_viewport_size({"width": 1720, "height": min(height, 9000)})
+    page.wait_for_timeout(600)
+    y = 0
+    while y < height:
+        page.evaluate(f"window.scrollTo(0, {y})")
+        page.wait_for_timeout(120)
+        y += 600
+    page.evaluate("window.scrollTo(0, 0)")
+    page.wait_for_timeout(800)
+
     page.screenshot(path=str(BOARD_OUT), full_page=True, animations="disabled")
     print(f"board    {BOARD_OUT.relative_to(ROOT)}  {BOARD_OUT.stat().st_size // 1024} KiB")
     context.close()

@@ -5,6 +5,7 @@ on:
     paths: ["docs/**", "*.md", ".github/workflows/docs.yml"]
   pull_request:
     paths: ["docs/**", "*.md"]
+  workflow_dispatch:
 
 permissions:
   contents: read

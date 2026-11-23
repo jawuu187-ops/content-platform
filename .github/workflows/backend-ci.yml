@@ -25,7 +25,6 @@ defaults:
 
 env:
   GOFLAGS: -trimpath
-  CGO_ENABLED: 0
 
 jobs:
   test:
@@ -70,13 +69,17 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      - name: unit + integration tests
+      - name: unit + integration tests (race detector needs cgo)
+        env:
+          CGO_ENABLED: "1"
         run: go test -race -shuffle=on -covermode=atomic -coverprofile=coverage.out ./...
 
       - name: coverage summary
         run: go tool cover -func=coverage.out | tail -n 25
 
-      - name: build binaries
+      - name: build binaries (static, no cgo)
+        env:
+          CGO_ENABLED: "0"
         run: |
           go build -trimpath -ldflags "-s -w -X main.version=ci -X main.commit=${GITHUB_SHA::8}" -o bin/api ./cmd/api
           go build -trimpath -ldflags "-s -w" -o bin/migrate ./cmd/migrate

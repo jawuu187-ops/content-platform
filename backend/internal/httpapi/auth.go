@@ -200,7 +200,7 @@ func (h *authHandler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	noStore(w)
 	w.Header().Set("Location", "/v1/auth/sessions/"+res.Principal.SessionID)
-	writeJSON(w, http.StatusCreated, newAuthResponse(res))
+	writeJSON(w, http.StatusCreated, newAuthResponse(res, time.Now().UTC()))
 }
 
 func (h *authHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +216,7 @@ func (h *authHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	noStore(w)
-	writeJSON(w, http.StatusOK, newAuthResponse(res))
+	writeJSON(w, http.StatusOK, newAuthResponse(res, time.Now().UTC()))
 }
 
 func (h *authHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
@@ -232,7 +232,7 @@ func (h *authHandler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	noStore(w)
-	writeJSON(w, http.StatusOK, newAuthResponse(res))
+	writeJSON(w, http.StatusOK, newAuthResponse(res, time.Now().UTC()))
 }
 
 func (h *authHandler) handleLogout(w http.ResponseWriter, r *http.Request, p identity.Principal) {

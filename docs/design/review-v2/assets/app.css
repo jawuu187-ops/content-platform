@@ -327,3 +327,11 @@ body.screen {
 .frosted {
   background: linear-gradient(180deg, rgba(22, 16, 28, 0.05), rgba(22, 16, 28, 0.92) 55%);
 }
+
+/* Screens that sit under the fixed tab bar: content continues below the fold, so the
+   last row fades instead of being sliced by the bar in a static render. */
+.body.has-nav {
+  padding-bottom: 96px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 84px), rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 84px), rgba(0, 0, 0, 0) 100%);
+}

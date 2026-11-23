@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Vesper — dark theme and motion review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;1,6..96,400&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#12100f; --chrome:#0a0908; --card:#221e1c; --raised:#2a2522;
+    --ink:#f3ebe1; --ink2:#d9cdc2; --muted:#a2938a;
+    --action:#8e2a37; --actionText:#d06b76; --onAction:#f6efe6;
+    --sage:#6fbf95; --brass:#d3a85c; --danger:#e2705f;
+    --rule:rgba(243,235,225,.16); --ruleStrong:rgba(243,235,225,.32);
+    --didone:"Bodoni Moda",Didot,serif;
+    --grotesk:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{width:1720px;background:var(--ground);color:var(--ink);font-family:var(--grotesk);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  .wrap{padding:60px 56px 72px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--ruleStrong);padding-bottom:14px}
+  .brandline{display:flex;align-items:center;gap:12px}
+  .mark{width:16px;height:16px;position:relative}
+  .mark::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--action)}
+  .mark::after{content:"";position:absolute;top:-2px;right:-3px;width:14px;height:14px;border-radius:50%;background:var(--ground)}
+  .wm{font-family:var(--didone);font-size:16px;letter-spacing:.26em;text-transform:uppercase}
+  .top .meta{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);text-align:right;line-height:1.9}
+
+  .hero{margin-top:40px;display:grid;grid-template-columns:1.3fr .7fr;gap:52px;align-items:end}
+  h1{font-family:var(--didone);font-weight:400;font-size:84px;line-height:.94;letter-spacing:-.02em}
+  h1 em{font-style:italic;color:var(--actionText)}
+  .lede{font-size:15px;line-height:1.62;color:var(--ink2);margin-top:22px;max-width:660px}
+  .lede b{font-weight:600;color:var(--ink)}
+  .hero-side{border-left:1px solid var(--ruleStrong);padding-left:24px}
+  .hero-side .k{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--actionText)}
+  .hero-side p{font-size:12.5px;line-height:1.6;color:var(--ink2);margin-top:8px}
+
+  h2{font-family:var(--didone);font-weight:400;font-size:34px;letter-spacing:-.01em;line-height:1.1}
+  .sechead{display:flex;align-items:baseline;gap:14px;margin-top:56px;border-top:1px solid var(--ruleStrong);padding-top:14px}
+  .sechead .n{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--actionText)}
+  .sechead .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase}
+  .sechead .g{flex:1}
+  .sechead .note{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+
+  table{width:100%;border-collapse:collapse;margin-top:20px}
+  th{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:400;text-align:left;padding:0 0 9px;border-bottom:1px solid var(--ruleStrong)}
+  td{padding:11px 12px 11px 0;border-bottom:1px solid var(--rule);font-size:12px;line-height:1.5;vertical-align:middle;color:var(--ink2)}
+  td b{color:var(--ink);font-weight:600}
+  td.mono{font-family:var(--mono);font-size:11px}
+  .sw{display:inline-block;width:14px;height:14px;border:1px solid var(--ruleStrong);vertical-align:-3px;margin-right:6px}
+
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:24px}
+  .panel{border:1px solid var(--rule);background:var(--card);padding:18px 20px}
+  .panel .k{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .panel p{font-size:12px;line-height:1.62;color:var(--ink2);margin-top:8px}
+
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:26px}
+  .tile{border:1px solid var(--rule);background:var(--chrome)}
+  .tile .cap{padding:11px 12px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:6px;align-items:flex-start}
+  .tile .id{font-family:var(--mono);font-size:8.5px;color:var(--actionText)}
+  .tile .nm{font-size:12px;font-weight:600;margin-top:2px;line-height:1.25}
+  .tile .st{font-family:var(--mono);font-size:7.5px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--ruleStrong);padding:2px 3px;white-space:nowrap;color:var(--muted)}
+  .vp{width:100%;height:866px;overflow:hidden;position:relative}
+  .vp iframe{width:412px;height:915px;border:0;transform:scale(.946);transform-origin:top left;position:absolute;left:0;top:0}
+
+  .motion{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:24px}
+  .mcard{border:1px solid var(--rule);background:var(--card);padding:16px 18px}
+  .mcard .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--actionText)}
+  .mcard .d{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:4px}
+  .mcard h3{font-size:13px;font-weight:600;margin-top:10px}
+  .mcard p{font-size:11.5px;line-height:1.55;color:var(--ink2);margin-top:6px}
+  .bar{height:3px;background:var(--rule);margin-top:12px;position:relative}
+  .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--actionText);display:block}
+
+  .footnote{margin-top:44px;border-top:1px solid var(--ruleStrong);padding-top:12px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  ol{margin:10px 0 0 16px}
+  li{font-size:12.5px;line-height:1.65;color:var(--ink2);margin-bottom:5px}
+</style>
+</head><body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brandline"><div class="mark"></div><div class="wm">Vesper</div></div>
+    <div class="meta">Direction 03 · dark theme + motion<br>26 November 2026 · companion to board.png<br>18 dark screens · 6 motion patterns</div>
+  </div>
+
+  <div class="hero">
+    <div>
+      <h1>The same room,<br><em>at night.</em></h1>
+      <p class="lede">
+        Dark is not the light theme with the values flipped. The ground keeps a brown undertone so paper stock
+        becomes a dim room rather than a void, ink is warm bone instead of white, and the oxblood splits in two:
+        a deeper fill for actions, a lifted tone for type. Nothing turns blue, nothing turns grey, and the
+        eclipse mark still reads at 16 px.
+      </p>
+      <p class="lede" style="margin-top:14px">
+        Light remains the default experience. Dark is offered for night use and chosen per device — system,
+        light, or dark — with the choice stored before the first frame so no launch flashes paper.
+      </p>
+    </div>
+    <div class="hero-side">
+      <div class="k">Design rules</div>
+      <p><b>Ground</b> #12100F — warm, not black. <b>Ink</b> #F3EBE1 — bone, not white.</p>
+      <p><b>Oxblood</b> keeps its hue and gains a second tone for text, because 4.5:1 at 11 px is not negotiable.</p>
+      <p><b>Surfaces</b> separate by value, not by shadow: ground → card → raised.</p>
+      <p><b>Status</b> stays sage / brass / red, lifted for legibility.</p>
+      <p><b>Contrast tested</b> in <span style="font-family:var(--mono)">VesperPaletteTest</span>, not eyeballed.</p>
+    </div>
+  </div>
+
+  <div class="sechead"><span class="n">01</span><span class="t">Palette, both themes</span><span class="g"></span><span class="note">same roles, two values</span></div>
+  <table>
+    <tr><th style="width:150px">Role</th><th style="width:210px">Light</th><th style="width:210px">Dark</th><th>Used for</th></tr>
+    <tr><td><b>Ground</b></td><td class="mono"><span class="sw" style="background:#fbf8f3"></span>#FBF8F3</td><td class="mono"><span class="sw" style="background:#12100f"></span>#12100F</td><td>Browsing surface under every screen</td></tr>
+    <tr><td><b>Chrome</b></td><td class="mono"><span class="sw" style="background:#f4efe7"></span>#F4EFE7</td><td class="mono"><span class="sw" style="background:#0a0908"></span>#0A0908</td><td>Bars, settings lists, billing</td></tr>
+    <tr><td><b>Card</b></td><td class="mono"><span class="sw" style="background:#fffdfa"></span>#FFFDFA</td><td class="mono"><span class="sw" style="background:#221e1c"></span>#221E1C</td><td>Media cards, tier cards, order summary</td></tr>
+    <tr><td><b>Raised</b></td><td class="mono"><span class="sw" style="background:#ffffff"></span>#FFFFFF</td><td class="mono"><span class="sw" style="background:#2a2522"></span>#2A2522</td><td>Pressed and elevated states</td></tr>
+    <tr><td><b>Ink</b></td><td class="mono"><span class="sw" style="background:#191412"></span>#191412</td><td class="mono"><span class="sw" style="background:#f3ebe1"></span>#F3EBE1</td><td>Names, headings, primary text</td></tr>
+    <tr><td><b>Secondary</b></td><td class="mono"><span class="sw" style="background:#3c322c"></span>#3C322C</td><td class="mono"><span class="sw" style="background:#d9cdc2"></span>#D9CDC2</td><td>Body copy</td></tr>
+    <tr><td><b>Muted</b></td><td class="mono"><span class="sw" style="background:#6f635a"></span>#6F635A</td><td class="mono"><span class="sw" style="background:#a2938a"></span>#A2938A</td><td>Metadata, captions</td></tr>
+    <tr><td><b>Action fill</b></td><td class="mono"><span class="sw" style="background:#7a1f2b"></span>#7A1F2B</td><td class="mono"><span class="sw" style="background:#8e2a37"></span>#8E2A37</td><td>Join, Pay, selected tabs</td></tr>
+    <tr><td><b>Action text</b></td><td class="mono"><span class="sw" style="background:#7a1f2b"></span>#7A1F2B</td><td class="mono"><span class="sw" style="background:#d06b76"></span>#D06B76</td><td>Links and accents where a fill is too heavy</td></tr>
+    <tr><td><b>Paid · Pending · Refused</b></td><td class="mono">#2F6B4F · #8C6A2A · #A8322A</td><td class="mono">#6FBF95 · #D3A85C · #E2705F</td><td>Chips and state text only</td></tr>
+  </table>
+
+  <div class="twocol">
+    <div class="panel">
+      <div class="k">Measured contrast · dark</div>
+      <p>Ink on ground <b>16.1:1</b> · ink on card 14.8:1 · body 12.2:1 · muted 6.4:1 · action text 5.5:1 · on-action 7.3:1.</p>
+    </div>
+    <div class="panel">
+      <div class="k">Measured contrast · light</div>
+      <p>Ink on ground <b>17.2:1</b> · body 11.8:1 · muted 5.5:1 · oxblood 9.6:1 · on-action 9.6:1. Both themes are held to the same thresholds.</p>
+    </div>
+  </div>
+
+  <div class="sechead"><span class="n">02</span><span class="t">All eighteen screens, dark</span><span class="g"></span><span class="note">same compositions, no layout change</span></div>
+  <div class="grid">
+
+    <div class="tile"><div class="cap"><div><div class="id">01</div><div class="nm">Splash</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/01-splash.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">02</div><div class="nm">Discover</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/02-discover.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">03</div><div class="nm">Creator</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/03-creator-profile.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">04</div><div class="nm">Membership</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/04-membership.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">05</div><div class="nm">Checkout</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/05-checkout.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">06</div><div class="nm">Payment states</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/06-payment-states.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">07</div><div class="nm">Feed</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/07-feed.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">08</div><div class="nm">Locked post</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/08-locked-post.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">09</div><div class="nm">Viewer</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/09-viewer.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">10</div><div class="nm">Unlock sheet</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/10-ppv-sheet.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">11</div><div class="nm">Library</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/11-library.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">12</div><div class="nm">Account</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/12-account.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">13</div><div class="nm">Subscriptions</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/13-subscriptions.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">14</div><div class="nm">Statement</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/14-statement.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">15</div><div class="nm">Alerts</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/15-alerts.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">16</div><div class="nm">Studio</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/16-studio.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">17</div><div class="nm">Composer</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/17-composer.html?theme=dark" scrolling="no"></iframe></div></div>
+    <div class="tile"><div class="cap"><div><div class="id">18</div><div class="nm">Tiers &amp; audience</div></div><span class="st">Dark</span></div><div class="vp"><iframe src="screens/18-tiers-audience.html?theme=dark" scrolling="no"></iframe></div></div>
+
+  </div>
+
+  <div class="sechead"><span class="n">03</span><span class="t">Motion</span><span class="g"></span><span class="note">three durations, one curve, one switch</span></div>
+  <div class="motion">
+    <div class="mcard">
+      <div class="k">Feedback · 140 ms</div>
+      <div class="d">FastOutSlowIn · press, select, chip</div>
+      <h3>Buttons and rows answer the thumb</h3>
+      <p>Press scales to 0.97 and the tab tint crossfades. Under 150 ms so it reads as the control, not as an animation.</p>
+      <div class="bar"><i style="width:14%"></i></div>
+    </div>
+    <div class="mcard">
+      <div class="k">Transition · 220 ms</div>
+      <div class="d">FastOutSlowIn · destinations, sheets, overlays</div>
+      <h3>Screens move 1/12 of the width</h3>
+      <p>Destinations slide with the tab order and fade; creator profile rises 1/10 of its height; checkout sheet rises from the bottom over a fading scrim.</p>
+      <div class="bar"><i style="width:22%"></i></div>
+    </div>
+    <div class="mcard">
+      <div class="k">Reveal · 320 ms</div>
+      <div class="d">FastOutSlowIn · first composition only</div>
+      <h3>Content arrives once, then stays</h3>
+      <p>Cards fade 0.35 → 1 and lift 8 dp, staggered 40 ms per item to a 240 ms cap so a long feed never waits.</p>
+      <div class="bar"><i style="width:32%"></i></div>
+    </div>
+  </div>
+
+  <div class="twocol">
+    <div class="panel">
+      <div class="k">What animates, and why</div>
+      <p><b>Destination change</b> — direction is information: the slide tells you where you went.<br>
+        <b>Creator profile</b> — a pushed surface, so it rises over the feed it came from.<br>
+        <b>Checkout sheet</b> — scrim fades, sheet rises; closing returns to the tier list unchanged.<br>
+        <b>Content reveal</b> — one per screen, because a feed that appears all at once feels frozen.<br>
+        <b>Unlock and payment confirmation</b> — the result card slides in on the same layer as the sheet it replaces.<br>
+        <b>Buttons, tabs, theme rows</b> — 140 ms press scale and colour crossfade only.</p>
+    </div>
+    <div class="panel">
+      <div class="k">What stays still, and why</div>
+      <p><b>Media, prices, contract text</b> — moving money or legal copy is a distraction and a liability.<br>
+        <b>Scrolling</b> — no parallax, no sticky transforms, no image zoom on scroll.<br>
+        <b>Loading</b> — skeletons match geometry and hold still; no shimmer loop to drain battery.<br>
+        <b>Error and declined states</b> — a shake would mock the user at the worst moment.<br>
+        <b>Reduced motion</b> — every duration resolves to 0 when Android's animator or transition scale is 0; layout, ripple and navigation are unchanged, so nothing becomes unreachable.</p>
+    </div>
+  </div>
+
+  <div class="sechead"><span class="n">04</span><span class="t">Implementation status</span><span class="g"></span><span class="note">honest split</span></div>
+  <div class="twocol">
+    <div>
+      <h2 style="font-size:24px">Built in Compose</h2>
+      <table>
+        <tr><th>Surface</th><th>Status</th></tr>
+        <tr><td><b>Palette, light + dark</b> (<span class="mono">VesperPalette</span>)</td><td class="mono">IMPLEMENTED, CONTRAST-TESTED</td></tr>
+        <tr><td><b>Theme preference</b> system / light / dark</td><td class="mono">IMPLEMENTED, PERSISTED</td></tr>
+        <tr><td><b>Type</b> (Bodoni, Archivo, Plex Mono, bundled)</td><td class="mono">IMPLEMENTED</td></tr>
+        <tr><td><b>Motion vocabulary</b> + reduced-motion switch</td><td class="mono">IMPLEMENTED, UNIT-TESTED</td></tr>
+        <tr><td><b>Four destinations</b>, creator overlay, checkout sheet, confirmation</td><td class="mono">IMPLEMENTED</td></tr>
+        <tr><td><b>Media</b> (upload, delivery, watermark)</td><td class="mono">PLACEHOLDER FRAME — PIPELINE PENDING</td></tr>
+        <tr><td><b>Live data</b></td><td class="mono">CANONICAL DATASET, NOT WIRED</td></tr>
+      </table>
+    </div>
+    <div>
+      <h2 style="font-size:24px">What this review is not</h2>
+      <ol>
+        <li>These eighteen frames are HTML stand-ins for the approved compositions, not screenshots of the app.</li>
+        <li>The Compose screens are real code, verified by unit tests and a build — not by a device screenshot, because no emulator runs in this pipeline.</li>
+        <li>Photography remains generated stand-ins; nothing is licensed and nothing ships from this folder.</li>
+        <li>No backend, schema or migration was touched to produce dark mode or motion.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="footnote">
+    <span>Vesper · direction 03 · dark theme + motion</span>
+    <span>Rendered on GitHub-hosted runners · design-render-v3</span>
+  </div>
+</div>
+</body></html>

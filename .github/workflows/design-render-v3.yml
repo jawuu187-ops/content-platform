@@ -13,6 +13,7 @@ on:
       - "docs/design/review-v3/assets/**"
       - "docs/design/review-v3/screens/**"
       - "docs/design/review-v3/board.html"
+      - "docs/design/review-v3/board-dark.html"
       - "docs/design/review-v3/render.py"
 
 permissions:
@@ -52,7 +53,7 @@ jobs:
 
       - name: Report sizes
         run: |
-          find docs/design/review-v3/png docs/design/review-v3/board.png -name '*.png' -printf '%s\t%p\n' |
+          find docs/design/review-v3/png docs/design/review-v3/board.png docs/design/review-v3/board-dark.png -name '*.png' -printf '%s\t%p\n' |
             sort -n | awk -F'\t' '{printf "%6.1f KiB  %s\n", $1/1024, $2}'
 
       - name: Upload render (artifact)
@@ -61,6 +62,7 @@ jobs:
           name: design-review-v3
           path: |
             docs/design/review-v3/board.png
+            docs/design/review-v3/board-dark.png
             docs/design/review-v3/png/*.png
           if-no-files-found: error
           retention-days: 30
@@ -70,10 +72,10 @@ jobs:
           set -euo pipefail
           git config user.name "design-render[bot]"
           git config user.email "design-render@users.noreply.github.com"
-          git add docs/design/review-v3/png docs/design/review-v3/board.png
+          git add docs/design/review-v3/png docs/design/review-v3/board.png docs/design/review-v3/board-dark.png
           if git diff --cached --quiet; then
             echo "render identical to what is committed; nothing to do"
             exit 0
           fi
-          git commit -m "chore(design): render direction 03 board and screens [skip ci]"
+          git commit -m "chore(design): render direction 03 boards and screens [skip ci]"
           git push origin "HEAD:${GITHUB_REF_NAME}"

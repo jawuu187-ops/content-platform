@@ -16,6 +16,7 @@ ROOT = pathlib.Path(__file__).resolve().parent
 SCREENS = ROOT / "screens"
 OUT = ROOT / "png"
 BOARD_OUT = ROOT / "board.png"
+BOARD_DARK_OUT = ROOT / "board-dark.png"
 
 VIEWPORT_W, VIEWPORT_H = 412, 915
 SCALE = 2
@@ -56,14 +57,14 @@ def render_screens(browser) -> None:
     context.close()
 
 
-def render_board(browser) -> None:
+def render_board(browser, source: pathlib.Path, out: pathlib.Path) -> None:
     context = browser.new_context(
         viewport={"width": 1720, "height": 1200},
         device_scale_factor=1,
         reduced_motion="reduce",
     )
     page = context.new_page()
-    page.goto((ROOT / "board.html").as_uri(), wait_until="load")
+    page.goto(source.as_uri(), wait_until="load")
 
     deadline, elapsed, step = 40_000, 0, 250
     while elapsed < deadline:
@@ -96,14 +97,14 @@ def render_board(browser) -> None:
     page.evaluate("window.scrollTo(0, 0)")
     page.wait_for_timeout(800)
 
-    page.screenshot(path=str(BOARD_OUT), full_page=True, animations="disabled")
-    print(f"board    {BOARD_OUT.relative_to(ROOT)}  {BOARD_OUT.stat().st_size // 1024} KiB")
+    page.screenshot(path=str(out), full_page=True, animations="disabled")
+    print(f"board    {out.relative_to(ROOT)}  {out.stat().st_size // 1024} KiB")
     context.close()
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--only", choices=("screens", "board"), default=None)
+    parser.add_argument("--only", choices=("screens", "board", "board-dark"), default=None)
     args = parser.parse_args()
 
     with sync_playwright() as pw:
@@ -111,7 +112,9 @@ def main() -> None:
         if args.only in (None, "screens"):
             render_screens(browser)
         if args.only in (None, "board"):
-            render_board(browser)
+            render_board(browser, ROOT / "board.html", BOARD_OUT)
+        if args.only in (None, "board-dark"):
+            render_board(browser, ROOT / "board-dark.html", BOARD_DARK_OUT)
         browser.close()
 
 

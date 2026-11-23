@@ -1,58 +1,107 @@
 package com.contentplatform.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.unit.dp
+import com.contentplatform.app.ui.motion.LocalVesperMotion
+import com.contentplatform.app.ui.motion.rememberVesperMotion
 
-private val DarkScheme = darkColorScheme(
-    primary = Plum300,
-    onPrimary = Ink900,
-    primaryContainer = Plum500,
-    onPrimaryContainer = Mist100,
-    secondary = Amber500,
-    onSecondary = Ink900,
-    background = Ink900,
-    onBackground = Mist100,
-    surface = Ink800,
-    onSurface = Mist100,
-    surfaceVariant = Ink700,
-    onSurfaceVariant = Mist200,
-    error = Danger600,
-    onError = Mist100,
+/** The palette every screen reads. Default is light, matching the approved board. */
+val LocalVesperPalette = staticCompositionLocalOf { VesperLight }
+
+/** 14 dp cards, 8 dp actions, 20 dp sheets. Media stays square-cornered inside its parent. */
+val VesperShapes = Shapes(
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(14.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
-private val LightScheme = lightColorScheme(
-    primary = Plum500,
-    onPrimary = Mist100,
-    primaryContainer = Mist200,
-    onPrimaryContainer = Ink900,
-    secondary = Amber500,
-    onSecondary = Ink900,
-    background = Mist100,
-    onBackground = Ink900,
-    surface = Mist100,
-    onSurface = Ink900,
-    surfaceVariant = Mist200,
-    onSurfaceVariant = Mist700,
-    error = Danger600,
-    onError = Mist100,
-)
+private fun VesperPalette.toColorScheme() = if (isDark) {
+    darkColorScheme(
+        primary = action,
+        onPrimary = onAction,
+        primaryContainer = action,
+        onPrimaryContainer = onAction,
+        secondary = sage,
+        onSecondary = media,
+        tertiary = brass,
+        onTertiary = media,
+        background = ground,
+        onBackground = ink,
+        surface = surface,
+        onSurface = ink,
+        surfaceVariant = chrome,
+        onSurfaceVariant = inkSecondary,
+        surfaceContainer = chrome,
+        outline = ruleStrong,
+        outlineVariant = rule,
+        error = danger,
+        onError = media,
+        scrim = scrim,
+    )
+} else {
+    lightColorScheme(
+        primary = action,
+        onPrimary = onAction,
+        primaryContainer = chrome,
+        onPrimaryContainer = ink,
+        secondary = sage,
+        onSecondary = onAction,
+        tertiary = brass,
+        onTertiary = onAction,
+        background = ground,
+        onBackground = ink,
+        surface = surface,
+        onSurface = ink,
+        surfaceVariant = chrome,
+        onSurfaceVariant = muted,
+        surfaceContainer = chrome,
+        outline = ruleStrong,
+        outlineVariant = rule,
+        error = danger,
+        onError = onAction,
+        scrim = scrim,
+    )
+}
 
 /**
- * Applies the platform theme. Dark is the default because the majority of
- * viewing happens at night, but the light scheme is a first-class citizen and
- * follows the system setting.
+ * Applies the palette, type scale, shapes and motion vocabulary.
+ *
+ * [mode] is the stored preference; [System] resolves with the device. Switching mode
+ * recomposes in place — the caller keeps its navigation state and scroll positions, so a
+ * theme change never restarts a screen.
  */
 @Composable
-fun ContentPlatformTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+fun VesperTheme(
+    mode: ThemeMode = ThemeMode.System,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = if (darkTheme) DarkScheme else LightScheme,
-        typography = PlatformTypography,
-        content = content,
-    )
+    val dark = when (mode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+    val palette = if (dark) VesperDark else VesperLight
+    val motion = rememberVesperMotion()
+
+    CompositionLocalProvider(
+        LocalVesperPalette provides palette,
+        LocalVesperMotion provides motion,
+    ) {
+        MaterialTheme(
+            colorScheme = palette.toColorScheme(),
+            typography = VesperTypography,
+            shapes = VesperShapes,
+            content = content,
+        )
+    }
 }

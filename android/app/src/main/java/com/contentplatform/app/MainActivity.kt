@@ -5,9 +5,11 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.remember
 import androidx.core.view.WindowCompat
 import com.contentplatform.app.ui.PlatformApp
-import com.contentplatform.app.ui.theme.ContentPlatformTheme
+import com.contentplatform.app.ui.theme.ThemeController
+import com.contentplatform.app.ui.theme.VesperTheme
 
 /**
  * The single activity. It hardens the window before any content is drawn:
@@ -16,6 +18,9 @@ import com.contentplatform.app.ui.theme.ContentPlatformTheme
  *
  * FLAG_SECURE is a deterrent, not a guarantee: a second physical camera can
  * still photograph the screen. The server-side watermark is the real control.
+ *
+ * The theme preference is read before the first frame, so a user who chose dark
+ * never sees a flash of light paper on launch.
  */
 class MainActivity : ComponentActivity() {
 
@@ -30,8 +35,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            ContentPlatformTheme {
-                PlatformApp()
+            val themeController = remember { ThemeController(applicationContext) }
+            VesperTheme(mode = themeController.mode) {
+                PlatformApp(themeController = themeController)
             }
         }
     }

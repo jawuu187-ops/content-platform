@@ -11,15 +11,22 @@ round ([`recomposition.md`](recomposition.md)) answered the category review in
 [`category-alignment.md`](category-alignment.md): photography first, price on the action,
 cards where a buyer compares, and Studio opening with posting rather than revenue.
 
-It is still a proposal: **0 implemented, 0 partial, 18 proposed.**
+The eighteen compositions are still proposals. What is no longer a proposal is the system
+behind them: light and dark palettes, the theme preference, bundled type, the motion
+vocabulary and the four-destination shell are **implemented in Compose** and covered by unit
+tests — see [`theme-and-motion.md`](theme-and-motion.md) and [`board-dark.png`](board-dark.png).
+The backend, schema and API are untouched; screens still render the canonical dataset rather
+than live data.
 
-Nothing here is implemented. The Android app is still the Compose shell described in
-`review-v2/README.md`; no route, schema, dependency or production screen changed.
+Counted honestly: **4 implemented systems (palette, theme preference, motion, shell), 0 live
+data, 18 proposed compositions.**
 
 | Path | What it is |
 | --- | --- |
 | `board.png` | The direction, rendered end to end (1720 wide) |
 | `board.html` | Board source: category read, identity, ink system, type, components, 18 screens, open questions |
+| `board-dark.png` | The eighteen screens in dark, the palette in both themes and the motion rules |
+| `board-dark.html` | Dark board source; screens take `?theme=dark` |
 | `screens/01…18-*.html` | One 412 × 915 dp screen per file |
 | `png/01…18-*.png` | Screen renders at 824 × 1830 (2×) |
 | `assets/app.css` | The system: 5 colour tokens, 3 typefaces, 8 components |
@@ -29,6 +36,7 @@ Nothing here is implemented. The Android app is still the Compose shell describe
 | `refinement.md` | The ten findings and the screen-by-screen plan this revision follows |
 | `category-alignment.md` | Comparison against the creator-subscription category, with the screen-by-screen recomposition proposal |
 | `recomposition.md` | Rounds A–F: what changed after the owner approved the category direction |
+| `theme-and-motion.md` | Dark palette, contrast measurements, motion vocabulary, Compose implementation and what is verified |
 
 ---
 

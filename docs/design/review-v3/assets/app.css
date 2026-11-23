@@ -463,3 +463,38 @@ body { background: var(--bg); }
   border-top: 1px solid var(--line-soft);
   padding: var(--s2) var(--margin) var(--s3);
 }
+
+/* ============================================================================
+   Dark theme — the same room at night, not an inversion.
+   Ground keeps a brown undertone, ink is bone-tinted, oxblood splits into a
+   deeper fill and a lifted text tone. Mirrors VesperDark in the Compose theme.
+   ========================================================================== */
+body.dark {
+  --bg: #12100f;
+  --bone: #0a0908;
+  --card: #221e1c;
+  --media: #0a0807;
+  --paper: #f3ebe1;
+  --paper-2: #2a2522;
+  --paper-3: #2b2523;
+  --ink: #f3ebe1;
+  --ink-2: #d9cdc2;
+  --muted: #a2938a;
+  --oxblood: #8e2a37;
+  --ox-text: #d06b76;
+  --sage: #6fbf95;
+  --brass: #d3a85c;
+  --flag: #e2705f;
+  --rule: rgba(243, 235, 225, 0.16);
+  --rule-strong: rgba(243, 235, 225, 0.32);
+  --line-soft: rgba(243, 235, 225, 0.10);
+}
+body.dark .mark::after { background: var(--bg); }
+body.dark .screen { background: #060505; }
+body.dark .link.ox,
+body.dark .sec .n { color: var(--ox-text); }
+body.dark .chip.bone { background: rgba(28, 25, 24, 0.92); color: var(--ink); }
+body.dark .cell.locked img { filter: blur(7px) saturate(0.55) brightness(0.55); }
+body.dark .flag.sage { border-color: rgba(111, 191, 149, 0.45); }
+body.dark .flag.flag-red { border-color: rgba(226, 112, 95, 0.45); }
+body.dark .avatar-over { border-color: var(--card); }

@@ -76,3 +76,22 @@ func (s *Service) BecomeCreator(ctx context.Context, p Principal, requestID stri
 	}
 	return s.store.roles(ctx, p.UserID)
 }
+
+// PrincipalByID builds the caller identity for an account. Media delivery
+// redemption uses it because the delivery request carries a token, not a
+// session, and the access decision still has to see the account's roles.
+func (s *Service) PrincipalByID(ctx context.Context, userID string) (Principal, error) {
+	u, err := s.store.userByID(ctx, userID)
+	if err != nil {
+		return Principal{}, err
+	}
+	roles, err := s.store.roles(ctx, userID)
+	if err != nil {
+		return Principal{}, err
+	}
+	return Principal{
+		UserID:        u.ID,
+		EmailVerified: u.EmailVerified,
+		Roles:         roles,
+	}, nil
+}

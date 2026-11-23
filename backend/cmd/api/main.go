@@ -21,6 +21,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/httpapi"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
+	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/logging"
@@ -136,6 +137,7 @@ func run() error {
 	// the replica count. A configured-but-unreachable store is a startup failure
 	// in production, because failing closed at request time is an outage nobody
 	// asked for.
+	var mediaService *media.Service
 	var ageGate *agegate.Service
 	var creatorService *creator.Service
 	if db != nil {
@@ -155,6 +157,29 @@ func run() error {
 		)
 		if cfg.AgeCallbackSecret == "" {
 			logger.Warn("AGE_CALLBACK_SECRET is not set: 18+ content stays locked because verification cannot complete")
+		}
+		storage := media.Storage(media.Unavailable{})
+		if cfg.MediaDir != "" {
+			local, err := media.NewLocalStore(cfg.MediaDir)
+			if err != nil {
+				return fmt.Errorf("configure media storage: %w", err)
+			}
+			storage = local
+		}
+		mediaService = media.New(db.Pool(),
+			media.WithStorage(storage),
+			media.WithSigningKey([]byte(cfg.MediaSigningKey)),
+			media.WithTokenTTL(cfg.MediaTokenTTL),
+			media.WithLimits(media.Limits{
+				ImageBytes: cfg.MediaImageBytes,
+				VideoBytes: cfg.MediaVideoBytes,
+				MaxPixels:  media.DefaultLimits().MaxPixels,
+			}),
+			media.WithBaseURL(cfg.MediaDeliveryBaseURL),
+			media.WithLogger(logger),
+		)
+		if !mediaService.Configured() {
+			logger.Warn("media storage or signing key is missing: uploads and delivery answer 503")
 		}
 		creatorService = creator.New(db.Pool(),
 			creator.WithFakePayments(cfg.FakePayments),
@@ -189,6 +214,7 @@ func run() error {
 		Identity: identityService,
 		Creators: creatorService,
 		AgeGate:  ageGate,
+		Media:    mediaService,
 		Limits:   limits,
 		Build:    httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

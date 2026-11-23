@@ -180,3 +180,24 @@ file (vet caught it); an unused `insertCheck` binding; a test provider referenci
 removed field; `ops.append_audit` takes `text`, not `uuid`; untyped metadata
 parameters in `jsonb_build_object`; a shape constraint that made revocation and
 expiry impossible.
+
+## P2 — media posts and protected delivery
+
+| ID | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| P2-M1 | Upload validation by magic bytes (JPEG/PNG/MP4), size caps, pixel-bomb guard; client `Content-Type` ignored | ✅ implemented | `media/validate_test.go` (`TestIngestAcceptsOnlyRealImagesAndMP4`, `TestIngestRejectsOversizedImage`); smoke: HTML upload answered 415 |
+| P2-M2 | Content-addressed storage, no client-supplied path, atomic temp→rename | ✅ implemented | `TestStorageKeysAreHashesAndTraversalFails`, `TestLocalStoreRejectsOversizedStreams` |
+| P2-M3 | Replaceable storage seam with fail-closed driver | ✅ implemented | `media.Storage` (`Put`/`Open`/`Stat`), `Unavailable`; `TestUnavailableStorageFailsClosed` |
+| P2-M4 | Public / subscriber / PPV visibility on posts, drafts invisible | ✅ implemented | `creator/posts.go`, `0008_media_content.sql`; feed shows `locked` instead of a link |
+| P2-M5 | Short-lived single-use signed link, atomic redemption | ✅ implemented | `TestSubscriberMediaIsSingleUseAndRechecked`, `TestConcurrentRedemptionOnlyOneWins` |
+| P2-M6 | Age gate + entitlement re-checked at redemption | ✅ implemented | `TestRevocationAndCancellationCloseIssuedLinks`, `TestPPVMediaNeedsAnUnlock` |
+| P2-M7 | No bypass by direct URL, foreign media pairing, or unknown token | ✅ implemented | `TestMediaCannotBePairedWithAnotherPost`, `TestUnknownTokenIsRefused`, tampered signature case |
+| P2-M8 | Object storage / CDN selection | ⬜ pending owner decision (zero-cost) | `docs/vendors/media-storage.md` (MS-1..MS-3) |
+| P2-M9 | Transcoding, thumbnails, `Range` requests, scheduled token sweep | ⬜ not implemented | documented as limitations |
+
+### P2 media — evidence (GitHub Actions only)
+
+| Run | Workflow | Result | Evidence |
+| --- | --- | --- | --- |
+| _pending_ | Backend CI | — | — |
+| _pending_ | Security | — | — |

@@ -9,6 +9,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/agegate"
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
+	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
@@ -31,6 +32,8 @@ type Deps struct {
 	Identity *identity.Service
 	// Creators is the creator profile, tier, subscription and access service.
 	Creators *creator.Service
+	// Media is the media ingestion and delivery service.
+	Media *media.Service
 	// AgeGate is the age-verification service. Nil answers 503 on its routes.
 	AgeGate *agegate.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
@@ -48,6 +51,7 @@ type Server struct {
 	identity  *identity.Service
 	creators  *creator.Service
 	ageGate   *agegate.Service
+	media     *media.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -69,6 +73,7 @@ func New(d Deps) http.Handler {
 		identity:  d.Identity,
 		creators:  d.Creators,
 		ageGate:   d.AgeGate,
+		media:     d.Media,
 		limits:    d.Limits,
 		build:     d.Build,
 		startedAt: d.StartedAt,
@@ -88,6 +93,14 @@ func New(d Deps) http.Handler {
 	if s.identity != nil {
 		authHandler := newAuthHandler(s.identity, d.Logger, s.limits)
 		authHandler.registerRoutes(mux)
+		if s.media != nil && s.creators != nil {
+			newMediaHandler(authHandler, s.media, s.creators, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("/v1/media/", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"media delivery is not configured on this instance")
+			})
+		}
 		if s.ageGate != nil {
 			newAgeGateHandler(authHandler, s.ageGate, d.Logger, s.limits).registerRoutes(mux)
 		} else {

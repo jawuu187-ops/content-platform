@@ -70,6 +70,14 @@ type Config struct {
 	TokenSigningKey   string
 	WebhookSecretKey  string
 
+	// Media. Without a storage directory and a signing key, media endpoints answer
+	// 503 and no content can be uploaded or delivered.
+	MediaDir        string
+	MediaSigningKey string
+	MediaTokenTTL   time.Duration
+	MediaImageBytes int64
+	MediaVideoBytes int64
+
 	// Age verification. A provider callback is authenticated with an HMAC secret;
 	// without one, verification cannot complete and 18+ content stays locked.
 	AgeProvider       string
@@ -132,6 +140,11 @@ func Load(serviceName string) (*Config, error) {
 		TokenSigningKey:   get("TOKEN_SIGNING_KEY", ""),
 		WebhookSecretKey:  get("WEBHOOK_SECRET_KEY", ""),
 
+		MediaDir:               get("MEDIA_LOCAL_DIR", ""),
+		MediaSigningKey:        get("MEDIA_SIGNING_KEY", ""),
+		MediaTokenTTL:          getDuration("MEDIA_TOKEN_TTL", 60*time.Second),
+		MediaImageBytes:        getInt64("MEDIA_MAX_IMAGE_BYTES", 10<<20),
+		MediaVideoBytes:        getInt64("MEDIA_MAX_VIDEO_BYTES", 200<<20),
 		AgeProvider:            get("AGE_PROVIDER", "generic"),
 		AgeCallbackSecret:      get("AGE_CALLBACK_SECRET", ""),
 		AgeMinAge:              int(getInt64("AGE_MIN_AGE", 18)),
@@ -201,6 +214,19 @@ func (c *Config) validate() error {
 		}
 	}
 
+	if c.MediaSigningKey != "" && len(c.MediaSigningKey) < 32 {
+		problems = append(problems, "MEDIA_SIGNING_KEY must be at least 32 characters")
+	}
+	if c.MediaTokenTTL < 5*time.Second || c.MediaTokenTTL > 15*time.Minute {
+		problems = append(problems, "MEDIA_TOKEN_TTL must be between 5s and 15m")
+	}
+	if c.MediaImageBytes <= 0 || c.MediaVideoBytes <= 0 || c.MediaImageBytes > c.MediaVideoBytes {
+		problems = append(problems, "MEDIA_MAX_IMAGE_BYTES and MEDIA_MAX_VIDEO_BYTES must be positive, image not above video")
+	}
+	if c.IsProduction() && c.MediaDir != "" && c.MediaSigningKey == "" {
+		problems = append(problems, "MEDIA_SIGNING_KEY is required when media storage is configured in production")
+	}
+
 	if c.AgeMinAge != 18 && c.AgeMinAge != 21 {
 		problems = append(problems, "AGE_MIN_AGE must be 18 or 21")
 	}
@@ -240,6 +266,7 @@ func (c *Config) Redacted() map[string]any {
 		"fake_payments":            c.FakePayments,
 		"age_provider":             c.AgeProvider,
 		"age_min_age":              c.AgeMinAge,
+		"media_configured":         c.MediaDir != "",
 		"enable_crypto_rails":      c.EnableCryptoRails,
 		"media_delivery_base_url":  c.MediaDeliveryBaseURL,
 		"session_signing_key":      redact(c.SessionSigningKey),

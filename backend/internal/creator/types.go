@@ -106,3 +106,52 @@ type Access struct {
 	Reason    string     `json:"reason"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
+
+// Visibility of a post.
+const (
+	VisibilityPublic     = "public"
+	VisibilitySubscriber = "subscriber"
+	VisibilityPPV        = "ppv"
+)
+
+// Post statuses.
+const (
+	PostDraft     = "draft"
+	PostPublished = "published"
+	PostRemoved   = "removed"
+)
+
+// PostMedia is one attachment on a post. Only identifiers and technical
+// metadata are exposed; storage keys and URLs never are.
+type PostMedia struct {
+	MediaID     string `json:"media_id"`
+	Kind        string `json:"kind"`
+	ContentType string `json:"content_type"`
+	ByteSize    int64  `json:"byte_size"`
+	Width       int    `json:"width,omitempty"`
+	Height      int    `json:"height,omitempty"`
+}
+
+// Post is a piece of creator content.
+type Post struct {
+	ID          string      `json:"id"`
+	CreatorID   string      `json:"creator_id"`
+	Body        string      `json:"body"`
+	Visibility  string      `json:"visibility"`
+	PriceMinor  *int64      `json:"price_minor,omitempty"`
+	Currency    string      `json:"currency,omitempty"`
+	Status      string      `json:"status"`
+	PublishedAt *time.Time  `json:"published_at,omitempty"`
+	CreatedAt   time.Time   `json:"created_at"`
+	Media       []PostMedia `json:"media"`
+	Locked      bool        `json:"locked"`
+}
+
+// Unlock is a one-off grant that opens a single PPV post.
+type Unlock struct {
+	ID        string     `json:"id"`
+	PostID    string     `json:"post_id"`
+	Source    string     `json:"source"`
+	GrantedAt time.Time  `json:"granted_at"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}

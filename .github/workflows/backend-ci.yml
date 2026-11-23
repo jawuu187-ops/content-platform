@@ -132,6 +132,10 @@ jobs:
           # seeded directly below to prove the callback -> gate path.
           AGE_PROVIDER: smoke
           AGE_CALLBACK_SECRET: smoke-age-secret-0123456789
+          # Media is stored on the runner's disk for the smoke run only; the
+          # interface is the same one an object store would implement.
+          MEDIA_LOCAL_DIR: ${{ runner.temp }}/media
+          MEDIA_SIGNING_KEY: smoke-media-signing-key-0123456789abcdef
         run: |
           set -u
           ./bin/api > api.log 2>&1 &
@@ -304,6 +308,56 @@ jobs:
           echo "GET /v1/verify/age -> $verify_code"
           [ "$verify_code" = "200" ] || fail "verification status returned $verify_code"
           grep -q '"verified":true' age_status.json || fail "verification status did not report the account as verified"
+
+          # Media: upload, publish, deliver, and prove a link is single use.
+          python3 - <<'PY'
+          import struct, zlib
+          def chunk(t, d):
+              return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+          raw = b"".join(b"\x00" + bytes([200, 30, 60]) * 4 for _ in range(4))
+          png = (b"\x89PNG\r\n\x1a\n"
+                 + chunk(b"IHDR", struct.pack(">IIBBBBB", 4, 4, 8, 2, 0, 0, 0))
+                 + chunk(b"IDAT", zlib.compress(raw))
+                 + chunk(b"IEND", b""))
+          open("smoke.png", "wb").write(png)
+          PY
+
+          upload_code=$(curl -s -o upload.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/media \
+            -H "Authorization: Bearer $access" -H 'Content-Type: image/png' --data-binary @smoke.png)
+          echo "POST /v1/media -> $upload_code"
+          [ "$upload_code" = "201" ] || fail "media upload returned $upload_code"
+          ! grep -q 'storage_key' upload.json || fail "media upload leaked its storage key"
+          media_id=$(python3 -c 'import json; print(json.load(open("upload.json"))["media"]["id"])') \
+            || fail "media upload carried no id"
+
+          post_code=$(curl -s -o post.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/posts \
+            -H "Authorization: Bearer $access" -H 'Content-Type: application/json' \
+            -d "{\"body\":\"smoke post\",\"visibility\":\"public\",\"published\":true,\"media_ids\":[\"$media_id\"]}")
+          echo "POST /v1/posts -> $post_code"
+          [ "$post_code" = "201" ] || fail "post creation returned $post_code"
+          post_id=$(python3 -c 'import json; print(json.load(open("post.json"))["post"]["id"])') \
+            || fail "post creation carried no id"
+
+          feed_code=$(curl -s -o feed.json -w '%{http_code}' http://127.0.0.1:8080/v1/creators/smoke_studio/posts)
+          echo "GET /v1/creators/smoke_studio/posts -> $feed_code"
+          [ "$feed_code" = "200" ] || fail "the public feed returned $feed_code"
+          ! grep -q '/v1/media/delivery/' feed.json || fail "the feed exposed a delivery link to an anonymous visitor"
+
+          link_code=$(curl -s -o link.json -w '%{http_code}' -X POST "http://127.0.0.1:8080/v1/media/$media_id/delivery" \
+            -H "Authorization: Bearer $fan_access" -H 'Content-Type: application/json' -d "{\"post_id\":\"$post_id\"}")
+          echo "POST /v1/media/{id}/delivery -> $link_code"
+          [ "$link_code" = "201" ] || fail "delivery link issue returned $link_code"
+          delivery_url=$(python3 -c 'import json; print(json.load(open("link.json"))["delivery"]["url"])') \
+            || fail "delivery response carried no url"
+
+          first_code=$(curl -s -o delivered.png -w '%{http_code}' "http://127.0.0.1:8080$delivery_url")
+          echo "GET delivery link (first use) -> $first_code"
+          [ "$first_code" = "200" ] || fail "delivery redemption returned $first_code"
+          cmp -s smoke.png delivered.png || fail "delivered bytes differ from the uploaded bytes"
+
+          replay_code=$(curl -s -o replay.json -w '%{http_code}' "http://127.0.0.1:8080$delivery_url")
+          echo "GET delivery link (replay) -> $replay_code"
+          [ "$replay_code" = "403" ] || fail "a delivery link was reusable ($replay_code)"
 
           kill %1 2>/dev/null || true
 

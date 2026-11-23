@@ -49,11 +49,11 @@ type Config struct {
 
 	// Mail delivery. Without SMTP the local log sender is used; production
 	// refuses to start without a real provider.
-	MailFrom     string
-	SMTPHost     string
-	SMTPPort     string
-	SMTPUsername string
-	SMTPPassword string
+	MailFrom        string
+	SMTPHost        string
+	SMTPPort        string
+	SMTPUsername    string
+	SMTPPassword    string
 	SMTPImplicitTLS bool
 
 	// MFAKeyBase64 encrypts TOTP secrets at rest (32 bytes, base64).

@@ -76,8 +76,7 @@ func (s *Service) Register(ctx context.Context, email, password string, d Device
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	user, err := s.store.insertUser(ctx, tx, email, hash, algoPBKDF2SHA256,
-		fmt.Sprintf(`{"iterations":%d}`, s.hasher.iterations))
+	user, err := s.store.insertUser(ctx, tx, email, hash, algoArgon2id, s.hasher.ParamsForStorage())
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +118,7 @@ func (s *Service) Login(ctx context.Context, email, password string, d DeviceInf
 	}
 	if needsRehash {
 		if newHash, err := s.hasher.Hash(password); err == nil {
-			s.store.upgradeHash(ctx, user.ID, newHash, algoPBKDF2SHA256,
-				fmt.Sprintf(`{"iterations":%d}`, s.hasher.iterations))
+			s.store.upgradeHash(ctx, user.ID, newHash, algoArgon2id, s.hasher.ParamsForStorage())
 			user.PasswordUpgraded = true
 		}
 	}

@@ -13,21 +13,23 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"golang.org/x/crypto/argon2"
 )
 
-// Password hashing parameters.
+// Password hashing.
 //
-// PBKDF2-HMAC-SHA256 is used from the standard library rather than Argon2id from
-// golang.org/x/crypto so the service keeps a zero-dependency build path; the
-// iteration count is chosen to exceed the OWASP floor for this construction
-// (600,000 for HMAC-SHA256). The algorithm and its parameters are stored next to
-// each hash, so migrating to Argon2id later is a per-user rehash on next login,
-// not a migration.
+// Argon2id is the hashing algorithm for all new passwords. It is memory-hard, so
+// an attacker with GPUs or ASICs gains far less than against an iteration-only
+// construction, and it is the algorithm RFC 9106 recommends for password storage.
+//
+// PBKDF2-HMAC-SHA256 support is kept read-only: it verifies hashes written by the
+// first release and reports that they must be re-hashed, so accounts upgrade
+// transparently on their next successful login. No new PBKDF2 hash is ever
+// written. See docs/security/password-hashing.md for the full comparison.
 const (
+	algoArgon2id     = "argon2id"
 	algoPBKDF2SHA256 = "pbkdf2-sha256"
-
-	defaultIterations = 600_000
-	testIterations    = 2_000
 
 	saltLen = 16
 	keyLen  = 32
@@ -39,22 +41,53 @@ const (
 // ErrWeakPassword is returned when a password fails the policy.
 var ErrWeakPassword = errors.New("identity: password does not meet the policy")
 
-// Hasher hashes and verifies passwords with a configurable iteration count.
-type Hasher struct {
-	iterations int
+// Params describes how a password hash is produced. It is stored next to every
+// hash inside the PHC string, so different accounts can use different costs
+// during a parameter change.
+type Params struct {
+	Algorithm   string
+	MemoryKiB   uint32
+	Iterations  uint32
+	Parallelism uint8
 }
 
-// NewHasher returns a hasher with an explicit iteration count. Tests use a small
-// count; production uses DefaultHasher.
-func NewHasher(iterations int) *Hasher {
-	if iterations < 1 {
-		iterations = defaultIterations
+// DefaultParams are the production parameters: 64 MiB, 3 passes, 2 lanes. On a
+// modern server core that is roughly 50-80 ms per hash, which is slow enough to
+// make offline guessing expensive without making login feel slow.
+func DefaultParams() Params {
+	return Params{Algorithm: algoArgon2id, MemoryKiB: 64 * 1024, Iterations: 3, Parallelism: 2}
+}
+
+// TestParams are deliberately cheap (8 MiB, 1 pass) so a test suite that hashes
+// dozens of passwords still finishes quickly. They are never used in production.
+func TestParams() Params {
+	return Params{Algorithm: algoArgon2id, MemoryKiB: 8 * 1024, Iterations: 1, Parallelism: 1}
+}
+
+// Hasher hashes and verifies passwords with one parameter set.
+type Hasher struct {
+	params Params
+}
+
+// NewHasher returns a hasher for the given parameters.
+func NewHasher(p Params) *Hasher {
+	if p.Algorithm == "" {
+		p = DefaultParams()
 	}
-	return &Hasher{iterations: iterations}
+	if p.MemoryKiB < 8 {
+		p.MemoryKiB = 8
+	}
+	if p.Iterations < 1 {
+		p.Iterations = 1
+	}
+	if p.Parallelism < 1 {
+		p.Parallelism = 1
+	}
+	return &Hasher{params: p}
 }
 
 // DefaultHasher returns the production hasher.
-func DefaultHasher() *Hasher { return &Hasher{iterations: defaultIterations} }
+func DefaultHasher() *Hasher { return &Hasher{params: DefaultParams()} }
 
 // ValidatePassword enforces the password policy: length only. Composition rules
 // are deliberately not applied because they push users towards predictable
@@ -67,7 +100,7 @@ func ValidatePassword(password string) error {
 	return nil
 }
 
-// Hash returns a self-describing string: algo$iterations$salt$key.
+// Hash returns a self-describing PHC string: argon2id$v=19$m=..,t=..,p=..$salt$key.
 func (h *Hasher) Hash(password string) (string, error) {
 	if err := ValidatePassword(password); err != nil {
 		return "", err
@@ -76,53 +109,128 @@ func (h *Hasher) Hash(password string) (string, error) {
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("identity: read salt: %w", err)
 	}
-	key := pbkdf2SHA256([]byte(password), salt, h.iterations, keyLen)
+	key := argon2.IDKey([]byte(password), salt,
+		h.params.Iterations, h.params.MemoryKiB, h.params.Parallelism, keyLen)
+
 	enc := base64.RawStdEncoding
-	return fmt.Sprintf("%s$%d$%s$%s",
-		algoPBKDF2SHA256, h.iterations, enc.EncodeToString(salt), enc.EncodeToString(key)), nil
+	return fmt.Sprintf("%s$v=%d$m=%d,t=%d,p=%d$%s$%s",
+		algoArgon2id, argon2.Version, h.params.MemoryKiB, h.params.Iterations, h.params.Parallelism,
+		enc.EncodeToString(salt), enc.EncodeToString(key)), nil
 }
 
-// Verify checks a password against an encoded hash. needsRehash is true when the
-// stored parameters are weaker than the current policy, so the caller can
-// upgrade the hash after a successful login.
+// ParamsForStorage renders the parameters of a hash for the users row, so an
+// operator can audit the cost without parsing the hash.
+func (h *Hasher) ParamsForStorage() string {
+	return fmt.Sprintf(`{"algorithm":%q,"memory_kib":%d,"iterations":%d,"parallelism":%d}`,
+		algoArgon2id, h.params.MemoryKiB, h.params.Iterations, h.params.Parallelism)
+}
+
+// Verify checks a password against a stored hash and reports whether the hash
+// should be replaced because it is weaker than the current parameters. It
+// understands both Argon2id and the legacy PBKDF2 format.
 func (h *Hasher) Verify(password, encoded string) (ok bool, needsRehash bool) {
-	algo, iterations, salt, key, err := parseHash(encoded)
-	if err != nil || algo != algoPBKDF2SHA256 {
+	switch {
+	case strings.HasPrefix(encoded, algoArgon2id+"$"):
+		return h.verifyArgon2id(password, encoded)
+	case strings.HasPrefix(encoded, algoPBKDF2SHA256+"$"):
+		return h.verifyLegacyPBKDF2(password, encoded)
+	default:
 		return false, false
 	}
-	candidate := pbkdf2SHA256([]byte(password), salt, iterations, len(key))
-	if subtle.ConstantTimeCompare(candidate, key) != 1 {
-		return false, false
-	}
-	return true, iterations < h.iterations
 }
 
-// Params reports the parameters stored in an encoded hash, for the users table.
-func parseHash(encoded string) (algo string, iterations int, salt, key []byte, err error) {
+func (h *Hasher) verifyArgon2id(password, encoded string) (bool, bool) {
 	parts := strings.Split(encoded, "$")
-	if len(parts) != 4 {
-		return "", 0, nil, nil, errors.New("identity: malformed password hash")
+	if len(parts) != 5 || parts[0] != algoArgon2id {
+		return false, false
 	}
-	algo = parts[0]
-	iterations, err = strconv.Atoi(parts[1])
-	if err != nil || iterations < 1 {
-		return "", 0, nil, nil, errors.New("identity: malformed password hash iteration count")
+	version, err := strconv.Atoi(strings.TrimPrefix(parts[1], "v="))
+	if err != nil || version != argon2.Version {
+		return false, false
+	}
+	memory, iterations, parallelism, err := parseArgon2Params(parts[2])
+	if err != nil {
+		return false, false
 	}
 	enc := base64.RawStdEncoding
-	if salt, err = enc.DecodeString(parts[2]); err != nil {
-		return "", 0, nil, nil, errors.New("identity: malformed password hash salt")
+	salt, err := enc.DecodeString(parts[3])
+	if err != nil || len(salt) < 8 {
+		return false, false
 	}
-	if key, err = enc.DecodeString(parts[3]); err != nil {
-		return "", 0, nil, nil, errors.New("identity: malformed password hash key")
+	want, err := enc.DecodeString(parts[4])
+	if err != nil || len(want) < 16 {
+		return false, false
 	}
-	if len(salt) == 0 || len(key) == 0 {
-		return "", 0, nil, nil, errors.New("identity: empty password hash component")
+
+	got := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(len(want)))
+	if subtle.ConstantTimeCompare(got, want) != 1 {
+		return false, false
 	}
-	return algo, iterations, salt, key, nil
+	weaker := memory < h.params.MemoryKiB ||
+		iterations < h.params.Iterations ||
+		parallelism < h.params.Parallelism
+	return true, weaker
 }
 
-// pbkdf2SHA256 is PBKDF2 (RFC 8018) with HMAC-SHA256 as the PRF. It is covered by
-// known-answer tests against published vectors.
+func parseArgon2Params(s string) (memory, iterations uint32, parallelism uint8, err error) {
+	for _, kv := range strings.Split(s, ",") {
+		k, v, found := strings.Cut(kv, "=")
+		if !found {
+			return 0, 0, 0, errors.New("identity: malformed argon2 parameters")
+		}
+		n, convErr := strconv.ParseUint(v, 10, 32)
+		if convErr != nil {
+			return 0, 0, 0, errors.New("identity: malformed argon2 parameters")
+		}
+		switch k {
+		case "m":
+			memory = uint32(n)
+		case "t":
+			iterations = uint32(n)
+		case "p":
+			if n > 255 {
+				return 0, 0, 0, errors.New("identity: malformed argon2 parameters")
+			}
+			parallelism = uint8(n)
+		default:
+			return 0, 0, 0, errors.New("identity: unknown argon2 parameter")
+		}
+	}
+	if memory == 0 || iterations == 0 || parallelism == 0 {
+		return 0, 0, 0, errors.New("identity: incomplete argon2 parameters")
+	}
+	return memory, iterations, parallelism, nil
+}
+
+// verifyLegacyPBKDF2 validates hashes written before the move to Argon2id and
+// always asks for a rehash, so the account upgrades on the next login.
+func (h *Hasher) verifyLegacyPBKDF2(password, encoded string) (bool, bool) {
+	parts := strings.Split(encoded, "$")
+	if len(parts) != 4 || parts[0] != algoPBKDF2SHA256 {
+		return false, false
+	}
+	iterations, err := strconv.Atoi(parts[1])
+	if err != nil || iterations < 1 {
+		return false, false
+	}
+	enc := base64.RawStdEncoding
+	salt, err := enc.DecodeString(parts[2])
+	if err != nil || len(salt) == 0 {
+		return false, false
+	}
+	want, err := enc.DecodeString(parts[3])
+	if err != nil || len(want) == 0 {
+		return false, false
+	}
+	got := pbkdf2SHA256([]byte(password), salt, iterations, len(want))
+	if subtle.ConstantTimeCompare(got, want) != 1 {
+		return false, false
+	}
+	return true, true
+}
+
+// pbkdf2SHA256 is PBKDF2 (RFC 8018) with HMAC-SHA256. It exists only to verify
+// legacy hashes; new passwords never use it.
 func pbkdf2SHA256(password, salt []byte, iterations, length int) []byte {
 	prf := hmac.New(sha256.New, password)
 	hashLen := prf.Size()

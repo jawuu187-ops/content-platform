@@ -21,7 +21,7 @@ import (
 func authServer(t *testing.T) (http.Handler, *pgxpool.Pool) {
 	t.Helper()
 	pool := dbtest.Pool(t)
-	svc := identity.New(pool, identity.WithHasher(identity.NewHasher(2000)))
+	svc := identity.New(pool, identity.WithHasher(identity.NewHasher(identity.TestParams())))
 	return New(Deps{
 		Config:   testConfig(),
 		Logger:   slog.New(slog.NewTextHandler(discard{}, nil)),
@@ -305,7 +305,7 @@ func TestAuthLoginIsRateLimited(t *testing.T) {
 	// A tight bucket keeps the test fast and deterministic; production uses ten
 	// attempts per minute, which is exercised by the limiter's own unit tests.
 	pool := dbtest.Pool(t)
-	svc := identity.New(pool, identity.WithHasher(identity.NewHasher(2000)))
+	svc := identity.New(pool, identity.WithHasher(identity.NewHasher(identity.TestParams())))
 	ah := newAuthHandler(svc, slog.New(slog.NewTextHandler(discard{}, nil)))
 	ah.login = newLimiter(3, time.Minute)
 	mux := http.NewServeMux()

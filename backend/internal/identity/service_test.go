@@ -66,7 +66,7 @@ func hexOf(b []byte) string {
 }
 
 func TestHashIsSaltedAndVerifies(t *testing.T) {
-	h := NewHasher(testIterations)
+	h := NewHasher(TestParams())
 	first, err := h.Hash("correct horse battery staple")
 	if err != nil {
 		t.Fatalf("hash: %v", err)
@@ -94,7 +94,7 @@ func TestHashIsSaltedAndVerifies(t *testing.T) {
 
 func TestVerifyFlagsWeakerStoredParameters(t *testing.T) {
 	weak := NewHasher(1000)
-	strong := NewHasher(testIterations)
+	strong := NewHasher(TestParams())
 
 	encoded, err := weak.Hash("a-long-enough-password")
 	if err != nil {
@@ -111,7 +111,7 @@ func TestVerifyFlagsWeakerStoredParameters(t *testing.T) {
 }
 
 func TestPasswordPolicy(t *testing.T) {
-	h := NewHasher(testIterations)
+	h := NewHasher(TestParams())
 	for name, password := range map[string]string{
 		"too short": "short",
 		"empty":     "",
@@ -124,7 +124,7 @@ func TestPasswordPolicy(t *testing.T) {
 }
 
 func TestMalformedHashesAreRejectedNotPanicked(t *testing.T) {
-	h := NewHasher(testIterations)
+	h := NewHasher(TestParams())
 	for _, encoded := range []string{
 		"", "plain", "pbkdf2-sha256$notanumber$c2FsdA$a2V5",
 		"pbkdf2-sha256$1000$***$a2V5", "pbkdf2-sha256$1000$c2FsdA",
@@ -185,7 +185,7 @@ func TestDeviceFingerprintIsBounded(t *testing.T) {
 func testService(t *testing.T) (*Service, *pgxpool.Pool) {
 	t.Helper()
 	pool := dbtest.Pool(t)
-	return New(pool, WithHasher(NewHasher(testIterations))), pool
+	return New(pool, WithHasher(NewHasher(TestParams()))), pool
 }
 
 func uniqueEmail(prefix string) string {

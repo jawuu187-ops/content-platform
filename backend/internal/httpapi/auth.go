@@ -80,6 +80,7 @@ type registerRequest struct {
 type loginRequest struct {
 	Email    string        `json:"email"`
 	Password string        `json:"password"`
+	MFACode  string        `json:"mfa_code"`
 	Device   devicePayload `json:"device"`
 }
 
@@ -173,6 +174,9 @@ func (h *authHandler) writeError(w http.ResponseWriter, r *http.Request, err err
 	case errors.Is(err, identity.ErrNotFound):
 		writeProblem(w, r, http.StatusNotFound, "not_found", "the session does not exist")
 	default:
+		if h.writeMFAError(w, r, err) {
+			return
+		}
 		h.logger.ErrorContext(r.Context(), "identity request failed",
 			slog.String("request_id", RequestIDFromContext(r.Context())),
 			slog.String("path", r.URL.Path), slog.Any("error", err))
@@ -209,7 +213,7 @@ func (h *authHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
 		return
 	}
-	res, err := h.svc.Login(r.Context(), req.Email, req.Password, req.Device.toDomain(r),
+	res, err := h.svc.Login(r.Context(), req.Email, req.Password, req.MFACode, req.Device.toDomain(r),
 		RequestIDFromContext(r.Context()))
 	if err != nil {
 		h.writeError(w, r, err)
@@ -277,6 +281,7 @@ func (h *authHandler) handleMe(w http.ResponseWriter, r *http.Request, p identit
 		"session_id":     p.SessionID,
 		"email_verified": p.EmailVerified,
 		"roles":          rolesOrEmpty(p.Roles),
+		"permissions":    identity.PermissionStrings(p.Roles),
 	})
 }
 
@@ -323,4 +328,6 @@ func (h *authHandler) registerRoutes(mux *http.ServeMux) {
 		func(w http.ResponseWriter, r *http.Request, p identity.Principal) { h.handleRevokeSession(w, r, p) })))
 	mux.HandleFunc("GET /v1/auth/me", rateLimited(h.read, "me", h.requireAuth(
 		func(w http.ResponseWriter, r *http.Request, p identity.Principal) { h.handleMe(w, r, p) })))
+
+	h.registerMFARoutes(mux)
 }

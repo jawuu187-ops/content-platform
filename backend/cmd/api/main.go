@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -21,6 +22,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/logging"
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/mail"
 )
 
 // Set with -ldflags at build time by the release workflow.
@@ -77,7 +79,40 @@ func run() error {
 
 	var identityService *identity.Service
 	if db != nil {
-		identityService = identity.New(db.Pool())
+		opts := []identity.Option{identity.WithIssuer(cfg.ServiceName)}
+
+		// Email delivery: a real SMTP provider when configured, otherwise the
+		// development log sender. Production refuses to start without SMTP (the
+		// config validator enforces that), so no verification mail is silently
+		// dropped in a real deployment.
+		if cfg.SMTPHost != "" {
+			sender, err := mail.NewSMTP(mail.SMTPConfig{
+				Host: cfg.SMTPHost, Port: cfg.SMTPPort,
+				Username: cfg.SMTPUsername, Password: cfg.SMTPPassword,
+				From: cfg.MailFrom, ImplicitTLS: cfg.SMTPImplicitTLS,
+			})
+			if err != nil {
+				logger.Error("smtp configuration rejected", slog.Any("error", err))
+				os.Exit(1)
+			}
+			opts = append(opts, identity.WithMailer(sender))
+		} else {
+			opts = append(opts, identity.WithMailer(mail.LogSender{Logger: logger}))
+			logger.Warn("email is delivered to the log, not to a mailbox; set SMTP_HOST for real delivery")
+		}
+
+		if cfg.MFAKeyBase64 != "" {
+			key, err := base64.StdEncoding.DecodeString(cfg.MFAKeyBase64)
+			if err != nil || len(key) != 32 {
+				logger.Error("MFA_KEY must be 32 bytes, base64 encoded", slog.Any("error", err))
+				os.Exit(1)
+			}
+			opts = append(opts, identity.WithSecretKey(key))
+		} else {
+			logger.Warn("MFA_KEY is not set; TOTP enrolment will answer 503")
+		}
+
+		identityService = identity.New(db.Pool(), opts...)
 	}
 
 	handler := httpapi.New(httpapi.Deps{

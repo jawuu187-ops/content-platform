@@ -265,7 +265,7 @@ func TestLoginSucceedsAndFailsIdenticallyForUnknownAccount(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 
-	res, err := svc.Login(ctx, strings.ToUpper(email), goodPassword, DeviceInfo{Fingerprint: "d2", Platform: "web"}, "")
+	res, err := svc.Login(ctx, strings.ToUpper(email), goodPassword, "", DeviceInfo{Fingerprint: "d2", Platform: "web"}, "")
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}
@@ -273,10 +273,10 @@ func TestLoginSucceedsAndFailsIdenticallyForUnknownAccount(t *testing.T) {
 		t.Fatal("login did not open a session")
 	}
 
-	if _, err := svc.Login(ctx, email, "wrong-password-but-long", DeviceInfo{Fingerprint: "d2"}, ""); !errors.Is(err, ErrInvalidCredentials) {
+	if _, err := svc.Login(ctx, email, "wrong-password-but-long", "", DeviceInfo{Fingerprint: "d2"}, ""); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("wrong password: want ErrInvalidCredentials, got %v", err)
 	}
-	if _, err := svc.Login(ctx, uniqueEmail("ghost"), goodPassword, DeviceInfo{Fingerprint: "d2"}, ""); !errors.Is(err, ErrInvalidCredentials) {
+	if _, err := svc.Login(ctx, uniqueEmail("ghost"), goodPassword, "", DeviceInfo{Fingerprint: "d2"}, ""); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("unknown account: want ErrInvalidCredentials (no enumeration), got %v", err)
 	}
 }
@@ -315,7 +315,7 @@ func TestRefreshRotatesTokensAndDetectsReuse(t *testing.T) {
 	}
 
 	// The account itself is untouched: a fresh login still works.
-	if _, err := svc.Login(ctx, first.User.Email, goodPassword, DeviceInfo{Fingerprint: "d1"}, ""); err != nil {
+	if _, err := svc.Login(ctx, first.User.Email, goodPassword, "", DeviceInfo{Fingerprint: "d1"}, ""); err != nil {
 		t.Fatalf("login after reuse detection: %v", err)
 	}
 }
@@ -352,7 +352,7 @@ func TestLogoutAndSessionRevocation(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 	// A long password is required because the policy rejects short ones.
-	res, err := svc.Login(ctx, email, goodPassword, DeviceInfo{Fingerprint: "laptop", Platform: "web"}, "")
+	res, err := svc.Login(ctx, email, goodPassword, "", DeviceInfo{Fingerprint: "laptop", Platform: "web"}, "")
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}

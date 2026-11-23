@@ -100,6 +100,10 @@ jobs:
           ./bin/migrate -status
 
       - name: smoke test the API against the migrated database
+        env:
+          # 32-byte key, base64. Enables TOTP enrolment in the smoke run so the
+          # path is proven outside the test binary as well.
+          MFA_KEY: a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
         run: |
           set -u
           ./bin/api > api.log 2>&1 &
@@ -143,6 +147,23 @@ jobs:
           echo "GET /v1/auth/sessions (bearer) -> $sessions_code"
           [ "$sessions_code" = "200" ] || fail "authenticated session listing returned $sessions_code"
           grep -q '"sessions":\[' sessions.json || fail "session listing payload is empty"
+
+          totp_code=$(curl -s -o totp.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/mfa/totp/start \
+            -H "Authorization: Bearer $access" -H 'Content-Type: application/json' -d '{"label":"smoke"}')
+          echo "POST /v1/auth/mfa/totp/start -> $totp_code"
+          [ "$totp_code" = "201" ] || fail "TOTP enrolment returned $totp_code"
+          grep -q 'otpauth://totp/' totp.json || fail "TOTP enrolment returned no otpauth URI"
+
+          verify_code=$(curl -s -o verify.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/email/verify/request \
+            -H "Authorization: Bearer $access")
+          echo "POST /v1/auth/email/verify/request -> $verify_code"
+          [ "$verify_code" = "202" ] || fail "email verification request returned $verify_code"
+
+          grant_code=$(curl -s -o grant.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/admin/roles/grant \
+            -H "Authorization: Bearer $access" -H 'Content-Type: application/json' \
+            -d '{"user_id":"smoke@example.test","role":"creator"}')
+          echo "POST /v1/admin/roles/grant (as fan) -> $grant_code"
+          [ "$grant_code" = "403" ] || fail "a fan was able to reach the role-grant endpoint ($grant_code)"
 
           dup_code=$(curl -s -o duplicate.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/auth/register \
             -H 'Content-Type: application/json' \

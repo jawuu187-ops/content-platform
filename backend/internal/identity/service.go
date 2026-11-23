@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/mail"
 )
 
 // dummyHash is a real PBKDF2 hash of a password nobody knows. A failed login for
@@ -21,6 +23,9 @@ type Service struct {
 	store  *store
 	hasher *Hasher
 	now    func() time.Time
+	mailer mail.Sender
+	box    *secretBox
+	issuer string
 }
 
 // Option configures the service.
@@ -32,12 +37,30 @@ func WithHasher(h *Hasher) Option { return func(s *Service) { s.hasher = h } }
 // WithClock overrides the clock (tests advance time deterministically).
 func WithClock(now func() time.Time) Option { return func(s *Service) { s.now = now } }
 
+// WithMailer sets the transactional email sender. Without it, verification
+// requests fail with ErrMailUnavailable instead of pretending to send.
+func WithMailer(sender mail.Sender) Option { return func(s *Service) { s.mailer = sender } }
+
+// WithSecretKey enables multi-factor enrolment by providing the AES-256 key used
+// to encrypt TOTP secrets at rest.
+func WithSecretKey(key []byte) Option {
+	return func(s *Service) {
+		if box, err := newSecretBox(key); err == nil {
+			s.box = box
+		}
+	}
+}
+
+// WithIssuer sets the label shown in authenticator apps.
+func WithIssuer(issuer string) Option { return func(s *Service) { s.issuer = issuer } }
+
 // New builds the service on top of an existing pool.
 func New(pool *pgxpool.Pool, opts ...Option) *Service {
 	s := &Service{
 		store:  &store{pool: pool},
 		hasher: DefaultHasher(),
 		now:    time.Now,
+		issuer: "Content Platform",
 	}
 	for _, o := range opts {
 		o(s)
@@ -91,8 +114,10 @@ func (s *Service) Register(ctx context.Context, email, password string, d Device
 	return s.issue(ctx, user, d, "", requestID)
 }
 
-// Login verifies credentials and opens a new session family.
-func (s *Service) Login(ctx context.Context, email, password string, d DeviceInfo, requestID string) (*Result, error) {
+// Login verifies credentials and opens a new session family. When the account has
+// a confirmed second factor, mfaCode must carry a valid TOTP or recovery code;
+// otherwise the attempt is rejected with ErrMFARequired.
+func (s *Service) Login(ctx context.Context, email, password, mfaCode string, d DeviceInfo, requestID string) (*Result, error) {
 	normalized, err := normalizeEmail(email)
 	if err != nil {
 		// Same error as a wrong password: the caller learns nothing.
@@ -120,6 +145,26 @@ func (s *Service) Login(ctx context.Context, email, password string, d DeviceInf
 		if newHash, err := s.hasher.Hash(password); err == nil {
 			s.store.upgradeHash(ctx, user.ID, newHash, algoArgon2id, s.hasher.ParamsForStorage())
 			user.PasswordUpgraded = true
+		}
+	}
+
+	factorID, sealed, err := s.store.confirmedTOTP(ctx, user.ID)
+	switch {
+	case errors.Is(err, ErrNotFound):
+		// No second factor: password alone is sufficient.
+	case err != nil:
+		return nil, err
+	default:
+		if mfaCode == "" {
+			return nil, ErrMFARequired
+		}
+		ok, err := s.checkMFACode(ctx, user.ID, factorID, sealed, mfaCode)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			s.auditPasswordFailure(ctx, user.ID, requestID)
+			return nil, ErrInvalidMFACode
 		}
 	}
 

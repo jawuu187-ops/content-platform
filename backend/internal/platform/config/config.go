@@ -47,6 +47,18 @@ type Config struct {
 
 	ValkeyURL string
 
+	// Mail delivery. Without SMTP the local log sender is used; production
+	// refuses to start without a real provider.
+	MailFrom     string
+	SMTPHost     string
+	SMTPPort     string
+	SMTPUsername string
+	SMTPPassword string
+	SMTPImplicitTLS bool
+
+	// MFAKeyBase64 encrypts TOTP secrets at rest (32 bytes, base64).
+	MFAKeyBase64 string
+
 	// Secrets
 	SessionSigningKey string
 	TokenSigningKey   string
@@ -88,6 +100,14 @@ func Load(serviceName string) (*Config, error) {
 
 		ValkeyURL: get("VALKEY_URL", ""),
 
+		MailFrom:        get("MAIL_FROM", "no-reply@localhost"),
+		SMTPHost:        get("SMTP_HOST", ""),
+		SMTPPort:        get("SMTP_PORT", "587"),
+		SMTPUsername:    get("SMTP_USERNAME", ""),
+		SMTPPassword:    get("SMTP_PASSWORD", ""),
+		SMTPImplicitTLS: getBool("SMTP_IMPLICIT_TLS", false),
+
+		MFAKeyBase64:      get("MFA_KEY", ""),
 		SessionSigningKey: get("SESSION_SIGNING_KEY", ""),
 		TokenSigningKey:   get("TOKEN_SIGNING_KEY", ""),
 		WebhookSecretKey:  get("WEBHOOK_SECRET_KEY", ""),
@@ -139,6 +159,15 @@ func (c *Config) validate() error {
 		}
 	}
 
+	if !c.IsLocal() {
+		if c.SMTPHost == "" {
+			problems = append(problems, "SMTP_HOST is required outside local development (email verification cannot be delivered without it)")
+		}
+		if c.MFAKeyBase64 == "" {
+			problems = append(problems, "MFA_KEY is required outside local development")
+		}
+	}
+
 	if c.IsProduction() && !c.RequireAgeVerification {
 		problems = append(problems, "REQUIRE_AGE_VERIFICATION cannot be disabled in production")
 	}
@@ -163,6 +192,9 @@ func (c *Config) Redacted() map[string]any {
 		"session_signing_key":      redact(c.SessionSigningKey),
 		"token_signing_key":        redact(c.TokenSigningKey),
 		"webhook_secret_key":       redact(c.WebhookSecretKey),
+		"mfa_key":                  redact(c.MFAKeyBase64),
+		"smtp_host":                c.SMTPHost,
+		"mail_from":                c.MailFrom,
 	}
 }
 

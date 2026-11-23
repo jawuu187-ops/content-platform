@@ -3,6 +3,10 @@
 > **2026-11-26 — payments are NO-GO for an Egypt-based operator.**
 > Review of the four adult-friendly leads, with evidence and the conditions that would change
 > the verdict: [`payments-eligibility-review.md`](payments-eligibility-review.md).
+> **Superseded in scope the same day:** that verdict applies to an Egypt-incorporated and
+> Egypt-operated service. Revised assessment for an internationally incorporated, Egypt-blocked
+> platform — jurisdictions, providers, costs and the four gates:
+> [`jurisdiction-and-provider-assessment.md`](jurisdiction-and-provider-assessment.md).
 
 **تاريخ البحث:** 2026-11-23
 **قاعدة:** هذه أرقام معلنة من مصادر طرف ثالث أو صفحات مزوّدين. لا يوجد التزام تعاقدي، وكل رقم

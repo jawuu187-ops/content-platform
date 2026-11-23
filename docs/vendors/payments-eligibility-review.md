@@ -5,9 +5,18 @@
 provider contacted, no plan purchased. Every provider below was assessed from its own public
 documentation.
 
-**Verdict: NO-GO.** No provider on the list can lawfully serve this business with an
-operator based in Egypt. The blocker is not the providers' appetite for adult content — three
-of the four explicitly accept it. The blocker is Egyptian law and the settlement route.
+> **Revision 2 — read `jurisdiction-and-provider-assessment.md` before acting on this file.**
+> This revision wrongly treated the platform as an Egyptian domestic service because the founder
+> lives in Egypt, and concluded NO-GO for the whole business. That conclusion holds only for a
+> company incorporated and operated in Egypt. For an internationally incorporated, Egypt-blocked
+> platform the correct answer is *conditional GO with gates*: SegPay or CCBill become genuine
+> candidates once the company sits in Ireland, the UK or the US. The legal detail is unchanged and
+> still correct; the scope of the verdict was too wide.
+
+**Verdict as written (revision 1): NO-GO for an Egypt-incorporated, Egypt-operated service.** No
+provider on the list can lawfully serve that structure. The blocker is not the providers' appetite
+for adult content — three of the four explicitly accept it. The blocker is Egyptian law and the
+settlement route.
 
 ---
 
@@ -135,8 +144,10 @@ established in one of those jurisdictions.
 
 ## 4. Recommendation
 
-**NO-GO. Keep payments unavailable.** No provider qualifies, and no integration work should
-start.
+**NO-GO for an Egypt-incorporated, Egypt-operated service. Keep payments unavailable.** No
+provider qualifies for that structure, and no integration work should start. (Revision 2 narrows
+this: with the company in Ireland, the UK or the US and Egypt blocked, SegPay and CCBill are
+candidates — see `jurisdiction-and-provider-assessment.md`.)
 
 Choosing CryptoPayr or RazPay because onboarding is free and fast would mean settling revenue
 through a channel that Egyptian law prohibits (Law 194/2020 art. 206) while running a business

@@ -275,7 +275,7 @@ func (s *store) revokeOwnedSession(ctx context.Context, userID, sessionID string
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE identity.sessions
 		SET revoked_at = COALESCE(revoked_at, now()), revoked_reason = 'user_revoked'
-		WHERE id = $1::uuid AND user_id = $2::uuid`, sessionID, userID)
+		WHERE id = $1::uuid AND user_id = $2::uuid AND revoked_at IS NULL`, sessionID, userID)
 	if err != nil {
 		return fmt.Errorf("identity: revoke owned session: %w", err)
 	}

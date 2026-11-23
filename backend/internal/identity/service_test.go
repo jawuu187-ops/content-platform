@@ -5,16 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
-	"github.com/jawuu187-ops/content-platform/backend/migrations"
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/dbtest"
 )
 
 // PBKDF2-HMAC-SHA256 known answers. These vectors pin the implementation: if the
@@ -185,35 +182,10 @@ func TestDeviceFingerprintIsBounded(t *testing.T) {
 // Database-backed tests
 // ---------------------------------------------------------------------------
 
-var (
-	migrateOnce sync.Once
-	migrateErr  error
-)
-
 func testService(t *testing.T) (*Service, *pgxpool.Pool) {
 	t.Helper()
-	url := os.Getenv("TEST_DATABASE_URL")
-	if url == "" {
-		t.Skip("TEST_DATABASE_URL is not set; skipping integration test")
-	}
-	ctx := context.Background()
-	db, err := database.Open(ctx, database.Options{
-		URL: url, MaxConns: 6, ApplicationName: "identity-tests",
-	})
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	migrateOnce.Do(func() {
-		_, migrateErr = db.Migrate(ctx, migrations.FS, ".")
-	})
-	if migrateErr != nil {
-		t.Fatalf("migrate: %v", migrateErr)
-	}
-	if _, err := db.Pool().Exec(ctx, `TRUNCATE identity.users CASCADE`); err != nil {
-		t.Fatalf("reset identity tables: %v", err)
-	}
-	t.Cleanup(db.Close)
-	return New(db.Pool(), WithHasher(NewHasher(testIterations))), db.Pool()
+	pool := dbtest.Pool(t)
+	return New(pool, WithHasher(NewHasher(testIterations))), pool
 }
 
 func uniqueEmail(prefix string) string {

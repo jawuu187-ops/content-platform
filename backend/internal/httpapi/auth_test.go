@@ -1,57 +1,32 @@
 package httpapi
 
 import (
-	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
-	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
-	"github.com/jawuu187-ops/content-platform/backend/migrations"
-)
+	"github.com/jackc/pgx/v5/pgxpool"
 
-var (
-	authMigrateOnce sync.Once
-	authMigrateErr  error
+	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/dbtest"
 )
 
 // authServer builds a handler with a real identity service backed by the test
 // database. The HTTP layer is exercised end to end: routing, JSON decoding,
 // bearer authentication and error mapping.
-func authServer(t *testing.T) (http.Handler, *database.DB) {
+func authServer(t *testing.T) (http.Handler, *pgxpool.Pool) {
 	t.Helper()
-	url := os.Getenv("TEST_DATABASE_URL")
-	if url == "" {
-		t.Skip("TEST_DATABASE_URL is not set; skipping HTTP integration test")
-	}
-	ctx := context.Background()
-	db, err := database.Open(ctx, database.Options{URL: url, MaxConns: 6, ApplicationName: "httpapi-tests"})
-	if err != nil {
-		t.Fatalf("open database: %v", err)
-	}
-	authMigrateOnce.Do(func() { _, authMigrateErr = db.Migrate(ctx, migrations.FS, ".") })
-	if authMigrateErr != nil {
-		t.Fatalf("migrate: %v", authMigrateErr)
-	}
-	if _, err := db.Pool().Exec(ctx, `TRUNCATE identity.users CASCADE`); err != nil {
-		t.Fatalf("reset identity: %v", err)
-	}
-	t.Cleanup(db.Close)
-
-	svc := identity.New(db.Pool(), identity.WithHasher(identity.NewHasher(2000)))
+	pool := dbtest.Pool(t)
+	svc := identity.New(pool, identity.WithHasher(identity.NewHasher(2000)))
 	return New(Deps{
 		Config:   testConfig(),
 		Logger:   slog.New(slog.NewTextHandler(discard{}, nil)),
-		Database: db,
 		Identity: svc,
-	}), db
+	}), pool
 }
 
 func doJSON(t *testing.T, h http.Handler, method, path, token, body string) *httptest.ResponseRecorder {

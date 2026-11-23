@@ -46,7 +46,6 @@ import com.contentplatform.app.ui.screens.CheckoutSheet
 import com.contentplatform.app.ui.screens.CreatorScreen
 import com.contentplatform.app.ui.screens.HomeScreen
 import com.contentplatform.app.ui.screens.MembershipScreen
-import com.contentplatform.app.ui.screens.PaymentResultCard
 import com.contentplatform.app.ui.screens.StudioScreen
 import com.contentplatform.app.ui.theme.LocalVesperPalette
 import com.contentplatform.app.ui.theme.ThemeController
@@ -73,11 +72,7 @@ fun PlatformApp(themeController: ThemeController) {
 
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var creatorOpen by rememberSaveable { mutableStateOf(false) }
-    var checkout by remember { mutableStateOf<Triple<String, String, String>?>(null) }
-    var lastCheckout by remember { mutableStateOf<Triple<String, String, String>?>(null) }
-    var paidTier by remember { mutableStateOf<String?>(null) }
-
-    if (checkout != null) lastCheckout = checkout
+    var checkout by remember { mutableStateOf<String?>(null) }
 
     Box(Modifier.fillMaxSize().background(palette.ground).safeDrawingPadding()) {
         Column(Modifier.fillMaxSize()) {
@@ -104,7 +99,7 @@ fun PlatformApp(themeController: ThemeController) {
                             onOpenMembership = { destination = Destination.Membership },
                         )
                         Destination.Membership -> MembershipScreen(
-                            onJoin = { tier, price -> checkout = Triple(tier, price, "membership") },
+                            onJoin = { tier, _ -> checkout = tier },
                         )
                         Destination.Studio -> StudioScreen()
                         Destination.Account -> AccountScreen(
@@ -169,33 +164,11 @@ fun PlatformApp(themeController: ThemeController) {
                 ) { height -> height },
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
-                lastCheckout?.let { (tier, price, _) ->
-                    CheckoutSheet(
-                        tier = tier,
-                        price = price,
-                        onPay = {
-                            paidTier = tier
-                            checkout = null
-                        },
-                        onDismiss = { checkout = null },
-                    )
-                }
+                CheckoutSheet(
+                    tier = checkout ?: "Studio",
+                    onDismiss = { checkout = null },
+                )
             }
-        }
-
-        AnimatedVisibility(
-            visible = paidTier != null,
-            enter = slideInVertically(
-                animationSpec = tween(motion.transition, easing = motion.easing),
-            ) { height -> height / 2 } + fadeIn(tween(motion.transition)),
-            exit = slideOutVertically(tween(motion.feedback)) { height -> height / 2 } + fadeOut(tween(motion.feedback)),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp),
-        ) {
-            PaymentResultCard(
-                tier = paidTier ?: "Studio",
-                cta = "Done",
-                onDone = { paidTier = null },
-            )
         }
     }
 }

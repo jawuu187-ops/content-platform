@@ -144,7 +144,11 @@ func TestMetaPublishesPolicy(t *testing.T) {
 	var body struct {
 		MinimumAge              int  `json:"minimum_age"`
 		AgeVerificationRequired bool `json:"age_verification_required"`
-		ContentPolicy           struct {
+		Payments                struct {
+			Available bool   `json:"available"`
+			Provider  string `json:"provider"`
+		} `json:"payments"`
+		ContentPolicy struct {
 			PublicSurface string `json:"public_surface"`
 			PaidSurface   string `json:"paid_surface"`
 		} `json:"content_policy"`
@@ -157,6 +161,14 @@ func TestMetaPublishesPolicy(t *testing.T) {
 	}
 	if !strings.Contains(body.ContentPolicy.PublicSurface, "no nudity") {
 		t.Fatalf("public surface policy missing: %+v", body.ContentPolicy)
+	}
+	// Without an approved gateway the client must be told payments are not available,
+	// so no screen offers a checkout that cannot settle.
+	if body.Payments.Available {
+		t.Fatalf("payments must not be advertised as available: %+v", body.Payments)
+	}
+	if body.Payments.Provider != "unconfigured" {
+		t.Fatalf("provider = %q, want unconfigured", body.Payments.Provider)
 	}
 }
 

@@ -265,8 +265,24 @@ func (c *Config) validate() error {
 		problems = append(problems, "AGE_CALLBACK_SECRET must be at least 16 characters")
 	}
 
-	if c.IsProduction() && c.FakePayments {
-		problems = append(problems, "ENABLE_FAKE_PAYMENTS must be off in production: it grants access without payment")
+	// Simulated payments are a local development instrument only. Staging and
+	// production both refuse them, because a staging environment that looks like
+	// production is exactly where a fake settlement gets mistaken for a real one.
+	if c.FakePayments && !c.IsLocal() {
+		problems = append(problems, "ENABLE_FAKE_PAYMENTS is allowed only with APP_ENV=local: it grants access without payment")
+	}
+
+	// A simulated provider is a development instrument. It must never be able to
+	// settle access in production, even if the deployer asks for it by name.
+	switch provider := strings.ToLower(strings.TrimSpace(c.PayProvider)); provider {
+	case "", "none", "unavailable":
+		// No provider: every payment route answers 503.
+	case "fake":
+		if !c.IsLocal() {
+			problems = append(problems, "PAY_PROVIDER=fake is allowed only with APP_ENV=local: no simulated payment may settle real access")
+		}
+	default:
+		problems = append(problems, "PAY_PROVIDER must be empty or fake until an approved gateway is integrated")
 	}
 
 	if c.IsProduction() && !c.RequireAgeVerification {

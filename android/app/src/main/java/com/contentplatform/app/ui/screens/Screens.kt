@@ -59,6 +59,17 @@ import com.contentplatform.app.ui.theme.LocalVesperPalette
  * 12,412 members, $115,048 MRR, Studio $9 (50.8% of members), 37 unlocks in seven days.
  * Nothing here invents a metric the backend does not serve.
  */
+/**
+ * Nothing in this client is wired to the API yet, so no figure here is real. Every number is
+ * gated: the shipped build shows "—" and a "not connected" mark rather than inventing
+ * members, revenue, balances or history. The canonical dataset stays in the design board for
+ * review and is never presented as account state.
+ */
+private object Data {
+    const val connected = false
+    fun value(real: String): String = if (connected) real else "—"
+}
+
 private const val CREATOR_NAME = "Lina Marchetti"
 private const val CREATOR_HANDLE = "@lina.m"
 private const val MEMBERS = "12,412"
@@ -99,7 +110,7 @@ fun HomeScreen(
                     ) {
                         MediaPanel(
                             height = 236,
-                            label = "12,412 members",
+                            label = Data.value("12,412 members"),
                             price = "Tonight · new set",
                             modifier = Modifier.pressScale(motion, onClick = onOpenCreator),
                         )
@@ -112,15 +123,16 @@ fun HomeScreen(
                                     color = palette.ink,
                                 )
                                 Text(
-                                    "$CREATOR_HANDLE · creator since 2024 · 48 posts",
+                                    if (Data.connected) "$CREATOR_HANDLE · creator since 2024 · 48 posts"
+                                    else "$CREATOR_HANDLE · not connected",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = palette.muted,
                                 )
                             }
-                            Money("$9/mo", color = palette.ink)
+                            Money(Data.value("$9/mo"), color = palette.ink)
                         }
                         SpacerH(12)
-                        ActionButton("Join Studio", "$9.00 / month", onClick = onOpenMembership)
+                        ActionButton("Join Studio", Data.value("$9.00 / month"), onClick = onOpenMembership)
                         SpacerH(8)
                         Text(
                             "18+ accounts only. Cancel any time.",
@@ -208,7 +220,7 @@ fun CreatorScreen(
     Column(Modifier.fillMaxSize().background(palette.ground)) {
         Chrome(
             title = "Creator",
-            subtitle = MEMBERS + " members · 48 posts",
+            subtitle = if (Data.connected) MEMBERS + " members · 48 posts" else "Not connected",
             trailing = { OutlineButton("Tiers", onOpenMembership) },
         )
         LazyColumn(Modifier.fillMaxSize()) {
@@ -232,9 +244,9 @@ fun CreatorScreen(
                             )
                             SpacerH(12)
                             Row {
-                                Stat("12,412", "Members", Modifier.weight(1f))
-                                Stat("48", "Posts", Modifier.weight(1f))
-                                Stat("3", "Tiers", Modifier.weight(1f))
+                                Stat(Data.value("12,412"), "Members", Modifier.weight(1f))
+                                Stat(Data.value("48"), "Posts", Modifier.weight(1f))
+                                Stat(Data.value("3"), "Tiers", Modifier.weight(1f))
                             }
                             SpacerH(12)
                             Text(
@@ -243,7 +255,7 @@ fun CreatorScreen(
                                 color = palette.inkSecondary,
                             )
                             SpacerH(16)
-                            SectionTitle("Membership", "from $5")
+                            SectionTitle("Membership", Data.value("from $5"))
                             SpacerH(8)
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 tiers.take(2).forEach { tier ->
@@ -258,7 +270,7 @@ fun CreatorScreen(
                                 color = palette.actionText,
                             )
                             SpacerH(16)
-                            SectionTitle("Recent work", "48 posts")
+                            SectionTitle("Recent work", Data.value("48 posts"))
                             SpacerH(8)
                         }
                         Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -328,7 +340,10 @@ fun MembershipScreen(
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
     Column(Modifier.fillMaxSize().background(palette.ground)) {
-        Chrome(title = "Membership", subtitle = "$CREATOR_NAME · 12,412 members")
+        Chrome(
+            title = "Membership",
+            subtitle = "$CREATOR_NAME · " + if (Data.connected) "12,412 members" else "not connected",
+        )
         LazyColumn(Modifier.fillMaxSize()) {
             itemsIndexed(tiers) { index, tier ->
                 Reveal(index, motion) { alpha, offset ->
@@ -353,13 +368,13 @@ fun MembershipScreen(
                                         }
                                     }
                                     Box(Modifier.weight(1f))
-                                    Money("\$${tier.second}", color = palette.ink)
+                                    Money(Data.value("\$${tier.second}"), color = palette.ink)
                                 }
                                 SpacerH(4)
                                 Text(tier.third, style = MaterialTheme.typography.bodyMedium, color = palette.inkSecondary)
                                 SpacerH(12)
                                 if (recommended) {
-                                    ActionButton("Join Studio", "\$${tier.second} / month", onClick = {
+                                    ActionButton("Join Studio", Data.value("\$${tier.second} / month"), onClick = {
                                         onJoin(tier.first, tier.second)
                                     })
                                 } else {
@@ -378,7 +393,10 @@ fun MembershipScreen(
                         color = palette.muted,
                     )
                     SpacerH(8)
-                    LabelMono("Fee split on $9.00 · $7.20 creator · $1.80 platform")
+                    LabelMono(
+                        if (Data.connected) "Fee split on $9.00 · $7.20 creator · $1.80 platform"
+                        else "Prices and fee split appear once a payment provider is approved",
+                    )
                 }
             }
         }
@@ -395,9 +413,9 @@ fun StudioScreen() {
             item {
                 Reveal(0, motion) { alpha, _ ->
                     Column(Modifier.graphicsLayer { this.alpha = alpha }.padding(20.dp)) {
-                        ActionButton("New post", "photo · video · text", onClick = {})
+                        ActionButton("New post", "publishing stays off", onClick = {})
                         SpacerH(16)
-                        SectionTitle("Recent posts", "48 published")
+                        SectionTitle("Recent posts", Data.value("48 published"))
                         SpacerH(8)
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             repeat(3) { i ->
@@ -414,29 +432,23 @@ fun StudioScreen() {
                         CardSurface {
                             Column(Modifier.padding(14.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    LabelMono("Earnings · available")
+                                    LabelMono("Earnings")
                                     Box(Modifier.weight(1f))
-                                    Chip("Payouts off", ChipTone.Pending)
+                                    Chip("Not connected", ChipTone.Pending)
                                 }
-                                SpacerH(4)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Money("$1,284.40", color = palette.ink)
-                                    Box(Modifier.weight(1f))
-                                    Text(
-                                        "+ $3,240.00 this month",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = palette.sage,
-                                    )
-                                }
-                                SpacerH(4)
-                                LabelMono("MRR $115,048 · 37 unlocks · 7d")
+                                SpacerH(6)
+                                Text(
+                                    "No payment provider is approved, so no balance is shown. Earnings, payouts and transaction history stay empty until one is.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = palette.muted,
+                                )
                             }
                         }
                         SpacerH(12)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StudioStat("12,412", "Members", Modifier.weight(1f))
-                            StudioStat("50.8%", "On Studio", Modifier.weight(1f))
-                            StudioStat("37", "Unlocks · 7d", Modifier.weight(1f))
+                            StudioStat(Data.value("12,412"), "Members", Modifier.weight(1f))
+                            StudioStat(Data.value("50.8%"), "On Studio", Modifier.weight(1f))
+                            StudioStat(Data.value("37"), "Unlocks · 7d", Modifier.weight(1f))
                         }
                     }
                 }
@@ -550,15 +562,17 @@ private fun ThemeRow(
 }
 
 /**
- * Checkout is an overlay, not a screen: the membership list stays where it was, so closing
- * the sheet never loses a decision the user already made.
+ * Checkout, deliberately not operational.
+ *
+ * No PSP has been approved for this business model, so this sheet cannot take money and
+ * cannot create a paid state. It says so plainly and offers one way out. It stays an overlay
+ * so the membership list behind it keeps its position — the shape a real provider will slot
+ * into is exactly what is being built now.
  */
 @Composable
 fun CheckoutSheet(
     tier: String,
-    price: String,
     modifier: Modifier = Modifier,
-    onPay: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val palette: VesperPalette = LocalVesperPalette.current
@@ -575,56 +589,43 @@ fun CheckoutSheet(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 LabelMono("Checkout · $tier")
-                Text("$CREATOR_NAME", style = MaterialTheme.typography.headlineSmall, color = palette.ink)
+                Text(CREATOR_NAME, style = MaterialTheme.typography.headlineSmall, color = palette.ink)
             }
-            Money("\$${price}", color = palette.ink)
+            Chip("Unavailable", ChipTone.Pending)
         }
         SpacerH(12)
         CardSurface {
-            Column(Modifier.padding(12.dp)) {
-                Row { Text("Studio membership, one month", style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary); Box(Modifier.weight(1f)); Money("\$$price") }
-                SpacerH(4)
-                Row { Text("Platform fee, included (20%)", style = MaterialTheme.typography.bodySmall, color = palette.muted); Box(Modifier.weight(1f)); Money("$1.80", color = palette.muted) }
-                SpacerH(8)
+            Column(Modifier.padding(14.dp)) {
+                Text(
+                    "Card payments are not available yet.",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = palette.ink,
+                )
+                SpacerH(6)
+                Text(
+                    "No payment provider has been approved for this business model, so nothing can be charged and no membership can be activated. " +
+                        "No card details are collected here.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.muted,
+                )
+                SpacerH(10)
                 Divider()
-                SpacerH(8)
-                Row { Text("Due today", style = MaterialTheme.typography.titleMedium, color = palette.ink); Box(Modifier.weight(1f)); Money("\$$price", color = palette.ink) }
+                SpacerH(10)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Price", style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)
+                    Box(Modifier.weight(1f))
+                    Money("—", color = palette.muted)
+                }
+                SpacerH(4)
+                Text(
+                    "A tier price stays a proposal until a provider is approved.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.muted,
+                )
             }
         }
         SpacerH(12)
-        ActionButton("Pay \$${price}", "no card charged", onClick = onPay)
-        SpacerH(8)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            Text(
-                "Sandbox provider · renews monthly · cancel any time",
-                modifier = Modifier.pressScale(LocalVesperMotion.current, onDismiss),
-                style = MaterialTheme.typography.bodySmall,
-                color = palette.muted,
-            )
-        }
+        OutlineButton("Close", onDismiss)
     }
 }
 
-@Composable
-fun PaymentResultCard(tier: String, cta: String, onDone: () -> Unit) {
-    val palette = LocalVesperPalette.current
-    CardSurface {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Chip("Paid", ChipTone.Paid)
-                Box(Modifier.weight(1f))
-                Money("$9.00", color = palette.ink)
-            }
-            SpacerH(8)
-            Text("$tier is open", style = MaterialTheme.typography.titleMedium, color = palette.ink)
-            SpacerH(4)
-            Text(
-                "Renews 26 Dec 2026. Receipt on your statement; the ledger entry balances to zero.",
-                style = MaterialTheme.typography.bodySmall,
-                color = palette.muted,
-            )
-            SpacerH(12)
-            OutlineButton(cta, onDone)
-        }
-    }
-}

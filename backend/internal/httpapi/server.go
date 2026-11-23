@@ -254,7 +254,11 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 		MinimumAge              int    `json:"minimum_age"`
 		AgeVerificationRequired bool   `json:"age_verification_required"`
 		CryptoRailsEnabled      bool   `json:"crypto_rails_enabled"`
-		ContentPolicy           struct {
+		Payments                struct {
+			Available bool   `json:"available"`
+			Provider  string `json:"provider"`
+		} `json:"payments"`
+		ContentPolicy struct {
 			PublicSurface string `json:"public_surface"`
 			PaidSurface   string `json:"paid_surface"`
 			AlwaysBlocked string `json:"always_blocked"`
@@ -264,6 +268,13 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 		MinimumAge:              18,
 		AgeVerificationRequired: s.cfg.RequireAgeVerification,
 		CryptoRailsEnabled:      s.cfg.EnableCryptoRails,
+		Payments: struct {
+			Available bool   `json:"available"`
+			Provider  string `json:"provider"`
+		}{
+			Available: s.payments != nil && s.payments.Configured(),
+			Provider:  providerName(s.payments),
+		},
 		ContentPolicy: struct {
 			PublicSurface string `json:"public_surface"`
 			PaidSurface   string `json:"paid_surface"`
@@ -274,4 +285,14 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 			AlwaysBlocked: "explicit/pornographic content, minors, non-consensual content",
 		},
 	})
+}
+
+// providerName reports the installed provider, or "unconfigured" when none is.
+// Clients use it to decide whether checkout may be shown at all: an unknown or
+// simulated provider must not be presented as a way to pay.
+func providerName(svc *payments.Service) string {
+	if svc == nil {
+		return "unconfigured"
+	}
+	return svc.ProviderName()
 }

@@ -136,3 +136,67 @@ func TestPoolSizesOutsideTheAcceptedWindowFallBack(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadRejectsFakePaymentsInProduction(t *testing.T) {
+	base(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+	t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
+	t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
+	t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+	t.Setenv("ENABLE_FAKE_PAYMENTS", "true")
+	_, err := Load("api")
+	if err == nil || !strings.Contains(err.Error(), "ENABLE_FAKE_PAYMENTS") {
+		t.Fatalf("expected ENABLE_FAKE_PAYMENTS refusal, got %v", err)
+	}
+}
+
+func TestLoadRejectsFakeProviderInProduction(t *testing.T) {
+	base(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+	t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
+	t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
+	t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+	t.Setenv("PAY_PROVIDER", "fake")
+	// A simulated provider may never be named outside local development.
+	_, err := Load("api")
+	if err == nil || !strings.Contains(err.Error(), "PAY_PROVIDER=fake") {
+		t.Fatalf("expected PAY_PROVIDER=fake refusal, got %v", err)
+	}
+}
+
+func TestLoadAllowsFakeProviderOnlyOutsideProduction(t *testing.T) {
+	base(t)
+	t.Setenv("PAY_PROVIDER", "fake")
+	cfg, err := Load("api")
+	if err != nil {
+		t.Fatalf("fake provider should be allowed in local: %v", err)
+	}
+	if cfg.PayProvider != "fake" {
+		t.Fatalf("provider = %q", cfg.PayProvider)
+	}
+}
+
+func TestLoadRejectsUnapprovedProvider(t *testing.T) {
+	base(t)
+	t.Setenv("PAY_PROVIDER", "stripe")
+	_, err := Load("api")
+	if err == nil || !strings.Contains(err.Error(), "PAY_PROVIDER") {
+		t.Fatalf("expected provider refusal, got %v", err)
+	}
+}
+
+func TestLoadRejectsFakePaymentsInStaging(t *testing.T) {
+	base(t)
+	t.Setenv("APP_ENV", "staging")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+	t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
+	t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
+	t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+	t.Setenv("ENABLE_FAKE_PAYMENTS", "true")
+	_, err := Load("api")
+	if err == nil || !strings.Contains(err.Error(), "ENABLE_FAKE_PAYMENTS") {
+		t.Fatalf("expected staging to refuse fake payments, got %v", err)
+	}
+}

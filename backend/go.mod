@@ -3,7 +3,7 @@ module github.com/jawuu187-ops/content-platform/backend
 go 1.27
 
 require (
-	github.com/fxamacker/cbor/v2 v2.9.0
+	github.com/fxamacker/cbor/v2 v2.10.0
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/redis/go-redis/v9 v9.23.0
 	golang.org/x/crypto v0.59.0

@@ -110,7 +110,7 @@ body {
 }
 .icon svg { display: block; }
 .icon.plain { color: var(--ink); }
-.icon.fill { background: var(--ink); color: var(--paper); border-radius: 50%; margin-left: 0; }
+.icon.fill { background: var(--ink); color: var(--onfill); border-radius: 50%; margin-left: 0; }
 .icon.sm { width: 48px; height: 48px; margin-left: 0; }
 
 /* ---------------- type ---------------- */
@@ -163,7 +163,7 @@ body {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
   height: 50px; padding: 0 var(--s5);
   border-radius: 2px;
-  background: var(--oxblood); color: var(--paper);
+  background: var(--oxblood); color: var(--onfill);
   border: 1px solid var(--oxblood);
   font-family: var(--grotesk);
   font-size: var(--t5); font-weight: 600; letter-spacing: var(--track-ui);
@@ -189,15 +189,15 @@ body {
   color: var(--ink);
   white-space: nowrap;
 }
-.flag.solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.flag.ox { background: var(--oxblood); color: var(--paper); border-color: var(--oxblood); }
+.flag.solid { background: var(--ink); color: var(--onfill); border-color: var(--ink); }
+.flag.ox { background: var(--oxblood); color: var(--onfill); border-color: var(--oxblood); }
 .flag.out { background: transparent; color: var(--oxblood); border-color: var(--oxblood); }
 .flag.sage { color: var(--sage); border-color: rgba(47, 107, 79, 0.45); }
 .flag.flag-red { color: var(--flag); border-color: rgba(168, 50, 42, 0.4); }
 .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .count {
   min-width: 18px; height: 18px; padding: 0 4px;
-  background: var(--oxblood); color: var(--paper);
+  background: var(--oxblood); color: var(--onfill);
   border-radius: 2px; display: inline-grid; place-items: center;
   font-family: var(--mono); font-size: var(--t7); letter-spacing: 0;
 }
@@ -218,7 +218,7 @@ body {
 .photo .stamp {
   position: absolute; left: var(--s3); top: var(--s3);
   font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
-  color: var(--paper); background: rgba(13, 11, 10, 0.55);
+  color: var(--onfill); background: rgba(13, 11, 10, 0.55);
   padding:4px var(--s2); border-radius: 2px;
 }
 .photo .lockline {
@@ -226,12 +226,12 @@ body {
   display: flex; align-items: center; gap: var(--s2);
   padding: var(--s3) var(--margin);
   font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
-  text-transform: uppercase; color: var(--paper);
+  text-transform: uppercase; color: var(--onfill);
 }
 .photo .counter {
   position: absolute; right: var(--s3); bottom: var(--s3);
   font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
-  color: var(--paper); background: rgba(13, 11, 10, 0.55); padding:4px var(--s2);
+  color: var(--onfill); background: rgba(13, 11, 10, 0.55); padding:4px var(--s2);
 }
 
 /* avatar: photograph first, monogram only as a fallback */
@@ -245,8 +245,8 @@ body {
   width: 40px; height: 40px; flex: none;
 }
 .plate.round { border-radius: 50%; }
-.plate.ox { background: var(--oxblood); color: var(--paper); }
-.plate.ink { background: var(--ink); color: var(--paper); }
+.plate.ox { background: var(--oxblood); color: var(--onfill); }
+.plate.ink { background: var(--ink); color: var(--onfill); }
 .plate.sm { width: 32px; height: 32px; }
 
 /* ---------------- rules, ledger ---------------- */
@@ -286,7 +286,7 @@ body {
 .caret { width: 1px; height: 18px; background: var(--oxblood); }
 .check { width: 20px; height: 20px; border: 1px solid var(--rule-strong); border-radius: 2px; flex: none; }
 .check.on { background: var(--ink); border-color: var(--ink); position: relative; }
-.check.on::after { content: ""; position: absolute; left: 6px; top: 3px; width: 5px; height: 9px; border-right: 1.5px solid var(--paper); border-bottom: 1.5px solid var(--paper); transform: rotate(40deg); }
+.check.on::after { content: ""; position: absolute; left: 6px; top: 3px; width: 5px; height: 9px; border-right: 1.5px solid var(--onfill); border-bottom: 1.5px solid var(--onfill); transform: rotate(40deg); }
 .radio { width: 18px; height: 18px; border: 1px solid var(--rule-strong); border-radius: 50%; flex: none; }
 .radio.on { border-color: var(--oxblood); position: relative; }
 .radio.on::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--oxblood); }
@@ -343,11 +343,11 @@ body {
 .toast.ok { border-left: 2px solid var(--sage); }
 
 /* ---------------- viewer ---------------- */
-.viewer { background: #0d0b0a; color: var(--paper); }
-.viewer .statusbar { color: var(--paper); }
-.viewer .sig i, .viewer .batt { background: var(--paper); }
+.viewer { background: #0d0b0a; color: var(--onfill); }
+.viewer .statusbar { color: var(--onfill); }
+.viewer .sig i, .viewer .batt { background: var(--onfill); }
 .viewer .batt { background: transparent; }
-.viewer .batt::after { background: var(--paper); }
+.viewer .batt::after { background: var(--onfill); }
 .viewer .chrome {
   position: relative; flex: none;
   padding: var(--s1) var(--margin) 0;
@@ -357,8 +357,8 @@ body {
   padding: var(--s4) var(--margin) var(--s5);
   background: #0d0b0a;
 }
-.viewer .icon { color: var(--paper); }
-.viewer .icon.fill { background: var(--paper); color: var(--ink); }
+.viewer .icon { color: var(--onfill); }
+.viewer .icon.fill { background: var(--onfill); color: var(--ink); }
 .wm {
   position: absolute; font-family: var(--mono); font-size: var(--t7);
   letter-spacing: var(--track-ui); text-transform: uppercase;
@@ -474,9 +474,10 @@ body.dark {
   --bone: #0a0908;
   --card: #221e1c;
   --media: #0a0807;
-  --paper: #f3ebe1;
-  --paper-2: #2a2522;
-  --paper-3: #2b2523;
+  --paper: #0a0908;
+  --paper-2: #12100f;
+  --paper-3: #1a1715;
+  --onfill: #f6efe6;
   --ink: #f3ebe1;
   --ink-2: #d9cdc2;
   --muted: #a2938a;
@@ -498,3 +499,8 @@ body.dark .cell.locked img { filter: blur(7px) saturate(0.55) brightness(0.55); 
 body.dark .flag.sage { border-color: rgba(111, 191, 149, 0.45); }
 body.dark .flag.flag-red { border-color: rgba(226, 112, 95, 0.45); }
 body.dark .avatar-over { border-color: var(--card); }
+body.dark .frame { background: var(--bg); }
+body.dark .tabbar { background: var(--bone); }
+body.dark .sheet { background: var(--card); }
+body.dark .toast { background: var(--card); }
+body.dark .mark::after { background: var(--bone); }

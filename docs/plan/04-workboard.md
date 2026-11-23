@@ -255,3 +255,14 @@ Defects CI found in this slice and fixed:
 | D2-4 | Render pipeline on GitHub-hosted runners | done | `.github/workflows/design-render.yml`, runs 45183589894 / 45185190145 / 45185918848 |
 | D2-5 | Owner review and written approval | **blocked** | awaiting owner; no UI work starts before it |
 
+## Design direction 03 - pending owner approval
+
+| ID | Item | Status | Evidence |
+| --- | --- | --- | --- |
+| D3-1 | Reject v2 direction; new visual language from the ground up | done | `docs/design/review-v3/README.md` sections 1-3 |
+| D3-2 | Category study (OnlyFans, Fansly/Patreon, Substack, Apple TV/MUBI) | done | board section 01, table of what is taken and rejected |
+| D3-3 | Identity, ink system with measured contrast, type roles, 8 components | done | board sections 02-03 |
+| D3-4 | 18 recomposed screens, fan + creator | done | `docs/design/review-v3/png/01..18-*.png` (824 x 1830) |
+| D3-5 | Board render on GitHub-hosted runners | done | design-render-v3 runs 45191337074, 45193555164, 45194462293 |
+| D3-6 | Owner review and written approval | **blocked** | awaiting owner; no UI work starts before it |
+

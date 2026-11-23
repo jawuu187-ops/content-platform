@@ -1,9 +1,9 @@
 # Visual design — approval status
 
-**Status: board v2 (26 Nov 2026) is the current review — see [`review-v2/`](review-v2/README.md).**
+**Status: direction 03 (26 Nov 2026) is the current review — see [`review-v3/`](review-v3/README.md).**
 No Android or PWA UI work starts until the current board is approved in writing.
-Board v1 below is kept for history: it covered five screens and a direction, not the
-complete journey.
+Board v1 and v2 are kept for history. v1 covered five screens; v2 covered the whole journey
+but was rejected as too generic; v3 is a full reconsideration of the visual language.
 
 | File | What it is |
 | --- | --- |

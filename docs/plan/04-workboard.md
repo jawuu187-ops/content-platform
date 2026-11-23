@@ -109,7 +109,7 @@ conversions; two dead declarations.
 
 | Run | Workflow | Result | Evidence |
 | --- | --- | --- | --- |
-| 45128401832 | Backend CI | success | total coverage 63.9%; `internal/identity` 77.4%, `internal/httpapi` 76.6%; smoke: passkey registration start 201 with `userVerification:"required"`; Redis service running the shared-limiter tests |
+| 45128401832 | Backend CI | success | total coverage 63.9% before cross-package attribution (69.7% after, run 45128880770); smoke: passkey registration start 201 with `userVerification:"required"`; Redis service running the shared-limiter tests |
 | 45128401922 | Security | success | gitleaks, govulncheck, Trivy, gosec, staticcheck |
 
 Passkey tests (software authenticator, no browser): successful register + login, discoverable

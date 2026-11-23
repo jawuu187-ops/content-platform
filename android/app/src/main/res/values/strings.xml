@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Content Platform</string>
+    <string name="home_title">Content Platform</string>
+    <string name="home_subtitle">Creator subscription platform</string>
+    <string name="home_policy_title">Content policy</string>
+    <string name="home_policy_public">Public pages: no nudity, no sexual suggestion.</string>
+    <string name="home_policy_paid">Paid pages: non-explicit nudity and suggestive content only, for age-verified subscribers.</string>
+    <string name="home_policy_blocked">Never allowed: explicit content, minors, non-consensual content.</string>
+    <string name="home_min_age">18+ only</string>
+</resources>

@@ -1,0 +1,132 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+env:
+  GOFLAGS: -trimpath
+  CGO_ENABLED: 0
+
+jobs:
+  test:
+    name: format, vet, test (real PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: platform
+          POSTGRES_PASSWORD: platform
+          POSTGRES_DB: platform_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U platform -d platform_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      APP_ENV: local
+      DATABASE_URL: postgres://platform:platform@127.0.0.1:5432/platform_test?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"; echo "$unformatted"; exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: unit + integration tests
+        run: go test -race -shuffle=on -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: coverage summary
+        run: go tool cover -func=coverage.out | tail -n 25
+
+      - name: build binaries
+        run: |
+          go build -trimpath -ldflags "-s -w -X main.version=ci -X main.commit=${GITHUB_SHA::8}" -o bin/api ./cmd/api
+          go build -trimpath -ldflags "-s -w" -o bin/migrate ./cmd/migrate
+
+      - name: apply migrations to the service database (twice, proving idempotency)
+        run: |
+          ./bin/migrate
+          ./bin/migrate
+          ./bin/migrate -status
+
+      - name: smoke test the API against the migrated database
+        run: |
+          ./bin/api > api.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/readyz > ready.json; then break; fi
+            sleep 0.5
+          done
+          cat ready.json
+          grep -q '"database":"ok"' ready.json
+          grep -q '"minimum_age":18' <(curl -sf http://127.0.0.1:8080/v1/meta)
+          kill %1 || true
+
+      - name: upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.out
+          retention-days: 14
+
+      - name: upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-failure-logs
+          path: backend/api.log
+          if-no-files-found: ignore
+
+  container:
+    name: container image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: build image (never pushed from CI without a release tag)
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          tags: content-platform/api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

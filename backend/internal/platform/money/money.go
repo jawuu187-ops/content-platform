@@ -8,6 +8,7 @@ package money
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -118,17 +119,24 @@ func (a Amount) Cmp(b Amount) int {
 	}
 }
 
-// Percent returns floor(amount * bps / 10000) plus the exact remainder, so that
-// fee calculations can be audited without losing money to rounding. Callers
-// decide which side of the split receives the remainder.
-func (a Amount) Percent(bps int64) (part Amount, remainder Amount) {
+// Percent returns floor(amount * bps / 10000) and the leftover fraction that
+// could not be expressed in whole minor units, measured in 1/10000 of a minor
+// unit. The invariant always holds:
+//
+//	part.Units()*10000 + fraction == a.Units()*bps
+//
+// Callers decide which side of the split absorbs the fraction, so commission and
+// payout maths never silently lose or invent money through rounding. It panics
+// on programmer errors only (bps outside 0..10000, or an overflow).
+func (a Amount) Percent(bps int64) (part Amount, fraction int64) {
 	if bps < 0 || bps > 10000 {
 		panic(fmt.Sprintf("money: basis points out of range: %d", bps))
 	}
+	if bps != 0 && a.units > math.MaxInt64/bps {
+		panic(fmt.Sprintf("money: percent overflows int64: %d bps on %d minor units", bps, a.units))
+	}
 	total := a.units * bps
-	part = Amount{units: total / 10000, currency: a.currency}
-	remainder = Amount{units: total % 10000, currency: a.currency}
-	return part, remainder
+	return Amount{units: total / 10000, currency: a.currency}, total % 10000
 }
 
 // String renders the amount for logs and display, e.g. "12.34 USD".

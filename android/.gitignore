@@ -1,0 +1,12 @@
+# Gradle and Android build output never enters the repository, and no build
+# output is ever produced on a developer workstation.
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+*.keystore
+*.jks

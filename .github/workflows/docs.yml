@@ -1,0 +1,31 @@
+name: Docs
+
+on:
+  push:
+    paths: ["docs/**", "*.md", ".github/workflows/docs.yml"]
+  pull_request:
+    paths: ["docs/**", "*.md"]
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: markdown links and structure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: check links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --offline --include-fragments './**/*.md'
+          fail: true
+      - name: reject tabs and trailing whitespace in docs
+        run: |
+          if grep -rnP '\t' --include='*.md' docs README.md SECURITY.md; then
+            echo "::error::tabs are not allowed in documentation"; exit 1
+          fi
+          if grep -rnE ' +$' --include='*.md' docs README.md SECURITY.md; then
+            echo "::error::trailing whitespace found"; exit 1
+          fi

@@ -39,10 +39,10 @@ type Config struct {
 	MaxRequestBytes  int64
 	TrustedProxyCIDR []string
 
-	DatabaseURL        string
-	DatabaseMaxConns   int32
-	DatabaseMinConns   int32
-	DatabaseMaxConnTTL time.Duration
+	DatabaseURL              string
+	DatabaseMaxConns         int32
+	DatabaseMinConns         int32
+	DatabaseMaxConnTTL       time.Duration
 	DatabaseStatementTimeout time.Duration
 
 	ValkeyURL string
@@ -114,8 +114,8 @@ var errInvalid = errors.New("config: invalid configuration")
 func (c *Config) validate() error {
 	var problems []string
 
-	if c.DatabaseURL == "" {
-		problems = append(problems, "DATABASE_URL is required")
+	if c.DatabaseURL == "" && !c.IsLocal() {
+		problems = append(problems, "DATABASE_URL is required outside local development")
 	}
 	if c.MaxRequestBytes <= 0 {
 		problems = append(problems, "HTTP_MAX_REQUEST_BYTES must be positive")

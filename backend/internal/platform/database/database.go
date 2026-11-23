@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"sort"
 	"strings"
 	"time"
@@ -265,7 +266,7 @@ func loadMigrations(files fs.FS, dir string) ([]migration, error) {
 		if err != nil {
 			return nil, err
 		}
-		content, err := fs.ReadFile(files, dir+"/"+e.Name())
+		content, err := fs.ReadFile(files, path.Join(dir, e.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("database: read migration %q: %w", e.Name(), err)
 		}

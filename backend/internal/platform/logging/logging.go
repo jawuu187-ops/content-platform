@@ -21,12 +21,12 @@ const (
 
 // Options configures the logger.
 type Options struct {
-	Service     string
-	Env         string
-	Level       string
-	Format      string
-	Version     string
-	CommitSHA   string
+	Service   string
+	Env       string
+	Level     string
+	Format    string
+	Version   string
+	CommitSHA string
 }
 
 // New builds the base logger for the process.

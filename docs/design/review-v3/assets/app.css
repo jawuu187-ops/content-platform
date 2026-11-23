@@ -420,7 +420,7 @@ body { background: var(--bg); }
   height: 26px; padding: 0 var(--s2);
   border-radius: 999px;
   background: rgba(13, 11, 10, 0.74);
-  color: var(--bone);
+  color: var(--onfill);
   font-family: var(--mono); font-size: var(--t7); letter-spacing: var(--track-ui);
   backdrop-filter: blur(2px);
 }

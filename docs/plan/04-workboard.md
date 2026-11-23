@@ -86,7 +86,20 @@
 | P1-4 | RBAC: أدوار صريحة + `HasRole/HasAnyRole` | 🟡 جزئي | المصفوفة الكاملة تحتاج مرحلة الصلاحيات (P1-8) |
 | P1-10 | إصلاح عيوب CI الحقيقية: تزامن الترحيل، سلسلة التدقيق، G404 | ✅ | 6 تشغيلات فاشلة → خضراء |
 | P1-5 | حدود معدل على نقاط الاعتماد | ✅ مُنفَّذ | 429 + `Retry-After` بعد 10 محاولات |
-| P1-6 | تحقق بريد/هاتف بمحوّل بريد محلي | ⬜ | رمز يُستهلك مرة واحدة وله صلاحية |
-| P1-7 | TOTP + Passkeys | ⬜ | تسجيل عامل + تحقق + استرداد |
-| P1-8 | مصفوفة صلاحيات كاملة + middleware تفويض | ⬜ | جدول أدوار×صلاحيات في الاختبارات |
-| P1-9 | شاشات Android: دخول، تسجيل، أجهزة | ⬜ | بناء CI أخضر + اختبار UI |
+| P1-6 | تحقق بريد/هاتف بمحوّل بريد محلي | ✅ مُنفَّذ | 8-char code, 30 min TTL, hashed, 5-attempt cap, single use; SMTP sender requires STARTTLS |
+| P1-7 | TOTP + Passkeys | 🟡 جزئي | TOTP + 10 recovery codes done (RFC 6238 vectors); Passkeys pending |
+| P1-8 | مصفوفة صلاحيات كاملة + middleware تفويض | ✅ مُنفَّذ | Every role×permission asserted allowed and denied; HTTP tests prove 403 vs 201 |
+| P1-9 | شاشات Android: دخول، تسجيل، أجهزة | ⬜ | Blocked on the visual design approval gate |
+
+## P1 evidence (GitHub Actions only)
+
+| Run | Workflow | Result | Evidence |
+| --- | --- | --- | --- |
+| 45125154876 | Backend CI | success | coverage total 63.6% (httpapi 79.5%, identity 80.0%); smoke: 401 anonymous, 201 register, 200 sessions, 201 TOTP start, 202 mail request, 403 fan on admin, 409 duplicate |
+| 45125154912 | Security | success | gitleaks, govulncheck, Trivy, gosec, staticcheck |
+
+Defects found by CI in this slice and fixed: `mail` import collision with `net/mail`;
+pgx.Row assigned to `error`; duplicate test names across files; `email_verified_at`
+scanned into a throwaway pointer so `/v1/auth/me` lied; `users.write` with no owning
+role; `roles.grant` wrongly required to be non-admin; two integer-overflow
+conversions; two dead declarations.

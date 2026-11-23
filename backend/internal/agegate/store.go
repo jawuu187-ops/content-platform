@@ -186,9 +186,10 @@ func (s *store) applyCallback(ctx context.Context, provider string, cb Callback,
 		return Check{}, err
 	}
 	if _, err := tx.Exec(ctx, `
-		SELECT ops.append_audit('user', $1::uuid, $2, 'age_verification', $3::uuid, NULL, $4::jsonb, NULL)`,
+		SELECT ops.append_audit('user', $1, $2, 'age_verification', $3, NULL,
+			jsonb_build_object('assurance', $4, 'provider', $5), NULL)`,
 		existing.UserID, "age_verification."+string(cb.Status), existing.ID,
-		map[string]string{"assurance": cb.Assurance, "provider": provider}); err != nil {
+		cb.Assurance, provider); err != nil {
 		return Check{}, fmt.Errorf("agegate: audit callback: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -237,9 +238,9 @@ func (s *store) revoke(ctx context.Context, userID, actorID, reason string, now 
 			return 0, err
 		}
 		if _, err := tx.Exec(ctx, `
-			SELECT ops.append_audit('user', NULLIF($1, '')::uuid, 'age_verification.revoked',
-				'user', $2::uuid, NULL, $3::jsonb, NULL)`,
-			actorID, userID, map[string]string{"reason": reason}); err != nil {
+			SELECT ops.append_audit('user', NULLIF($1, ''), 'age_verification.revoked',
+				'user', $2, NULL, jsonb_build_object('reason', $3), NULL)`,
+			actorID, userID, reason); err != nil {
 			return 0, fmt.Errorf("agegate: audit revocation: %w", err)
 		}
 	}

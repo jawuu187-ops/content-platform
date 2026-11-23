@@ -85,9 +85,10 @@
 | P1-3 | جلسات + refresh دوّار + كشف إعادة الاستخدام | ✅ مُنفَّذ | إعادة استخدام الرمز تُبطل العائلة كاملة |
 | P1-4 | RBAC: أدوار صريحة + `HasRole/HasAnyRole` | 🟡 جزئي | المصفوفة الكاملة تحتاج مرحلة الصلاحيات (P1-8) |
 | P1-10 | إصلاح عيوب CI الحقيقية: تزامن الترحيل، سلسلة التدقيق، G404 | ✅ | 6 تشغيلات فاشلة → خضراء |
+| P1-11 | حدّ معدل مشترك بين النسخ (Redis/Valkey + Lua) | ✅ مُنفَّذ | نسختان مستقلتان تتقاسمان ميزانية واحدة: 10 من 40 طلبًا متزامنًا |
 | P1-5 | حدود معدل على نقاط الاعتماد | ✅ مُنفَّذ | 429 + `Retry-After` بعد 10 محاولات |
 | P1-6 | تحقق بريد/هاتف بمحوّل بريد محلي | ✅ مُنفَّذ | 8-char code, 30 min TTL, hashed, 5-attempt cap, single use; SMTP sender requires STARTTLS |
-| P1-7 | TOTP + Passkeys | 🟡 جزئي | TOTP + 10 recovery codes done (RFC 6238 vectors); Passkeys pending |
+| P1-7 | TOTP + Passkeys | ✅ مُنفَّذ | TOTP with RFC 6238 vectors; WebAuthn registration + authentication with replay, relay, tamper, counter and revocation tests |
 | P1-8 | مصفوفة صلاحيات كاملة + middleware تفويض | ✅ مُنفَّذ | Every role×permission asserted allowed and denied; HTTP tests prove 403 vs 201 |
 | P1-9 | شاشات Android: دخول، تسجيل، أجهزة | ⬜ | Blocked on the visual design approval gate |
 
@@ -103,3 +104,25 @@ pgx.Row assigned to `error`; duplicate test names across files; `email_verified_
 scanned into a throwaway pointer so `/v1/auth/me` lied; `users.write` with no owning
 role; `roles.grant` wrongly required to be non-admin; two integer-overflow
 conversions; two dead declarations.
+
+## P1 passkeys and shared rate limiting — evidence
+
+| Run | Workflow | Result | Evidence |
+| --- | --- | --- | --- |
+| 45128401832 | Backend CI | success | total coverage 63.9%; `internal/identity` 77.4%, `internal/httpapi` 76.6%; smoke: passkey registration start 201 with `userVerification:"required"`; Redis service running the shared-limiter tests |
+| 45128401922 | Security | success | gitleaks, govulncheck, Trivy, gosec, staticcheck |
+
+Passkey tests (software authenticator, no browser): successful register + login, discoverable
+login without an email, wrong challenge, foreign challenge owner, replayed registration and
+assertion, tampered signature, relayed origin, relayed RP ID, counter regression, revoked
+credential, packed attestation, unsupported format, expired challenge.
+
+Shared limiter tests: two independent clients against one Redis allow exactly 10 of 40
+concurrent requests; window expiry restores the budget; capacity boundary; a closed store
+returns `ErrUnavailable` and the HTTP wrapper answers 503 rather than allowing traffic.
+
+Defects CI found in this slice and fixed: uint32→uint64 counter assignment, wrong auth-data
+field name, `newAuthHandler` call sites, `Result` shape in tests, case-sensitive email
+comparison, three gosec integer-narrowing findings, deprecated `ecdsa.PublicKey.X/Y`
+construction (staticcheck SA1019), `PublicKey.Bytes` arity.
+

@@ -41,7 +41,10 @@ func newTestAuthenticator(t *testing.T, rpID, origin string) *testAuthenticator 
 
 func (a *testAuthenticator) coseKey() []byte {
 	// PublicKey.Bytes returns the uncompressed point: 0x04 || X || Y.
-	point := a.key.PublicKey.Bytes()
+	point, err := a.key.PublicKey.Bytes()
+	if err != nil {
+		panic(err)
+	}
 	if len(point) != 65 {
 		panic("unexpected public key length")
 	}

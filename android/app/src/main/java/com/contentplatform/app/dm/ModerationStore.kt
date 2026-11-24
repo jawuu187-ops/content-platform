@@ -123,6 +123,11 @@ class ModerationStore(
         }
     }
 
+    fun clearDetail() {
+        detail = DetailState.Idle
+        decideError = null
+    }
+
     suspend fun loadDetail(id: String) {
         detail = DetailState.Loading
         detail = try {

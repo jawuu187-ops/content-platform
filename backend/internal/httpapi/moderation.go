@@ -1,9 +1,7 @@
 package httpapi
 
 import (
-	"encoding/json"
 	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -61,8 +59,8 @@ func (h *moderationHandler) registerRoutes(mux *http.ServeMux) {
 
 func (h *moderationHandler) handleSubmit(w http.ResponseWriter, r *http.Request, p identity.Principal) {
 	var in moderation.Input
-	if err := decodeJSON(r, &in); err != nil {
-		writeProblem(w, r, http.StatusBadRequest, "invalid_json", err.Error())
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
 		return
 	}
 	rep, err := h.reports.Submit(r.Context(), p, in)
@@ -123,7 +121,7 @@ func (h *moderationHandler) handleDetail(w http.ResponseWriter, r *http.Request,
 	writeJSON(w, http.StatusOK, map[string]any{"report": rep})
 }
 
-func (h *moderationHandler) handleQueue(w http.ResponseWriter, r *http.Request) {
+func (h *moderationHandler) handleQueue(w http.ResponseWriter, r *http.Request, _ identity.Principal) {
 	status := r.URL.Query().Get("status")
 	limit := 0
 	list, err := h.reports.Queue(r.Context(), status, limit)
@@ -142,8 +140,8 @@ func (h *moderationHandler) handleTransition(w http.ResponseWriter, r *http.Requ
 		Action string `json:"action"`
 		Note   string `json:"note"`
 	}
-	if err := decodeJSON(r, &body); err != nil {
-		writeProblem(w, r, http.StatusBadRequest, "invalid_json", err.Error())
+	if err := decodeJSON(w, r, &body); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
 		return
 	}
 	rep, err := h.reports.Transition(r.Context(), p, r.PathValue("id"), body.Action, body.Note)
@@ -165,12 +163,4 @@ func (h *moderationHandler) handleTransition(w http.ResponseWriter, r *http.Requ
 	}
 	noStore(w)
 	writeJSON(w, http.StatusOK, map[string]any{"report": rep})
-}
-
-// decodeJSON reads a single JSON object, rejecting unknown fields so a typo in a client
-// payload fails loudly instead of silently doing nothing.
-func decodeJSON(r *http.Request, dst any) error {
-	dec := json.NewDecoder(io.LimitReader(r.Body, 64<<10))
-	dec.DisallowUnknownFields()
-	return dec.Decode(dst)
 }

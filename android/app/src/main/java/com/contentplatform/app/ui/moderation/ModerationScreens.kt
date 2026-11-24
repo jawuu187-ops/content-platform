@@ -44,6 +44,7 @@ import com.contentplatform.app.dm.ModerationReason
 import com.contentplatform.app.dm.ModerationStore
 import com.contentplatform.app.dm.QueueState
 import com.contentplatform.app.dm.Report
+import com.contentplatform.app.dm.explain
 import com.contentplatform.app.dm.reportTime
 import com.contentplatform.app.ui.components.ActionButton
 import com.contentplatform.app.ui.components.Chip
@@ -132,7 +133,7 @@ fun ModerationScreen(store: ModerationStore, onBack: () -> Unit) {
             scope = scope,
             onDismiss = {
                 openReportId = null
-                store.loadDetail(detailId)
+                store.clearDetail()
             },
         )
     }

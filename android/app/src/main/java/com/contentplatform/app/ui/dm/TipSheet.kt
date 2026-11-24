@@ -285,7 +285,9 @@ private fun AmountField(
                 keyboardType = if (singleLine) KeyboardType.Decimal else KeyboardType.Text,
                 imeAction = if (singleLine) ImeAction.Next else ImeAction.Default,
             ),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = placeholder },
             decorationBox = { inner ->
                 Box(Modifier.fillMaxWidth()) {
                     if (value.isEmpty()) {

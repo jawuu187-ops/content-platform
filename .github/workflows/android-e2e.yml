@@ -1,0 +1,218 @@
+# Device verification: the installed Android app against a live API.
+#
+# Everything runs on a GitHub-hosted runner. The API, its PostgreSQL database and the
+# fixture are disposable and exist only for this job; the app is the debug build and the
+# payment provider is the development fake, so no real money and no production record can
+# be touched. The emulator reaches the API on the runner's loopback through 10.0.2.2.
+name: Android E2E (emulator)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "backend/**"
+      - ".github/workflows/android-e2e.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "backend/**"
+      - ".github/workflows/android-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: >-
+    -Dorg.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+    -Dorg.gradle.parallel=true -Dorg.gradle.caching=true
+  CI: "true"
+  # The API runs as `local` because this database is thrown away with the runner. Outside
+  # local the service requires deployment secrets it must not carry in CI, and the guard in
+  # cmd/e2eseed accepts only local or demo.
+  APP_ENV: local
+  DATABASE_URL: postgres://platform:platform@127.0.0.1:5432/platform_e2e?sslmode=disable
+  PAY_PROVIDER: fake
+  PAY_WEBHOOK_SECRET: e2e-payment-webhook-secret-0123456789
+  ENABLE_FAKE_PAYMENTS: "true"
+  MEDIA_LOCAL_DIR: ${{ github.workspace }}/.e2e-media
+  MEDIA_SIGNING_KEY: e2e-media-signing-key-0123456789abcdef
+
+jobs:
+  device-tests:
+    name: messaging, tips, theme and expiry on an emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: platform
+          POSTGRES_PASSWORD: platform
+          POSTGRES_DB: platform_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U platform -d platform_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: provision Gradle (no wrapper required)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: build the API, the migrator and the fixture tool
+        working-directory: backend
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          go build -trimpath -o bin/api ./cmd/api
+          go build -trimpath -o bin/migrate ./cmd/migrate
+          go build -trimpath -o bin/e2eseed ./cmd/e2eseed
+
+      - name: migrate the disposable database
+        working-directory: backend
+        run: ./bin/migrate
+
+      - name: start the API on the runner loopback
+        working-directory: backend
+        run: |
+          nohup ./bin/api > api.log 2>&1 &
+          disown
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8080/readyz > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8080/readyz | tee ready.json
+          grep -q '"database":"ok"' ready.json
+          # The app must see the same data class the database carries.
+          curl -sf http://127.0.0.1:8080/v1/meta | tee meta.json
+          grep -q '"data_class":"test"' meta.json
+
+      - name: seed one fan, one creator, one membership and one conversation
+        working-directory: backend
+        run: |
+          E2E_BASE_URL=http://10.0.2.2:8080 ./bin/e2eseed -json "$RUNNER_TEMP/seed.json" | tee "$RUNNER_TEMP/seed.log"
+          test -s "$RUNNER_TEMP/seed.json"
+
+      - name: device tests on an emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          profile: pixel_5
+          disable-animations: true
+          emulator-options: >-
+            -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+            -camera-back none -camera-front none
+          script: |
+            set -euo pipefail
+            cd android
+            # The app talks to the API on the runner's loopback, which the emulator
+            # exposes as 10.0.2.2. No port forwarding and no production setting changes.
+            gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest'
+
+            cd ../backend
+            ./bin/e2eseed -expire
+
+            cd ../android
+            gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest \
+              -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest
+
+            mkdir -p ../e2e-shots
+            adb pull /sdcard/Android/data/com.contentplatform.app.debug/files/e2e ../e2e-shots || true
+            ls -l ../e2e-shots
+
+      # The device tests prove what the app does. These checks prove what the server
+      # refuses, using the same account the app used.
+      - name: API contract checks (idempotency, refusals, no real money)
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          creator_id="$(jq -r .creator_id "$RUNNER_TEMP/seed.json")"
+          conversation_id="$(jq -r .conversation_id "$RUNNER_TEMP/seed.json")"
+          token="$(curl -sf -X POST http://127.0.0.1:8080/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"fan@e2e.test","password":"e2e-device-test-password","mfa_code":"","device":{"fingerprint":"e2e-api","platform":"ci","name":"curl"}}' \
+            | jq -r .tokens.access_token)"
+          test -n "$token"
+
+          fail() { echo "E2E FAILURE: $1"; exit 1; }
+
+          # A rejected amount is refused by the server, not only by the sheet.
+          code=$(curl -s -o too-small.json -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/tips \
+            -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+            -d "{\"creator_id\":\"$creator_id\",\"amount_minor\":50,\"note\":\"\",\"idempotency_key\":\"e2e-small-0001\"}")
+          echo "tip below the minimum -> $code"; cat too-small.json; echo
+          [ "$code" = "400" ] || fail "a 50-cent tip was not refused ($code)"
+
+          # One key, two requests: the same intent, never a second charge.
+          key="e2e-idem-$(date +%s)"
+          first=$(curl -sf -X POST http://127.0.0.1:8080/v1/tips \
+            -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+            -d "{\"creator_id\":\"$creator_id\",\"amount_minor\":700,\"note\":\"idempotency check\",\"idempotency_key\":\"$key\"}")
+          second=$(curl -sf -X POST http://127.0.0.1:8080/v1/tips \
+            -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+            -d "{\"creator_id\":\"$creator_id\",\"amount_minor\":700,\"note\":\"idempotency check\",\"idempotency_key\":\"$key\"}")
+          first_id="$(echo "$first" | jq -r .tip.id)"
+          second_id="$(echo "$second" | jq -r .tip.id)"
+          echo "same key -> $first_id / $second_id"
+          [ "$first_id" = "$second_id" ] || fail "one idempotency key produced two intents"
+          echo "$first" | jq -e '.tip.simulated == true' > /dev/null || fail "tip was not marked simulated"
+
+          # With the membership gone the server refuses the write and keeps the history.
+          code=$(curl -s -o send.json -w '%{http_code}' -X POST \
+            "http://127.0.0.1:8080/v1/dm/conversations/$conversation_id/messages" \
+            -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+            -d '{"body":"this must not be accepted"}')
+          echo "send after expiry -> $code"; cat send.json; echo
+          [ "$code" = "403" ] || fail "a lapsed member could still send ($code)"
+          curl -sf "http://127.0.0.1:8080/v1/dm/conversations/$conversation_id/messages" \
+            -H "Authorization: Bearer $token" | jq -e '.messages | length > 0' > /dev/null \
+            || fail "history disappeared after the membership ended"
+
+          # Nothing simulated may leak into the live earnings figure.
+          echo "live earnings:"
+          curl -sf "http://127.0.0.1:8080/v1/creator/earnings" -H "Authorization: Bearer $token" \
+            | jq -c .earnings || true
+
+      - name: upload device test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-e2e-evidence
+          path: |
+            android/app/build/reports/androidTests/**
+            android/app/build/outputs/androidTest-results/**
+            e2e-shots/**
+            backend/api.log
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: API log on failure
+        if: failure()
+        run: tail -n 120 backend/api.log || true

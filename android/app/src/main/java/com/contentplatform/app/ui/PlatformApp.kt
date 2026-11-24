@@ -42,10 +42,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.contentplatform.app.dm.DmApi
 import com.contentplatform.app.dm.DmStore
+import com.contentplatform.app.dm.ModerationStore
 import com.contentplatform.app.dm.SessionStore
 import com.contentplatform.app.ui.components.Divider
 import com.contentplatform.app.ui.dm.DmInboxScreen
 import com.contentplatform.app.ui.dm.DmThreadScreen
+import com.contentplatform.app.ui.moderation.ModerationScreen
 import com.contentplatform.app.ui.motion.LocalVesperMotion
 import com.contentplatform.app.ui.motion.pressScale
 import com.contentplatform.app.ui.screens.AccountScreen
@@ -84,10 +86,18 @@ fun PlatformApp(themeController: ThemeController) {
         val sessions = SessionStore(context.applicationContext)
         DmStore(sessions, DmApi(sessions))
     }
+    // The same session and HTTP client serve safety reports; kept separate so a failed
+    // report never disturbs a message thread.
+    val moderationStore = remember(context) {
+        val sessions = SessionStore(context.applicationContext)
+        ModerationStore(sessions, DmApi(sessions))
+    }
+    LaunchedEffect(Unit) { moderationStore.loadMe() }
 
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var creatorOpen by rememberSaveable { mutableStateOf(false) }
     var messagesOpen by rememberSaveable { mutableStateOf(false) }
+    var moderationOpen by rememberSaveable { mutableStateOf(false) }
     var openThreadId by rememberSaveable { mutableStateOf<String?>(null) }
     // Checkout is a pair of (tier, price) in the demo. A real provider replaces the price
     // with a server-issued intent; the sheet does not compute it.
@@ -128,6 +138,8 @@ fun PlatformApp(themeController: ThemeController) {
                             mode = themeController.mode,
                             onModeChange = themeController::choose,
                             onOpenMessages = { messagesOpen = true },
+                            onOpenModeration = { moderationOpen = true },
+                            canModerate = moderationStore.canModerate,
                         )
                     }
                 }
@@ -186,9 +198,25 @@ fun PlatformApp(themeController: ThemeController) {
                     LaunchedEffect(threadId) { dmStore.loadThread(threadId) }
                     DmThreadScreen(
                         store = dmStore,
+                        moderation = moderationStore,
                         onBack = { openThreadId = null },
                     )
                 }
+            }
+        }
+
+        // The safety queue, pushed over the tab the moderator was on.
+        AnimatedVisibility(
+            visible = moderationOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                ModerationScreen(store = moderationStore, onBack = { moderationOpen = false })
             }
         }
 

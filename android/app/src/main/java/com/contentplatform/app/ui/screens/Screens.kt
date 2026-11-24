@@ -481,6 +481,8 @@ fun AccountScreen(
     mode: ThemeMode,
     onModeChange: (ThemeMode) -> Unit,
     onOpenMessages: () -> Unit,
+    onOpenModeration: () -> Unit = {},
+    canModerate: Boolean = false,
 ) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
@@ -517,6 +519,30 @@ fun AccountScreen(
                                 )
                             }
                             LabelMono("\u2192")
+                        }
+                    }
+                    if (canModerate) {
+                        SpacerH(16)
+                        SectionTitle("Safety", "moderator")
+                        SpacerH(8)
+                        CardSurface {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .pressScale(motion, onClick = onOpenModeration)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Reports", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                    Text(
+                                        "Review what was reported and record the decision",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = palette.muted,
+                                    )
+                                }
+                                LabelMono("\u2192")
+                            }
                         }
                     }
                     SpacerH(16)

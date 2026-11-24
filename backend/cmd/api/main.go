@@ -24,6 +24,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/ledger"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
+	"github.com/jawuu187-ops/content-platform/backend/internal/moderation"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
@@ -242,6 +243,7 @@ func run() error {
 		Payments:       paymentService,
 		DirectMessages: messaging.New(db.Pool()),
 		Earnings:       earnings.New(db.Pool()),
+		Moderation:     moderation.New(db.Pool(), moderation.WithLogger(logger)),
 		Limits:         limits,
 		Build:          httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

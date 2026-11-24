@@ -133,6 +133,43 @@ class DmApi(private val sessions: SessionStore) {
         return parsePayment(JSONObject(body).optJSONObject("tip"))
     }
 
+    /**
+     * The account behind the session: roles and permissions decide whether the moderation
+     * queue is offered at all. Asking the server beats guessing from the UI.
+     */
+    suspend fun me(): JSONObject = JSONObject(get("/v1/auth/me"))
+
+    suspend fun submitReport(
+        subjectType: String,
+        subjectId: String,
+        reason: String,
+        details: String,
+    ): Report? {
+        val payload = JSONObject()
+            .put("subject_type", subjectType)
+            .put("subject_id", subjectId)
+            .put("reason", reason)
+            .put("details", details.trim())
+            .toString()
+        return parseReport(JSONObject(post("/v1/reports", payload)).optJSONObject("report"))
+    }
+
+    suspend fun moderationQueue(status: String): List<Report> {
+        val query = if (status.isBlank()) "" else "?status=" + encode(status)
+        return parseReports(JSONObject(get("/v1/moderation/reports$query")).optJSONArray("reports"))
+    }
+
+    suspend fun reportDetail(id: String): Report? =
+        parseReport(JSONObject(get("/v1/reports/${encode(id)}")).optJSONObject("report"))
+
+    suspend fun transition(id: String, action: String, note: String): Report? {
+        val payload = JSONObject().put("action", action).put("note", note.trim()).toString()
+        return parseReport(
+            JSONObject(post("/v1/moderation/reports/${encode(id)}/transitions", payload))
+                .optJSONObject("report"),
+        )
+    }
+
     suspend fun open(creatorId: String): Conversation? {
         val payload = JSONObject().put("creator_id", creatorId).toString()
         return parseSingleConversation(post("/v1/dm/conversations", payload))

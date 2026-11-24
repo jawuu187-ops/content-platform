@@ -18,6 +18,10 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+
+        // Device tests drive the installed app against a real API; see
+        // .github/workflows/android-e2e.yml for the runner that owns that API.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -62,6 +66,9 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // Animation is not what the device tests assert; disabling it removes the one
+        // source of timing flake that is not the app's behaviour.
+        animationsDisabled = true
     }
 }
 
@@ -86,6 +93,13 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.kotlinx.coroutines.android)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
+
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }

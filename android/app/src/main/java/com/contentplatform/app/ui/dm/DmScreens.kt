@@ -58,6 +58,7 @@ import com.contentplatform.app.dm.DmStore
 import com.contentplatform.app.dm.DraftCheck
 import com.contentplatform.app.dm.InboxState
 import com.contentplatform.app.dm.Message
+import com.contentplatform.app.dm.ModerationStore
 import com.contentplatform.app.dm.ThreadState
 import com.contentplatform.app.dm.checkDraft
 import com.contentplatform.app.dm.explain
@@ -235,13 +236,24 @@ private fun InboxRow(conversation: Conversation, now: Long, onClick: () -> Unit)
 // ---------------------------------------------------------------- thread
 
 @Composable
-fun DmThreadScreen(store: DmStore, onBack: () -> Unit) {
+fun DmThreadScreen(
+    store: DmStore,
+    moderation: ModerationStore,
+    onBack: () -> Unit,
+) {
     val palette = LocalVesperPalette.current
     val scope = rememberCoroutineScope()
     BackHandler(onBack = onBack)
 
     val state = store.thread
     var tipOpen by rememberSaveable { mutableStateOf(false) }
+    var reportOpen by rememberSaveable { mutableStateOf(false) }
+    // A report names the newest thing the other person said. When the thread is only ours,
+    // the account itself is the subject, which is still a real, server-checked target.
+    val peerMessage = (state as? ThreadState.Ready)?.messages?.lastOrNull { !it.mine }
+    val reportSubjectType = if (peerMessage != null) "message" else "user"
+    val reportSubjectId = peerMessage?.id ?: store.openConversation?.creatorId.orEmpty()
+    val reportLabel = if (peerMessage != null) "this message" else "this account"
     LaunchedEffect(tipOpen) { if (tipOpen) store.startTip() }
     val listState = rememberLazyListState()
     LaunchedEffect(state) {
@@ -256,10 +268,14 @@ fun DmThreadScreen(store: DmStore, onBack: () -> Unit) {
             title = (state as? ThreadState.Ready)?.peerName ?: "Conversation",
             subtitle = "Direct messages",
             onBack = onBack,
-            trailing = if (store.openConversation != null) {
-                { OutlineButton("Tip", onClick = { tipOpen = true }) }
-            } else {
-                null
+            trailing = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlineButton("Report", onClick = { reportOpen = true })
+                    if (store.openConversation != null) {
+                        SpacerW(6)
+                        OutlineButton("Tip", onClick = { tipOpen = true })
+                    }
+                }
             },
         )
 
@@ -314,6 +330,19 @@ fun DmThreadScreen(store: DmStore, onBack: () -> Unit) {
                 Composer(store = store, canReply = state.canReply, scope = scope)
             }
         }
+        }
+        if (reportOpen) {
+            ReportSheet(
+                store = moderation,
+                subjectType = reportSubjectType,
+                subjectId = reportSubjectId,
+                subjectLabel = reportLabel,
+                scope = scope,
+                onDismiss = {
+                    reportOpen = false
+                    moderation.clearReport()
+                },
+            )
         }
         if (tipOpen) {
             TipSheet(

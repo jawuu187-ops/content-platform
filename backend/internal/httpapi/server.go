@@ -12,6 +12,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
+	"github.com/jawuu187-ops/content-platform/backend/internal/moderation"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
@@ -45,6 +46,8 @@ type Deps struct {
 	DirectMessages *messaging.Service
 	// Earnings reports a creator's gross and net, split by real vs simulated data.
 	Earnings *earnings.Service
+	// Moderation is the safety-report service. Nil answers 503 on its routes.
+	Moderation *moderation.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -64,6 +67,7 @@ type Server struct {
 	payments  *payments.Service
 	earnings  *earnings.Service
 	dm        *messaging.Service
+	reports   *moderation.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -88,6 +92,7 @@ func New(d Deps) http.Handler {
 		media:     d.Media,
 		payments:  d.Payments,
 		earnings:  d.Earnings,
+		reports:   d.Moderation,
 		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
@@ -142,6 +147,18 @@ func New(d Deps) http.Handler {
 			mux.HandleFunc("/v1/dm/", func(w http.ResponseWriter, r *http.Request) {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
 					"direct messages are not configured on this instance")
+			})
+		}
+		if s.reports != nil {
+			newModerationHandler(authHandler, s.reports, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("/v1/reports", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"reporting is not configured on this instance")
+			})
+			mux.HandleFunc("/v1/moderation/", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"the moderation queue is not configured on this instance")
 			})
 		}
 		if s.ageGate != nil {

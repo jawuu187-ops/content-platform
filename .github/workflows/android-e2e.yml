@@ -164,10 +164,10 @@ jobs:
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part2 || true
             gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ModerationQueueTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part3 || true
-            mkdir -p e2e-shots && adb pull /sdcard/Download/e2e e2e-shots || true
+            mkdir -p e2e-shots && adb pull /sdcard/Download/e2e/. e2e-shots || true
             adb exec-out screencap -p > e2e-shots/99-final-screen.png || true
             ls -l e2e-shots
-            echo "screenshots collected: $(ls e2e-shots | wc -l)"
+            echo "screenshots collected: $(find e2e-shots -name '*.png' -size +0 | wc -l) non-empty of $(find e2e-shots -name '*.png' | wc -l)"
 
       # The device tests prove what the app does. These checks prove what the server
       # refuses, using the same account the app used.

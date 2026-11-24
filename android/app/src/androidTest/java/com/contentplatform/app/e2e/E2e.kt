@@ -178,6 +178,14 @@ fun ComposeTestRule.hideKeyboard() {
 }
 
 /** Runs a shell command on the device, used to take the emulator offline and back. */
+/** Runs a shell command and returns what it printed, for the rare check that needs it. */
+fun shellOutput(command: String): String {
+    val pfd = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command)
+    return android.os.ParcelFileDescriptor.AutoCloseInputStream(pfd).use {
+        String(it.readBytes(), Charsets.UTF_8)
+    }
+}
+
 fun shell(command: String) {
     val pfd = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command)
     android.os.ParcelFileDescriptor.AutoCloseInputStream(pfd).use { it.readBytes() }
@@ -195,11 +203,21 @@ fun shell(command: String) {
 fun ComposeTestRule.capture(name: String) {
     try {
         val dir = "/sdcard/Download/e2e"
+        val path = "$dir/$name.png"
         shell("mkdir -p $dir")
         InstrumentationRegistry.getInstrumentation().uiAutomation
-            .executeShellCommand("screencap -p $dir/$name.png").close()
-        Thread.sleep(250)
-        println("screenshot $name captured")
+            .executeShellCommand("screencap -p $path").close()
+        // screencap returns before the file is complete on this image, and a zero-byte PNG
+        // is worse than no evidence at all, so the file has to have bytes before we move on.
+        var written = false
+        for (attempt in 1..20) {
+            if (File(path).length() > 0L || shellOutput("test -s $path && echo yes").contains("yes")) {
+                written = true
+                break
+            }
+            Thread.sleep(150)
+        }
+        println(if (written) "screenshot $name captured" else "screenshot $name empty after 3s")
     } catch (t: Throwable) {
         println("screenshot $name skipped: ${t.message}")
     }

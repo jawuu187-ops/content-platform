@@ -24,11 +24,11 @@ type modGate struct{}
 func (modGate) AllowAdult(context.Context, string) (bool, error) { return true, nil }
 
 type modHarness struct {
-	reports *Service
-	ident   *identity.Service
+	reports  *Service
+	ident    *identity.Service
 	creators *creator.Service
-	dm      *messaging.Service
-	pool    *pgxpool.Pool
+	dm       *messaging.Service
+	pool     *pgxpool.Pool
 }
 
 func newModHarness(t *testing.T) *modHarness {

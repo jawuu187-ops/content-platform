@@ -117,13 +117,33 @@ jobs:
           E2E_BASE_URL=http://10.0.2.2:8080 ./bin/e2eseed -json "$RUNNER_TEMP/seed.json" | tee "$RUNNER_TEMP/seed.log"
           test -s "$RUNNER_TEMP/seed.json"
 
+      # The emulator needs a CPU accelerator. GitHub's standard Linux runners expose
+      # /dev/kvm; when they do not, this step says so instead of leaving a boot timeout
+      # to be diagnosed from logs. Nothing here changes the host beyond making the
+      # device node usable by the runner user, which the emulator action expects.
+      - name: check hardware acceleration for the emulator
+        run: |
+          echo "--- /dev/kvm"
+          ls -l /dev/kvm || echo "no /dev/kvm"
+          echo "--- cpu virtualisation flags"
+          grep -cE '(vmx|svm)' /proc/cpuinfo || true
+          if [ -e /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm || true
+            ls -l /dev/kvm
+          fi
+
       - name: device tests on an emulator
+        env:
+          # Harmless when KVM is present; when it is not, the runner is a nested VM and
+          # this is the only way the emulator will start at all.
+          ANDROID_I_WANT_MY_TCG: ${{ vars.ANDROID_FORCE_TCG || '' }}
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
           api-level: 30
           arch: x86_64
-          target: google_apis
+          target: default
           profile: pixel_5
+          emulator-boot-timeout: 900
           disable-animations: true
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim

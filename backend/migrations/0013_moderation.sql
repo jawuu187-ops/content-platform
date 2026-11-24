@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS moderation.report_events (
     id          bigserial   PRIMARY KEY,
     report_id   uuid        NOT NULL REFERENCES moderation.reports (id) ON DELETE CASCADE,
     actor_id    uuid        REFERENCES identity.users (id),
+    -- The verb the actor used (start_review, action, dismiss, reopen). Empty on the
+    -- submission event, which is the report's own creation rather than a decision.
+    action      text        NOT NULL DEFAULT '',
     from_status text,
     to_status   text        NOT NULL,
     note        text        NOT NULL DEFAULT '',

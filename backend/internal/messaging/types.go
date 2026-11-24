@@ -41,6 +41,11 @@ type Conversation struct {
 	PeerName string `json:"peer_name"`
 	// CanReply is false once the entitlement lapses. History stays readable.
 	CanReply bool `json:"can_reply"`
+	// LastMessageBody is a truncated preview for the inbox. The inbox must be
+	// readable without opening every thread, so the list carries one line.
+	LastMessageBody string `json:"last_message_body,omitempty"`
+	// UnreadCount counts messages from the other side the reader has not opened.
+	UnreadCount int `json:"unread_count"`
 }
 
 // Message is one immutable line in a thread.
@@ -81,4 +86,20 @@ func NormalizeBody(raw string) (string, error) {
 		return "", ErrBodyTooLong
 	}
 	return cleaned, nil
+}
+
+// PreviewLength bounds the one-line excerpt the inbox shows. It is deliberately
+// short: the inbox is a list, and a long body would push the timestamp off screen.
+const PreviewLength = 140
+
+// preview flattens a message body into one line for the conversation list. Newlines
+// become spaces so a multi-paragraph message cannot stretch a row, and the result is
+// cut on a rune boundary.
+func preview(body string) string {
+	flat := strings.Join(strings.Fields(strings.ReplaceAll(body, "\n", " ")), " ")
+	runes := []rune(flat)
+	if len(runes) <= PreviewLength {
+		return flat
+	}
+	return strings.TrimSpace(string(runes[:PreviewLength-1])) + "\u2026"
 }

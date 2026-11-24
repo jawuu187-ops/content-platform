@@ -232,6 +232,91 @@ func TestLapsedEntitlementStopsNewMessagesButKeepsHistory(t *testing.T) {
 	}
 }
 
+// The inbox has to render without opening every thread: one preview line, an unread
+// count and the reply flag must all travel in the list response.
+func TestListCarriesPreviewAndUnreadCount(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	fan := h.account(t)
+	creatorAccount := h.creatorAccount(t)
+	h.grantEntitlement(t, fan.UserID, creatorAccount.UserID)
+
+	conv, err := h.svc.Open(ctx, fan, creatorAccount.UserID)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if _, err := h.svc.Send(ctx, fan, conv.ID, "first line\nsecond line"); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+
+	// The creator's two replies are unread for the fan until the fan opens the thread.
+	for _, body := range []string{"reply one", "reply two"} {
+		if _, err := h.svc.Send(ctx, creatorAccount, conv.ID, body); err != nil {
+			t.Fatalf("creator send: %v", err)
+		}
+	}
+
+	list, err := h.svc.List(ctx, fan)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("list length = %d, want 1", len(list))
+	}
+	got := list[0]
+	if got.LastMessageBody != "reply two" {
+		t.Fatalf("preview = %q, want the newest body", got.LastMessageBody)
+	}
+	if got.UnreadCount != 2 {
+		t.Fatalf("unread = %d, want 2", got.UnreadCount)
+	}
+	if !got.CanReply {
+		t.Fatal("an entitled fan must be listed as repliable")
+	}
+
+	// Opening the thread clears the fan's unread count but not the creator's.
+	if _, err := h.svc.Thread(ctx, fan, conv.ID); err != nil {
+		t.Fatalf("thread: %v", err)
+	}
+	list, err = h.svc.List(ctx, fan)
+	if err != nil {
+		t.Fatalf("list after read: %v", err)
+	}
+	if list[0].UnreadCount != 0 {
+		t.Fatalf("unread after opening = %d, want 0", list[0].UnreadCount)
+	}
+
+	creatorList, err := h.svc.List(ctx, creatorAccount)
+	if err != nil {
+		t.Fatalf("creator list: %v", err)
+	}
+	if len(creatorList) != 1 || creatorList[0].UnreadCount != 1 {
+		t.Fatalf("creator inbox wrong: %+v", creatorList)
+	}
+	// A multi-line body must not stretch an inbox row.
+	if creatorList[0].LastMessageBody != "reply two" {
+		t.Fatalf("creator preview = %q", creatorList[0].LastMessageBody)
+	}
+}
+
+func TestPreviewFlattensNewlinesAndTruncates(t *testing.T) {
+	if got := preview("a\nb\n\nc"); got != "a b c" {
+		t.Fatalf("preview flatten = %q", got)
+	}
+	long := strings.Repeat("x", PreviewLength+40)
+	got := []rune(preview(long))
+	if len(got) != PreviewLength {
+		t.Fatalf("preview length = %d, want %d", len(got), PreviewLength)
+	}
+	if got[len(got)-1] != '\u2026' {
+		t.Fatalf("a cut preview must end in an ellipsis, got %q", got[len(got)-1])
+	}
+	// Cutting must not split a multi-byte rune.
+	if out := preview(strings.Repeat("\u2603", PreviewLength+5)); !strings.HasSuffix(out, "\u2026") || len([]rune(out)) != PreviewLength {
+		t.Fatalf("multibyte preview wrong: %q", out)
+	}
+}
+
 func TestMessagesCannotBeEditedOrDeleted(t *testing.T) {
 	h := newHarness(t)
 	ctx := context.Background()

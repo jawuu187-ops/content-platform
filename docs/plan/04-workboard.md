@@ -233,6 +233,8 @@ Defects CI found in this slice and fixed:
 | P2-P10 | Payouts, creator balances settlement, tax reporting | not started | next phase |
 | P2-P11 | Test-data separation: simulated flag on intents and ledger postings, `data_class` in `/v1/meta`, `APP_ENV=demo` for demos | implemented | `migrations/0010_test_data_marking.sql`, `payments.Capabilities.Simulated`, `dataClass()`, `TestLoadAllowsFakeProviderInLocalAndDemo`, `TestLoadRejectsSimulatedPaymentsInStaging`, `TestFakeDeclaresItselfSimulated` |
 | P2-P12 | Client-side demo labelling: visible DEMO banner on every money surface, simulated checkout, test-payment confirmation | implemented | `DemoBanner`, `CheckoutSheet(onSimulate)`, `SimulatedPaymentCard`, `PlatformApp` |
+| P2-P13 | Messaging backend: conversations, immutable messages, entitlement re-checked on send, inbox preview and unread count | implemented | `migrations/0011_messaging.sql`, `internal/messaging/*`, `internal/httpapi/messaging.go`; `TestListCarriesPreviewAndUnreadCount`, `TestLapsedEntitlementStopsNewMessagesButKeepsHistory`, `TestMessagesCannotBeEditedOrDeleted` |
+| P2-P14 | Messaging Android UI: inbox, thread, composer, sign-in, loading/empty/offline/error/expired states, light+dark | implemented (CI evidence pending in this run) | `dm/DmApi.kt`, `dm/DmStore.kt`, `dm/DmFormat.kt`, `ui/dm/DmScreens.kt`, `PlatformApp` overlay, `AccountScreen` entry; `DmFormatTest`, `DmFailureTest` |
 
 ### P2 payments - evidence (GitHub Actions only)
 

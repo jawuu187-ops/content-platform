@@ -117,9 +117,21 @@ func (s *Service) List(ctx context.Context, p identity.Principal) ([]Conversatio
 		           WHERE e.fan_id = c.fan_id AND e.creator_id = c.creator_id
 		             AND e.revoked_at IS NULL
 		             AND (e.expires_at IS NULL OR e.expires_at > now())
-		       )
+		       ),
+		       COALESCE(m.body, ''),
+		       COALESCE(u.unread, 0)
 		FROM messaging.conversations c
 		LEFT JOIN creator.profiles p ON p.user_id = c.creator_id
+		LEFT JOIN LATERAL (
+		    SELECT body FROM messaging.messages
+		    WHERE conversation_id = c.id
+		    ORDER BY sent_at DESC, id DESC
+		    LIMIT 1
+		) m ON true
+		LEFT JOIN LATERAL (
+		    SELECT count(*)::int AS unread FROM messaging.messages
+		    WHERE conversation_id = c.id AND sender_id <> $1::uuid AND read_at IS NULL
+		) u ON true
 		WHERE c.creator_id = $1::uuid OR c.fan_id = $1::uuid
 		ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
 		LIMIT 50`, p.UserID)
@@ -133,9 +145,11 @@ func (s *Service) List(ctx context.Context, p identity.Principal) ([]Conversatio
 		var c Conversation
 		var creatorName string
 		var entitled bool
-		if err := rows.Scan(&c.ID, &c.CreatorID, &c.FanID, &c.CreatedAt, &c.LastMessageAt, &creatorName, &entitled); err != nil {
+		if err := rows.Scan(&c.ID, &c.CreatorID, &c.FanID, &c.CreatedAt, &c.LastMessageAt,
+			&creatorName, &entitled, &c.LastMessageBody, &c.UnreadCount); err != nil {
 			return nil, fmt.Errorf("messaging: scan conversation: %w", err)
 		}
+		c.LastMessageBody = preview(c.LastMessageBody)
 		if p.UserID == c.CreatorID {
 			if len(c.FanID) >= 6 {
 				c.PeerName = "Member " + strings.ToUpper(c.FanID[:6])

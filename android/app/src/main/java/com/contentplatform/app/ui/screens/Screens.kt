@@ -480,8 +480,10 @@ private fun StudioStat(value: String, label: String, modifier: Modifier = Modifi
 fun AccountScreen(
     mode: ThemeMode,
     onModeChange: (ThemeMode) -> Unit,
+    onOpenMessages: () -> Unit,
 ) {
     val palette = LocalVesperPalette.current
+    val motion = LocalVesperMotion.current
     Column(Modifier.fillMaxSize().background(palette.ground)) {
         Chrome(title = "You", subtitle = "Account")
         LazyColumn(Modifier.fillMaxSize()) {
@@ -493,6 +495,28 @@ fun AccountScreen(
                         Column(Modifier.padding(start = 12.dp)) {
                             Text("Fan account", style = MaterialTheme.typography.titleMedium, color = palette.ink)
                             LabelMono("18+ verified · sandbox build")
+                        }
+                    }
+                    SpacerH(16)
+                    SectionTitle("Messages", null)
+                    SpacerH(8)
+                    CardSurface {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .pressScale(motion, onClick = onOpenMessages)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Inbox", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                Text(
+                                    "Direct messages with creators you support",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = palette.muted,
+                                )
+                            }
+                            LabelMono("\u2192")
                         }
                     }
                     SpacerH(16)

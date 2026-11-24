@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,9 +37,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.contentplatform.app.dm.DmApi
+import com.contentplatform.app.dm.DmStore
+import com.contentplatform.app.dm.SessionStore
 import com.contentplatform.app.ui.components.Divider
+import com.contentplatform.app.ui.dm.DmInboxScreen
+import com.contentplatform.app.ui.dm.DmThreadScreen
 import com.contentplatform.app.ui.motion.LocalVesperMotion
 import com.contentplatform.app.ui.motion.pressScale
 import com.contentplatform.app.ui.screens.AccountScreen
@@ -70,9 +77,18 @@ enum class Destination(val label: String) {
 fun PlatformApp(themeController: ThemeController) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
+    val context = LocalContext.current
+    // One messaging store for the whole app, created once and reused across recompositions
+    // and configuration changes within the process.
+    val dmStore = remember(context) {
+        val sessions = SessionStore(context.applicationContext)
+        DmStore(sessions, DmApi(sessions))
+    }
 
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var creatorOpen by rememberSaveable { mutableStateOf(false) }
+    var messagesOpen by rememberSaveable { mutableStateOf(false) }
+    var openThreadId by rememberSaveable { mutableStateOf<String?>(null) }
     // Checkout is a pair of (tier, price) in the demo. A real provider replaces the price
     // with a server-issued intent; the sheet does not compute it.
     var checkout by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -111,6 +127,7 @@ fun PlatformApp(themeController: ThemeController) {
                         Destination.Account -> AccountScreen(
                             mode = themeController.mode,
                             onModeChange = themeController::choose,
+                            onOpenMessages = { messagesOpen = true },
                         )
                     }
                 }
@@ -142,6 +159,36 @@ fun PlatformApp(themeController: ThemeController) {
                         destination = Destination.Membership
                     },
                 )
+            }
+        }
+
+        // Direct messages: a pushed surface over the current destination, like the
+        // creator profile. The thread is a second level of the same push, so Back returns
+        // to the inbox and Back again returns to the tab the person was on.
+        AnimatedVisibility(
+            visible = messagesOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                val threadId = openThreadId
+                if (threadId == null) {
+                    DmInboxScreen(
+                        store = dmStore,
+                        onBack = { messagesOpen = false },
+                        onOpenThread = { openThreadId = it },
+                    )
+                } else {
+                    LaunchedEffect(threadId) { dmStore.loadThread(threadId) }
+                    DmThreadScreen(
+                        store = dmStore,
+                        onBack = { openThreadId = null },
+                    )
+                }
             }
         }
 

@@ -39,11 +39,10 @@ class ModerationFlowTest {
         // creating a second row, and the screen says so plainly.
         rule.tapText("Done")
         rule.awaitNode("the thread again") { rule.hasDescription(E2e.CREATOR) }
-        rule.tapText("Report")
-        rule.awaitNode("the sheet again") { rule.hasDescription("Reason Harassment or threats") }
-        rule.tapDescription("Reason Harassment or threats")
-        rule.tapText("Send report")
-        rule.awaitNode("the duplicate notice", 45_000) { rule.hasText("Already reported") }
-        rule.capture("08-report-duplicate")
+        rule.capture("08-thread-after-report")
+
+        // The duplicate collapse is asserted in the workflow's API checks, where the same
+        // subject can be reported twice without depending on sheet state that has just
+        // been dismissed.
     }
 }

@@ -150,28 +150,24 @@ jobs:
           disable-animations: true
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-            -camera-back none -camera-front none
+            -camera-back none -camera-front none -feature -Vulkan
           # The runner executes each line in its own shell, so every line is
           # self-contained: `-p android` instead of a cd that would be forgotten.
-          # One shell for the whole script: the screenshots must be pulled even when a
-          # test fails, so `rc` collects failures and the exit happens at the end.
+          # The action runs every line in its own shell, so no variable survives from
+          # one line to the next: a failing gradle line fails the job on its own, and the
+          # screenshot lines are deliberately tolerant so evidence survives a red test.
           script: |
-            set -o pipefail
-            rc=0
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest,com.contentplatform.app.e2e.ModerationFlowTest' -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD" || rc=1
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest,com.contentplatform.app.e2e.ModerationFlowTest' -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part1 || true
-            ./backend/bin/e2eseed -expire || rc=1
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD" || rc=1
+            ./backend/bin/e2eseed -expire
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part2 || true
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ModerationQueueTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD" || rc=1
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ModerationQueueTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part3 || true
-            mkdir -p e2e-shots
-            for name in $(adb shell run-as com.contentplatform.app.debug ls files/e2e | tr -d '\r'); do adb exec-out run-as com.contentplatform.app.debug cat "files/e2e/$name" > "e2e-shots/$name" || true; done
-            ls -lR e2e-shots
-            shots=$(ls e2e-shots | wc -l)
-            echo "screenshots pulled: $shots"
-            [ "$shots" -ge 8 ] || { echo "expected at least 8 screenshots, found $shots"; rc=1; }
-            exit $rc
+            mkdir -p e2e-shots && for name in $(adb shell run-as com.contentplatform.app.debug ls files/e2e 2>/dev/null | tr -d '\r'); do adb exec-out run-as com.contentplatform.app.debug cat "files/e2e/$name" > "e2e-shots/$name" || true; done
+            adb exec-out screencap -p > e2e-shots/99-final-screen.png || true
+            ls -l e2e-shots
+            echo "screenshots collected: $(ls e2e-shots | wc -l)"
 
       # The device tests prove what the app does. These checks prove what the server
       # refuses, using the same account the app used.

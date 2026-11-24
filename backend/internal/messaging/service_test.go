@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/dbtest"
@@ -23,6 +25,11 @@ type harness struct {
 	svc      *Service
 	ids      *identity.Service
 	creators *creator.Service
+	// pool is the harness's connection. Calling dbtest.Pool again inside a test would
+	// re-run its cleanup and delete the users the test just created.
+	pool interface {
+		Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	}
 }
 
 func newHarness(t *testing.T) *harness {
@@ -32,6 +39,7 @@ func newHarness(t *testing.T) *harness {
 		svc:      New(pool),
 		ids:      identity.New(pool, identity.WithHasher(identity.NewHasher(identity.TestParams()))),
 		creators: creator.New(pool, creator.WithFakePayments(true), creator.WithAgeGate(allowGate{})),
+		pool:     pool,
 	}
 }
 
@@ -75,8 +83,7 @@ func (h *harness) creatorAccount(t *testing.T) identity.Principal {
 // tests in package creator.
 func (h *harness) grantEntitlement(t *testing.T, fanID, creatorID string) {
 	t.Helper()
-	pool := dbtest.Pool(t)
-	if _, err := pool.Exec(context.Background(), `
+	if _, err := h.pool.Exec(context.Background(), `
 		INSERT INTO creator.entitlements (fan_id, creator_id, scope, source, granted_at)
 		VALUES ($1::uuid, $2::uuid, 'subscriber', 'grant', now())`, fanID, creatorID); err != nil {
 		t.Fatalf("grant entitlement: %v", err)
@@ -199,7 +206,7 @@ func TestLapsedEntitlementStopsNewMessagesButKeepsHistory(t *testing.T) {
 		t.Fatalf("send: %v", err)
 	}
 
-	if _, err := dbtest.Pool(t).Exec(ctx, `
+	if _, err := h.pool.Exec(ctx, `
 		UPDATE creator.entitlements SET revoked_at = now()
 		WHERE fan_id = $1::uuid AND creator_id = $2::uuid`, fan.UserID, creatorAccount.UserID); err != nil {
 		t.Fatalf("revoke: %v", err)
@@ -241,11 +248,10 @@ func TestMessagesCannotBeEditedOrDeleted(t *testing.T) {
 		t.Fatalf("send: %v", err)
 	}
 
-	pool := dbtest.Pool(t)
-	if _, err := pool.Exec(ctx, `UPDATE messaging.messages SET body = 'rewritten' WHERE id = $1::uuid`, m.ID); err == nil {
+	if _, err := h.pool.Exec(ctx, `UPDATE messaging.messages SET body = 'rewritten' WHERE id = $1::uuid`, m.ID); err == nil {
 		t.Fatal("the database accepted an edit to a message")
 	}
-	if _, err := pool.Exec(ctx, `DELETE FROM messaging.messages WHERE id = $1::uuid`, m.ID); err == nil {
+	if _, err := h.pool.Exec(ctx, `DELETE FROM messaging.messages WHERE id = $1::uuid`, m.ID); err == nil {
 		t.Fatal("the database accepted a delete of a message")
 	}
 }

@@ -19,6 +19,7 @@ import (
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/agegate"
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
+	"github.com/jawuu187-ops/content-platform/backend/internal/earnings"
 	"github.com/jawuu187-ops/content-platform/backend/internal/httpapi"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/ledger"
@@ -240,6 +241,7 @@ func run() error {
 		Media:          mediaService,
 		Payments:       paymentService,
 		DirectMessages: messaging.New(db.Pool()),
+		Earnings:       earnings.New(db.Pool()),
 		Limits:         limits,
 		Build:          httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

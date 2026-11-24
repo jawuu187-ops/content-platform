@@ -82,6 +82,39 @@ class DmFormatTest {
     }
 
     @Test
+    fun moneyIsFormattedFromMinorUnits() {
+        assertEquals("\$12.00", money(1200))
+        assertEquals("\$0.99", money(99))
+        assertEquals("\$1000.00", money(100_000))
+        assertEquals("-\$2.50", money(-250))
+        assertEquals("\u20ac3.00", money(300, "EUR"))
+        assertEquals("7.00 SEKR", money(700, "sekr"))
+    }
+
+    @Test
+    fun typedAmountsBecomeWholeMinorUnits() {
+        assertEquals(1500L, parseAmountToMinor("15"))
+        assertEquals(1500L, parseAmountToMinor("15.00"))
+        assertEquals(1550L, parseAmountToMinor("$15.50"))
+        assertEquals(1500L, parseAmountToMinor(" 15.00 "))
+        // Rounding down never charges more than the person typed.
+        assertEquals(1599L, parseAmountToMinor("15.999"))
+        assertEquals(null, parseAmountToMinor(""))
+        assertEquals(null, parseAmountToMinor("abc"))
+        assertEquals(null, parseAmountToMinor("-5"))
+    }
+
+    @Test
+    fun tipBoundsMatchTheServer() {
+        assertEquals(TipCheck.BelowMinimum, checkTip(0))
+        assertEquals(TipCheck.BelowMinimum, checkTip(99))
+        assertEquals(TipCheck.Ok, checkTip(MinTipMinor))
+        assertEquals(TipCheck.Ok, checkTip(MaxTipMinor))
+        assertEquals(TipCheck.AboveMaximum, checkTip(MaxTipMinor + 1))
+        assertEquals(280, MaxTipNote)
+    }
+
+    @Test
     fun theThreadNoteDoesNotClaimEndToEndEncryption() {
         val note = DmFormat.NO_E2EE_NOTE.lowercase()
         assertTrue(note.contains("stored on our servers"))

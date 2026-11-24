@@ -112,6 +112,27 @@ class DmApi(private val sessions: SessionStore) {
         )
     }
 
+    /**
+     * Creates a tip. The amount is the client's to choose here and nowhere else, which is
+     * why the server bounds it; the idempotency key makes a retry the same tip rather than
+     * a second one.
+     */
+    suspend fun tip(
+        creatorId: String,
+        amountMinor: Long,
+        note: String,
+        idempotencyKey: String,
+    ): PaymentIntent? {
+        val payload = JSONObject()
+            .put("creator_id", creatorId)
+            .put("amount_minor", amountMinor)
+            .put("note", note.trim())
+            .put("idempotency_key", idempotencyKey)
+            .toString()
+        val body = post("/v1/tips", payload)
+        return parsePayment(JSONObject(body).optJSONObject("tip"))
+    }
+
     suspend fun open(creatorId: String): Conversation? {
         val payload = JSONObject().put("creator_id", creatorId).toString()
         return parseSingleConversation(post("/v1/dm/conversations", payload))

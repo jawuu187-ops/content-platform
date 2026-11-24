@@ -241,6 +241,8 @@ fun DmThreadScreen(store: DmStore, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
 
     val state = store.thread
+    var tipOpen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(tipOpen) { if (tipOpen) store.startTip() }
     val listState = rememberLazyListState()
     LaunchedEffect(state) {
         if (state is ThreadState.Ready && state.messages.isNotEmpty()) {
@@ -248,11 +250,17 @@ fun DmThreadScreen(store: DmStore, onBack: () -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxSize().background(palette.ground)) {
+    Box(Modifier.fillMaxSize().background(palette.ground)) {
+        Column(Modifier.fillMaxSize()) {
         DmHeader(
             title = (state as? ThreadState.Ready)?.peerName ?: "Conversation",
             subtitle = "Direct messages",
             onBack = onBack,
+            trailing = if (store.openConversation != null) {
+                { OutlineButton("Tip", onClick = { tipOpen = true }) }
+            } else {
+                null
+            },
         )
 
         when (state) {
@@ -305,6 +313,18 @@ fun DmThreadScreen(store: DmStore, onBack: () -> Unit) {
                 }
                 Composer(store = store, canReply = state.canReply, scope = scope)
             }
+        }
+        }
+        if (tipOpen) {
+            TipSheet(
+                peerName = (state as? ThreadState.Ready)?.peerName ?: "this creator",
+                store = store,
+                scope = scope,
+                onDismiss = {
+                    tipOpen = false
+                    store.clearTip()
+                },
+            )
         }
     }
 }

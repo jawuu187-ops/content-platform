@@ -18,6 +18,10 @@ const (
 	PurposeSubscription = "subscription"
 	PurposePPV          = "ppv"
 	PurposeTopup        = "topup"
+	// PurposeTip is money sent to a creator with no access granted in return. Unlike
+	// the other purposes it has no price record, so the amount is part of the request
+	// and is bounded by the service.
+	PurposeTip = "tip"
 )
 
 // Intent states. A terminal state is never left again: refunds move a succeeded
@@ -66,6 +70,8 @@ type Intent struct {
 	ProviderRef string `json:"provider_ref,omitempty"`
 	Status      string `json:"status"`
 	CheckoutURL string `json:"checkout_url,omitempty"`
+	// Note is the optional line a fan attaches to a tip. Empty for every other purpose.
+	Note string `json:"note,omitempty"`
 	// Simulated marks this intent as test data. Nothing was charged.
 	Simulated      bool       `json:"simulated"`
 	FailureReason  string     `json:"failure_reason,omitempty"`
@@ -80,7 +86,21 @@ type CreateInput struct {
 	TierID         string `json:"tier_id"`
 	PostID         string `json:"post_id"`
 	IdempotencyKey string `json:"idempotency_key"`
+	// The three fields below are read only for PurposeTip. For a subscription or an
+	// unlock the recipient and the amount come from the records, never the request.
+	CreatorID   string `json:"creator_id"`
+	AmountMinor int64  `json:"amount_minor"`
+	Note        string `json:"note"`
 }
+
+// Tip bounds, in minor units. A tip is small by product design: the upper bound keeps a
+// mistyped amount from becoming a charge dispute, and the lower bound matches the intents
+// amount check so a one-cent tip cannot be used to probe the provider.
+const (
+	MinTipMinor = 100
+	MaxTipMinor = 500_000
+	MaxTipNote  = 280
+)
 
 // Event is a normalised provider callback.
 type Event struct {

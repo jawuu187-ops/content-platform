@@ -134,8 +134,34 @@ func (s *Service) CreateIntent(ctx context.Context, p identity.Principal, in Cre
 		intent.Purpose = PurposePPV
 		intent.CreatorID, intent.PostID = post.CreatorID, post.ID
 		intent.AmountMinor, intent.Currency = *post.PriceMinor, post.Currency
+	case PurposeTip:
+		if in.CreatorID == "" {
+			return Intent{}, fmt.Errorf("%w: creator_id is required", ErrInvalidInput)
+		}
+		// A tip has no price record, so the amount is the request's to choose — and the
+		// only reason this endpoint can be abused. Both bounds are enforced here and
+		// again by the intents_amount CHECK.
+		if in.AmountMinor < MinTipMinor || in.AmountMinor > MaxTipMinor {
+			return Intent{}, fmt.Errorf("%w: amount_minor must be between %d and %d",
+				ErrInvalidInput, int64(MinTipMinor), int64(MaxTipMinor))
+		}
+		note := strings.TrimSpace(in.Note)
+		if len([]rune(note)) > MaxTipNote {
+			return Intent{}, fmt.Errorf("%w: note must be at most %d characters", ErrInvalidInput, MaxTipNote)
+		}
+		recipient, err := s.creators.ProfileByUserID(ctx, in.CreatorID)
+		if err != nil {
+			return Intent{}, err
+		}
+		if recipient.UserID == p.UserID {
+			return Intent{}, fmt.Errorf("%w: you cannot tip yourself", ErrForbidden)
+		}
+		intent.Purpose = PurposeTip
+		intent.CreatorID = recipient.UserID
+		intent.AmountMinor, intent.Currency = in.AmountMinor, "USD"
+		intent.Note = note
 	default:
-		return Intent{}, fmt.Errorf("%w: purpose must be subscription or ppv", ErrInvalidInput)
+		return Intent{}, fmt.Errorf("%w: purpose must be subscription, ppv or tip", ErrInvalidInput)
 	}
 
 	row, created, err := s.insertIntent(ctx, intent)
@@ -190,17 +216,19 @@ func (s *Service) insertIntent(ctx context.Context, in Intent) (Intent, bool, er
 	var settled *time.Time
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO payments.intents
-		    (user_id, purpose, creator_id, tier_id, post_id, amount_minor, currency, provider, idempotency_key, simulated)
-		VALUES ($1::uuid, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid, $6, $7, $8, $9, $10)
+		    (user_id, purpose, creator_id, tier_id, post_id, amount_minor, currency, provider,
+		     idempotency_key, simulated, note)
+		VALUES ($1::uuid, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid, $6, $7, $8,
+		        $9, $10, NULLIF($11, ''))
 		ON CONFLICT (user_id, idempotency_key) DO NOTHING
 		RETURNING id::text, user_id::text, purpose, COALESCE(creator_id::text, ''), COALESCE(tier_id::text, ''),
 		          COALESCE(post_id::text, ''), amount_minor, currency, provider, COALESCE(provider_ref, ''),
-		          status, checkout_url, failure_reason, created_at, settled_at, simulated`,
+		          status, checkout_url, failure_reason, created_at, settled_at, simulated, COALESCE(note, '')`,
 		in.UserID, in.Purpose, in.CreatorID, in.TierID, in.PostID, in.AmountMinor, in.Currency,
-		in.Provider, in.IdempotencyKey, in.Simulated).
+		in.Provider, in.IdempotencyKey, in.Simulated, in.Note).
 		Scan(&out.ID, &out.UserID, &out.Purpose, &out.CreatorID, &out.TierID, &out.PostID, &out.AmountMinor,
 			&out.Currency, &out.Provider, &out.ProviderRef, &out.Status, &out.CheckoutURL, &out.FailureReason,
-			&out.CreatedAt, &settled, &out.Simulated)
+			&out.CreatedAt, &settled, &out.Simulated, &out.Note)
 	if errors.Is(err, pgx.ErrNoRows) {
 		existing, err := s.intentByIdempotency(ctx, in.UserID, in.IdempotencyKey)
 		return existing, false, err
@@ -217,7 +245,7 @@ func (s *Service) scanIntent(row pgx.Row) (Intent, error) {
 	var settled *time.Time
 	err := row.Scan(&out.ID, &out.UserID, &out.Purpose, &out.CreatorID, &out.TierID, &out.PostID,
 		&out.AmountMinor, &out.Currency, &out.Provider, &out.ProviderRef, &out.Status, &out.CheckoutURL,
-		&out.FailureReason, &out.CreatedAt, &settled, &out.Simulated)
+		&out.FailureReason, &out.CreatedAt, &settled, &out.Simulated, &out.Note)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Intent{}, ErrNotFound
 	}
@@ -230,7 +258,7 @@ func (s *Service) scanIntent(row pgx.Row) (Intent, error) {
 
 const intentColumns = `id::text, user_id::text, purpose, COALESCE(creator_id::text, ''), COALESCE(tier_id::text, ''),
 	COALESCE(post_id::text, ''), amount_minor, currency, provider, COALESCE(provider_ref, ''),
-	status, checkout_url, failure_reason, created_at, settled_at, simulated`
+	status, checkout_url, failure_reason, created_at, settled_at, simulated, COALESCE(note, '')`
 
 func (s *Service) intentByIdempotency(ctx context.Context, userID, key string) (Intent, error) {
 	return s.scanIntent(s.pool.QueryRow(ctx,
@@ -365,8 +393,11 @@ func (s *Service) settle(ctx context.Context, intent Intent) error {
 	creatorShare := intent.AmountMinor * (10_000 - s.commissionBPS) / 10_000
 	platformShare := intent.AmountMinor - creatorShare
 	kind := ledger.TxnPPV
-	if intent.Purpose == PurposeSubscription {
+	switch intent.Purpose {
+	case PurposeSubscription:
 		kind = ledger.TxnSubscription
+	case PurposeTip:
+		kind = ledger.TxnTip
 	}
 	posting := ledger.Posting{
 		Kind:      kind,

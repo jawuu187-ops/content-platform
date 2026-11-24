@@ -3,6 +3,7 @@ package com.contentplatform.app.dm
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import java.util.UUID
 
 /**
  * The inbox and thread state machine.
@@ -29,6 +30,14 @@ sealed interface ThreadState {
         val canReply: Boolean,
     ) : ThreadState
     data class Failed(val failure: DmFailure) : ThreadState
+}
+
+/** The tip sheet's own state, so a failed tip never disturbs the message thread. */
+sealed interface TipState {
+    data object Idle : TipState
+    data object Sending : TipState
+    data class Done(val payment: PaymentIntent) : TipState
+    data class Failed(val message: String) : TipState
 }
 
 class DmStore(
@@ -62,6 +71,15 @@ class DmStore(
 
     private var openConversationId: String? = null
 
+    /** The conversation currently on screen, with the creator id a tip needs. */
+    var openConversation by mutableStateOf<Conversation?>(null)
+        private set
+
+    var tipState by mutableStateOf<TipState>(TipState.Idle)
+        private set
+
+    private var tipKey: String = ""
+
     val signedIn: Boolean get() = session.signedIn
 
     suspend fun refreshInbox() {
@@ -86,6 +104,7 @@ class DmStore(
 
     suspend fun loadThread(conversationId: String) {
         openConversationId = conversationId
+        openConversation = (inbox as? InboxState.Ready)?.items?.firstOrNull { it.id == conversationId }
         val known = peerFor(conversationId)
         thread = ThreadState.Loading
         thread = try {
@@ -176,6 +195,48 @@ class DmStore(
 
     fun clearSendFailure() {
         sendFailure = null
+    }
+
+    /** Starts a fresh tip attempt: one idempotency key per sheet, reused across retries. */
+    fun startTip() {
+        tipKey = UUID.randomUUID().toString()
+        tipState = TipState.Idle
+    }
+
+    fun clearTip() {
+        tipState = TipState.Idle
+    }
+
+    suspend fun sendTip(amountMinor: Long, note: String) {
+        val conversation = openConversation
+        if (conversation == null) {
+            tipState = TipState.Failed("Open a conversation with a creator first.")
+            return
+        }
+        when (checkTip(amountMinor)) {
+            TipCheck.BelowMinimum -> {
+                tipState = TipState.Failed("The smallest tip is ${money(MinTipMinor)}.")
+                return
+            }
+            TipCheck.AboveMaximum -> {
+                tipState = TipState.Failed("The largest tip is ${money(MaxTipMinor)}.")
+                return
+            }
+            TipCheck.Ok -> Unit
+        }
+        if (tipKey.isBlank()) tipKey = UUID.randomUUID().toString()
+        tipState = TipState.Sending
+        tipState = try {
+            val payment = api.tip(conversation.creatorId, amountMinor, note, tipKey)
+            if (payment == null) {
+                TipState.Failed("The server did not return a receipt. Nothing was charged.")
+            } else {
+                tipKey = ""
+                TipState.Done(payment)
+            }
+        } catch (t: Throwable) {
+            TipState.Failed(t.toDmFailure().explain())
+        }
     }
 
     private fun peerFor(conversationId: String): Peer {

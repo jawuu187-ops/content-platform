@@ -46,6 +46,33 @@ internal fun parseInstantOrNull(value: String?): Long? {
     }
 }
 
+/**
+ * The payment-intent projection a tip receipt needs. `simulated` is copied verbatim from
+ * the server: the client never decides whether a payment was real.
+ */
+data class PaymentIntent(
+    val id: String,
+    val purpose: String,
+    val amountMinor: Long,
+    val currency: String,
+    val status: String,
+    val simulated: Boolean,
+    val note: String,
+)
+
+fun parsePayment(json: JSONObject?): PaymentIntent? {
+    if (json == null) return null
+    return PaymentIntent(
+        id = json.optString("id"),
+        purpose = json.optString("purpose"),
+        amountMinor = json.optLong("amount_minor", 0L),
+        currency = json.optString("currency").ifBlank { "USD" },
+        status = json.optString("status"),
+        simulated = json.optBoolean("simulated", false),
+        note = json.optString("note"),
+    )
+}
+
 fun parseConversation(json: JSONObject): Conversation = Conversation(
     id = json.optString("id"),
     creatorId = json.optString("creator_id"),

@@ -1,5 +1,7 @@
 package com.contentplatform.app.dm
 
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -77,6 +79,51 @@ sealed interface DraftCheck {
     data object Ok : DraftCheck
     data object Empty : DraftCheck
     data object TooLong : DraftCheck
+}
+
+/** Money a person reads, from minor units. */
+fun money(amountMinor: Long, currency: String = "USD"): String {
+    val negative = amountMinor < 0
+    val absolute = if (negative) -amountMinor else amountMinor
+    val body = String.format(Locale.UK, "%d.%02d", absolute / 100, absolute % 100)
+    val symbol = when (currency.uppercase(Locale.UK)) {
+        "USD" -> "$"
+        "EUR" -> "\u20ac"
+        "GBP" -> "\u00a3"
+        else -> ""
+    }
+    val sign = if (negative) "-" else ""
+    return if (symbol.isEmpty()) {
+        sign + body + " " + currency.uppercase(Locale.UK)
+    } else {
+        sign + symbol + body
+    }
+}
+
+/** Tip bounds, mirrored from the server so a rejected amount is caught before the request. */
+const val MinTipMinor = 100L
+const val MaxTipMinor = 500_000L
+const val MaxTipNote = 280
+
+sealed interface TipCheck {
+    data object Ok : TipCheck
+    data object BelowMinimum : TipCheck
+    data object AboveMaximum : TipCheck
+}
+
+fun checkTip(amountMinor: Long): TipCheck = when {
+    amountMinor < MinTipMinor -> TipCheck.BelowMinimum
+    amountMinor > MaxTipMinor -> TipCheck.AboveMaximum
+    else -> TipCheck.Ok
+}
+
+/** Parses what a person typed in an amount field. Null means "not money". */
+fun parseAmountToMinor(raw: String): Long? {
+    val cleaned = raw.trim().removePrefix("$").replace(",", "").replace(" ", "")
+    if (cleaned.isEmpty()) return null
+    val value = cleaned.toBigDecimalOrNull() ?: return null
+    if (value < BigDecimal.ZERO) return null
+    return value.movePointRight(2).setScale(0, RoundingMode.DOWN).toLong()
 }
 
 fun checkDraft(raw: String): DraftCheck {

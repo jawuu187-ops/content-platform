@@ -36,6 +36,7 @@ const (
 const (
 	TxnSubscription = "subscription"
 	TxnPPV          = "ppv"
+	TxnTip          = "tip"
 	TxnRefund       = "refund"
 	TxnPayout       = "payout"
 	TxnAdjustment   = "adjustment"

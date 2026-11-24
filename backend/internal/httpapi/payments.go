@@ -25,6 +25,7 @@ type paymentHandler struct {
 	logger   *slog.Logger
 	create   *limiter
 	webhook  *limiter
+	tip      *limiter
 }
 
 func newPaymentHandler(auth *authHandler, svc *payments.Service, logger *slog.Logger,
@@ -38,6 +39,7 @@ func newPaymentHandler(auth *authHandler, svc *payments.Service, logger *slog.Lo
 		logger:   logger,
 		create:   newLimiter(30, time.Hour, shared),
 		webhook:  newLimiter(300, time.Minute, shared),
+		tip:      newLimiter(20, time.Hour, shared),
 	}
 }
 
@@ -90,6 +92,35 @@ func (h *paymentHandler) handleCreate(w http.ResponseWriter, r *http.Request, p 
 	}
 	noStore(w)
 	writeJSON(w, http.StatusCreated, map[string]any{"payment": intent})
+}
+
+// handleTip creates a tip intent. It is a separate route because a tip is the one payment
+// whose amount comes from the client: the request names a recipient, an amount in minor
+// units and at most one short line. The service bounds all three.
+func (h *paymentHandler) handleTip(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var body struct {
+		CreatorID      string `json:"creator_id"`
+		AmountMinor    int64  `json:"amount_minor"`
+		Note           string `json:"note"`
+		IdempotencyKey string `json:"idempotency_key"`
+	}
+	if err := decodeJSON(w, r, &body); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	intent, err := h.payments.CreateIntent(r.Context(), p, payments.CreateInput{
+		Purpose:        payments.PurposeTip,
+		CreatorID:      body.CreatorID,
+		AmountMinor:    body.AmountMinor,
+		Note:           body.Note,
+		IdempotencyKey: body.IdempotencyKey,
+	}, RequestIDFromContext(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusCreated, map[string]any{"tip": intent})
 }
 
 func (h *paymentHandler) handleGet(w http.ResponseWriter, r *http.Request, p identity.Principal) {
@@ -185,6 +216,8 @@ func (h *paymentHandler) registerRoutes(mux *http.ServeMux) {
 		rateLimited(h.webhook, "payment_webhook", h.handleWebhook))
 	mux.HandleFunc("POST /v1/payments/intents",
 		rateLimited(h.create, "payment_create", h.auth.requireAuth(h.handleCreate)))
+	mux.HandleFunc("POST /v1/tips",
+		rateLimited(h.tip, "tip_create", h.auth.requireAuth(h.handleTip)))
 	mux.HandleFunc("GET /v1/payments/{id}",
 		rateLimited(h.create, "payment_read", h.auth.requireAuth(h.handleGet)))
 	mux.HandleFunc("GET /v1/me/payments",

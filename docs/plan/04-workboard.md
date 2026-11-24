@@ -235,6 +235,9 @@ Defects CI found in this slice and fixed:
 | P2-P12 | Client-side demo labelling: visible DEMO banner on every money surface, simulated checkout, test-payment confirmation | implemented | `DemoBanner`, `CheckoutSheet(onSimulate)`, `SimulatedPaymentCard`, `PlatformApp` |
 | P2-P13 | Messaging backend: conversations, immutable messages, entitlement re-checked on send, inbox preview and unread count | implemented | `migrations/0011_messaging.sql`, `internal/messaging/*`, `internal/httpapi/messaging.go`; `TestListCarriesPreviewAndUnreadCount`, `TestLapsedEntitlementStopsNewMessagesButKeepsHistory`, `TestMessagesCannotBeEditedOrDeleted` |
 | P2-P14 | Messaging Android UI: inbox, thread, composer, sign-in, loading/empty/offline/error/expired states, light+dark | implemented (CI evidence pending in this run) | `dm/DmApi.kt`, `dm/DmStore.kt`, `dm/DmFormat.kt`, `ui/dm/DmScreens.kt`, `PlatformApp` overlay, `AccountScreen` entry; `DmFormatTest`, `DmFailureTest` |
+| P2-P15 | Tips: `tip` payment purpose, ledger kind, server bounds, optional note, idempotency, no access granted | implemented | `migrations/0012_tips.sql`, `payments.PurposeTip`, `POST /v1/tips`; `TestTipSettlesIntoTheLedgerWithoutGrantingAccess`, `TestTipBoundsAndSelfTipAreRefused`, `TestTipIdempotencyKeyReturnsTheSameIntent` |
+| P2-P16 | Tip sheet in Android, reached from a live DM thread: amount presets and custom amount, bounds shown before sending, note, test-labelled receipt | implemented (CI evidence in this run) | `ui/dm/TipSheet.kt`, `DmStore.sendTip`, `DmApi.tip`, `DmFormat.money/checkTip/parseAmountToMinor`; `DmFormatTest` |
+| P2-P17 | Earnings report split by data class: gross from intents, net from the ledger, simulated excluded by default and reported separately | implemented | `internal/earnings`, `GET /v1/creator/earnings`; `TestEarningsCanExcludeSimulatedMoney`, `TestTipSettlesIntoTheLedgerWithoutGrantingAccess` |
 
 ### P2 payments - evidence (GitHub Actions only)
 

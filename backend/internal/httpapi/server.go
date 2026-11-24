@@ -8,6 +8,7 @@ import (
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/agegate"
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
+	"github.com/jawuu187-ops/content-platform/backend/internal/earnings"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
@@ -42,6 +43,8 @@ type Deps struct {
 	AgeGate *agegate.Service
 	// DirectMessages is the creator/fan messaging service. Nil answers 503.
 	DirectMessages *messaging.Service
+	// Earnings reports a creator's gross and net, split by real vs simulated data.
+	Earnings *earnings.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -59,6 +62,7 @@ type Server struct {
 	ageGate   *agegate.Service
 	media     *media.Service
 	payments  *payments.Service
+	earnings  *earnings.Service
 	dm        *messaging.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
@@ -83,6 +87,7 @@ func New(d Deps) http.Handler {
 		ageGate:   d.AgeGate,
 		media:     d.Media,
 		payments:  d.Payments,
+		earnings:  d.Earnings,
 		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
@@ -113,6 +118,14 @@ func New(d Deps) http.Handler {
 			mux.HandleFunc("/v1/admin/ledger/", func(w http.ResponseWriter, r *http.Request) {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
 					"the ledger is not configured on this instance")
+			})
+		}
+		if s.earnings != nil {
+			newEarningsHandler(authHandler, s.earnings, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("GET /v1/creator/earnings", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"the earnings report is not configured on this instance")
 			})
 		}
 		if s.media != nil && s.creators != nil {

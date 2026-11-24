@@ -29,7 +29,7 @@ const (
 	creatorEmail   = "creator@e2e.test"
 	moderatorEmail = "moderator@e2e.test"
 	creatorHandle  = "mira_e2e"
-	creatorName   = "Mira Vale"
+	creatorName    = "Mira Vale"
 )
 
 // password is filled from E2E_PASSWORD at start; it is never written to a log line

@@ -31,7 +31,7 @@ class ModerationQueueTest {
         rule.tapText("Reports")
         rule.awaitNode("the queue header") { rule.hasText("Safety queue") }
         rule.awaitNode("the queued report", 45_000) {
-            rule.hasDescription("Harassment or threats", substring = true)
+            rule.hasDescription("Harassment or threats")
         }
         rule.capture("09-moderation-queue")
 

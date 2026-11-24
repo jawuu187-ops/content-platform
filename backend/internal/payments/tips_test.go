@@ -260,6 +260,29 @@ func TestTipBoundsAndSelfTipAreRefused(t *testing.T) {
 	}
 }
 
+// A tip may name its amount; nothing else may. A subscription whose request carries an
+// amount has to be refused, not quietly priced from the record.
+func TestOnlyTipsMayCarryAnAmount(t *testing.T) {
+	h := newTipHarness(t)
+	ctx := context.Background()
+	fan := h.account(t)
+
+	if _, err := h.payments.CreateIntent(ctx, fan, CreateInput{
+		Purpose:        PurposeSubscription,
+		AmountMinor:    1,
+		IdempotencyKey: "sub-amount-0001",
+	}, ""); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("subscription with an amount: want ErrInvalidInput, got %v", err)
+	}
+	if _, err := h.payments.CreateIntent(ctx, fan, CreateInput{
+		Purpose:        PurposeSubscription,
+		Note:           "priced by the client",
+		IdempotencyKey: "sub-note-0001",
+	}, ""); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("subscription with a note: want ErrInvalidInput, got %v", err)
+	}
+}
+
 // The same idempotency key must not create a second charge, which for a tip is the
 // difference between one thank-you and two.
 func TestTipIdempotencyKeyReturnsTheSameIntent(t *testing.T) {

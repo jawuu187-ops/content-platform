@@ -99,6 +99,16 @@ func (s *Service) CreateIntent(ctx context.Context, p identity.Principal, in Cre
 		return Intent{}, fmt.Errorf("%w: idempotency_key must be 8-128 characters", ErrInvalidInput)
 	}
 
+	// A subscription or an unlock reads its price from a record, so an amount in the
+	// request is either a client bug or an attempt to set the price. Both are refused
+	// rather than silently ignored (D-052).
+	if in.Purpose != PurposeTip {
+		if in.AmountMinor != 0 || strings.TrimSpace(in.CreatorID) != "" || strings.TrimSpace(in.Note) != "" {
+			return Intent{}, fmt.Errorf(
+				"%w: amount_minor, creator_id and note are accepted only for purpose=tip", ErrInvalidInput)
+		}
+	}
+
 	intent := Intent{
 		UserID:         p.UserID,
 		IdempotencyKey: key,

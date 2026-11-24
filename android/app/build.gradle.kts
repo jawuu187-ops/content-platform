@@ -96,6 +96,9 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
+    // android.jar ships a stubbed org.json, so a JVM test that parses a real payload
+    // would get nulls and NPEs. This keeps the payload-model tests honest.
+    testImplementation("org.json:json:20250517")
 
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)

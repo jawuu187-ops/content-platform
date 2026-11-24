@@ -126,8 +126,7 @@ fun HomeScreen(
                                     color = palette.ink,
                                 )
                                 Text(
-                                    if (Data.connected) "$CREATOR_HANDLE · creator since 2024 · 48 posts"
-                                    else "$CREATOR_HANDLE · not connected",
+                                    "$CREATOR_HANDLE · creator since 2024 · 48 posts · demo",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = palette.muted,
                                 )
@@ -223,7 +222,7 @@ fun CreatorScreen(
     Column(Modifier.fillMaxSize().background(palette.ground)) {
         Chrome(
             title = "Creator",
-            subtitle = if (Data.connected) MEMBERS + " members · 48 posts" else "Not connected",
+            subtitle = MEMBERS + " members · 48 posts · demo",
             trailing = { OutlineButton("Tiers", onOpenMembership) },
         )
         LazyColumn(Modifier.fillMaxSize()) {
@@ -345,7 +344,7 @@ fun MembershipScreen(
     Column(Modifier.fillMaxSize().background(palette.ground)) {
         Chrome(
             title = "Membership",
-            subtitle = "$CREATOR_NAME · " + if (Data.connected) "12,412 members" else "not connected",
+            subtitle = "$CREATOR_NAME · 12,412 members · demo",
         )
         LazyColumn(Modifier.fillMaxSize()) {
             itemsIndexed(tiers) { index, tier ->
@@ -396,10 +395,7 @@ fun MembershipScreen(
                         color = palette.muted,
                     )
                     SpacerH(8)
-                    LabelMono(
-                        if (Data.connected) "Fee split on $9.00 · $7.20 creator · $1.80 platform"
-                        else "Prices and fee split appear once a payment provider is approved",
-                    )
+                    LabelMono("Fee split on $9.00 · $7.20 creator · $1.80 platform · demo")
                 }
             }
         }

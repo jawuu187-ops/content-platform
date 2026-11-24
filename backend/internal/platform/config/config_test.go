@@ -174,10 +174,7 @@ func TestLoadAllowsFakeProviderInLocalAndDemo(t *testing.T) {
 			base(t)
 			t.Setenv("APP_ENV", env)
 			if env != "local" {
-				t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
-				t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
-				t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
-				t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+				deployedEnv(t)
 			}
 			t.Setenv("PAY_PROVIDER", "fake")
 			t.Setenv("PAY_WEBHOOK_SECRET", strings.Repeat("p", 32))
@@ -196,6 +193,20 @@ func TestLoadAllowsFakeProviderInLocalAndDemo(t *testing.T) {
 }
 
 // Staging mirrors production, so it must refuse both the switch and the provider.
+// deployedEnv fills the settings any non-local environment requires. Demo is a real
+// deployment, so it needs them too; tests must not pretend otherwise.
+func deployedEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+	t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
+	t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
+	t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+	t.Setenv("SMTP_HOST", "smtp.example.test")
+	t.Setenv("MAIL_FROM", "noreply@example.test")
+	t.Setenv("MFA_KEY", strings.Repeat("m", 32))
+	t.Setenv("WEBAUTHN_ORIGINS", "https://app.example.test")
+}
+
 func TestLoadRejectsSimulatedPaymentsInStaging(t *testing.T) {
 	for _, tc := range []struct {
 		name, env, value, want string
@@ -223,10 +234,7 @@ func TestLoadRejectsSimulatedPaymentsInStaging(t *testing.T) {
 func TestParseEnvAcceptsDemo(t *testing.T) {
 	base(t)
 	t.Setenv("APP_ENV", "demo")
-	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
-	t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
-	t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
-	t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+	deployedEnv(t)
 	cfg, err := Load("api")
 	if err != nil {
 		t.Fatalf("demo should load: %v", err)

@@ -227,40 +227,28 @@ func TestTipBoundsAndSelfTipAreRefused(t *testing.T) {
 	fan := h.account(t)
 	creatorAccount := h.creatorAccount(t)
 
-	cases := []struct {
-		name   string
-		in     CreateInput
-		expect error
-	}{
-		{
-			name: "below the minimum",
-			in: CreateInput{Purpose: PurposeTip, CreatorID: creatorAccount.UserID,
-				AmountMinor: 99, IdempotencyKey: "tip-low-0001"},
-			expect: ErrInvalidInput,
-		},
-		{
-			name: "above the maximum",
-			in: CreateInput{Purpose: PurposeTip, CreatorID: creatorAccount.UserID,
-				AmountMinor: MaxTipMinor + 1, IdempotencyKey: "tip-high-0001"},
-			expect: ErrInvalidInput,
-		},
-		{
-			name: "note too long",
-			in: CreateInput{Purpose: PurposeTip, CreatorID: creatorAccount.UserID,
-				AmountMinor: 500, Note: strings.Repeat("x", MaxTipNote+1), IdempotencyKey: "tip-note-0001"},
-			expect: ErrInvalidInput,
-		},
-		{
-			name: "no recipient",
-			in: CreateInput{Purpose: PurposeTip, AmountMinor: 500, IdempotencyKey: "tip-none-0001"},
-			expect: ErrInvalidInput,
-		},
-	}
-	for _, tc := range cases {
-		if _, err := h.payments.CreateIntent(ctx, fan, tc.in, ""); !errors.Is(err, tc.expect) {
-			t.Fatalf("%s: want %v, got %v", tc.name, tc.expect, err)
+	refused := func(name string, in CreateInput, want error) {
+		t.Helper()
+		if _, err := h.payments.CreateIntent(ctx, fan, in, ""); !errors.Is(err, want) {
+			t.Fatalf("%s: want %v, got %v", name, want, err)
 		}
 	}
+
+	refused("below the minimum", CreateInput{
+		Purpose: PurposeTip, CreatorID: creatorAccount.UserID,
+		AmountMinor: 99, IdempotencyKey: "tip-low-0001",
+	}, ErrInvalidInput)
+	refused("above the maximum", CreateInput{
+		Purpose: PurposeTip, CreatorID: creatorAccount.UserID,
+		AmountMinor: MaxTipMinor + 1, IdempotencyKey: "tip-high-0001",
+	}, ErrInvalidInput)
+	refused("note too long", CreateInput{
+		Purpose: PurposeTip, CreatorID: creatorAccount.UserID, AmountMinor: 500,
+		Note: strings.Repeat("x", MaxTipNote+1), IdempotencyKey: "tip-note-0001",
+	}, ErrInvalidInput)
+	refused("no recipient", CreateInput{
+		Purpose: PurposeTip, AmountMinor: 500, IdempotencyKey: "tip-none-0001",
+	}, ErrInvalidInput)
 
 	if _, err := h.payments.CreateIntent(ctx, creatorAccount, CreateInput{
 		Purpose:        PurposeTip,

@@ -148,24 +148,14 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
             -camera-back none -camera-front none
+          # The runner executes each line in its own shell, so every line is
+          # self-contained: `-p android` instead of a cd that would be forgotten.
           script: |
-            set -euo pipefail
-            cd android
-            # The app talks to the API on the runner's loopback, which the emulator
-            # exposes as 10.0.2.2. No port forwarding and no production setting changes.
-            gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest'
-
-            cd ../backend
-            ./bin/e2eseed -expire
-
-            cd ../android
-            gradle --no-daemon --stacktrace :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest
-
-            mkdir -p ../e2e-shots
-            adb pull /sdcard/Android/data/com.contentplatform.app.debug/files/e2e ../e2e-shots || true
-            ls -l ../e2e-shots
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest'
+            ./backend/bin/e2eseed -expire
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest
+            mkdir -p e2e-shots && adb pull /sdcard/Android/data/com.contentplatform.app.debug/files/e2e e2e-shots || true
+            ls -l e2e-shots
 
       # The device tests prove what the app does. These checks prove what the server
       # refuses, using the same account the app used.

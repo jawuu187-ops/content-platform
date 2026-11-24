@@ -77,7 +77,11 @@ jobs:
         run: |
           unformatted="$(gofmt -l .)"
           if [ -n "$unformatted" ]; then
-            echo "These files need gofmt:"; echo "$unformatted"; exit 1
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            # Print the actual diff so the fix is a copy away instead of a guess.
+            echo "$unformatted" | xargs gofmt -d
+            exit 1
           fi
 
       - name: go vet

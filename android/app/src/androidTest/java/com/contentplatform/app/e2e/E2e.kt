@@ -185,26 +185,21 @@ fun shell(command: String) {
 }
 
 /**
- * Writes a PNG of the current screen to the app's external files directory, which the
- * workflow pulls off the emulator. A screenshot problem never fails a test: the evidence is
- * useful, the assertion is the contract.
+ * Writes a PNG of the current screen to /sdcard/Download/e2e, which the workflow pulls off
+ * the emulator. A screenshot problem never fails a test: the evidence is useful, the
+ * assertion is the contract. It uses a shell `screencap` rather than a Compose or
+ * UiAutomation capture, because this AVD image answers both of those with "Failed to take
+ * screenshot" while `screencap` writes a real frame. The shell user cannot write into the
+ * app's private directory, hence the download folder.
  */
 fun ComposeTestRule.capture(name: String) {
     try {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        // Internal storage, not external: on a bare AVD getExternalFilesDir can be null,
-        // and a screenshot that silently lands in "null/e2e" is worse than none. The
-        // workflow pulls these with `run-as`, which works because the test APK is debug.
-        val dir = File(context.filesDir, "e2e").apply { mkdirs() }
-        // A device screenshot rather than a Compose capture: it includes the status bar and
-        // is what a person would have seen. Compose capture needs a drawn frame and returns
-        // nothing useful on this AVD image.
-        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        FileOutputStream(File(dir, "$name.png")).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-        }
-        bitmap.recycle()
-        println("screenshot $name written")
+        val dir = "/sdcard/Download/e2e"
+        shell("mkdir -p $dir")
+        InstrumentationRegistry.getInstrumentation().uiAutomation
+            .executeShellCommand("screencap -p $dir/$name.png").close()
+        Thread.sleep(250)
+        println("screenshot $name captured")
     } catch (t: Throwable) {
         println("screenshot $name skipped: ${t.message}")
     }

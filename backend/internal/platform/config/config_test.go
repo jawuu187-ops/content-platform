@@ -166,16 +166,73 @@ func TestLoadRejectsFakeProviderInProduction(t *testing.T) {
 	}
 }
 
-func TestLoadAllowsFakeProviderOnlyOutsideProduction(t *testing.T) {
+// The simulated provider is the development and demonstration engine, so it must
+// work in local and in demo. Those are the only two places it may ever work.
+func TestLoadAllowsFakeProviderInLocalAndDemo(t *testing.T) {
+	for _, env := range []string{"local", "demo"} {
+		t.Run(env, func(t *testing.T) {
+			base(t)
+			t.Setenv("APP_ENV", env)
+			if env != "local" {
+				t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+				t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
+				t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
+				t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+			}
+			t.Setenv("PAY_PROVIDER", "fake")
+			t.Setenv("PAY_WEBHOOK_SECRET", strings.Repeat("p", 32))
+			cfg, err := Load("api")
+			if err != nil {
+				t.Fatalf("fake provider should be allowed in %s: %v", env, err)
+			}
+			if cfg.PayProvider != "fake" {
+				t.Fatalf("provider = %q", cfg.PayProvider)
+			}
+			if !cfg.AllowsTestPayments() {
+				t.Fatalf("%s must allow test payments", env)
+			}
+		})
+	}
+}
+
+// Staging mirrors production, so it must refuse both the switch and the provider.
+func TestLoadRejectsSimulatedPaymentsInStaging(t *testing.T) {
+	for _, tc := range []struct {
+		name, env, value, want string
+	}{
+		{"switch", "ENABLE_FAKE_PAYMENTS", "true", "ENABLE_FAKE_PAYMENTS"},
+		{"provider", "PAY_PROVIDER", "fake", "PAY_PROVIDER=fake"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			base(t)
+			t.Setenv("APP_ENV", "staging")
+			t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+			t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
+			t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
+			t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+			t.Setenv("PAY_WEBHOOK_SECRET", strings.Repeat("p", 32))
+			t.Setenv(tc.env, tc.value)
+			_, err := Load("api")
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("expected staging to refuse %s, got %v", tc.env, err)
+			}
+		})
+	}
+}
+
+func TestParseEnvAcceptsDemo(t *testing.T) {
 	base(t)
-	t.Setenv("PAY_PROVIDER", "fake")
-	t.Setenv("PAY_WEBHOOK_SECRET", strings.Repeat("p", 32))
+	t.Setenv("APP_ENV", "demo")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+	t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
+	t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
+	t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
 	cfg, err := Load("api")
 	if err != nil {
-		t.Fatalf("fake provider should be allowed in local: %v", err)
+		t.Fatalf("demo should load: %v", err)
 	}
-	if cfg.PayProvider != "fake" {
-		t.Fatalf("provider = %q", cfg.PayProvider)
+	if !cfg.IsDemo() || cfg.IsProduction() || cfg.IsLocal() {
+		t.Fatalf("demo environment misclassified: %+v", cfg.Env)
 	}
 }
 
@@ -185,19 +242,5 @@ func TestLoadRejectsUnapprovedProvider(t *testing.T) {
 	_, err := Load("api")
 	if err == nil || !strings.Contains(err.Error(), "PAY_PROVIDER") {
 		t.Fatalf("expected provider refusal, got %v", err)
-	}
-}
-
-func TestLoadRejectsFakePaymentsInStaging(t *testing.T) {
-	base(t)
-	t.Setenv("APP_ENV", "staging")
-	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
-	t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
-	t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
-	t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
-	t.Setenv("ENABLE_FAKE_PAYMENTS", "true")
-	_, err := Load("api")
-	if err == nil || !strings.Contains(err.Error(), "ENABLE_FAKE_PAYMENTS") {
-		t.Fatalf("expected staging to refuse fake payments, got %v", err)
 	}
 }

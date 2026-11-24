@@ -43,6 +43,7 @@ import com.contentplatform.app.ui.motion.LocalVesperMotion
 import com.contentplatform.app.ui.motion.pressScale
 import com.contentplatform.app.ui.screens.AccountScreen
 import com.contentplatform.app.ui.screens.CheckoutSheet
+import com.contentplatform.app.ui.screens.SimulatedPaymentCard
 import com.contentplatform.app.ui.screens.CreatorScreen
 import com.contentplatform.app.ui.screens.HomeScreen
 import com.contentplatform.app.ui.screens.MembershipScreen
@@ -72,7 +73,12 @@ fun PlatformApp(themeController: ThemeController) {
 
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var creatorOpen by rememberSaveable { mutableStateOf(false) }
-    var checkout by remember { mutableStateOf<String?>(null) }
+    // Checkout is a pair of (tier, price) in the demo. A real provider replaces the price
+    // with a server-issued intent; the sheet does not compute it.
+    var checkout by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var lastCheckout by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var simulatedTier by remember { mutableStateOf<String?>(null) }
+    if (checkout != null) lastCheckout = checkout
 
     Box(Modifier.fillMaxSize().background(palette.ground).safeDrawingPadding()) {
         Column(Modifier.fillMaxSize()) {
@@ -99,7 +105,7 @@ fun PlatformApp(themeController: ThemeController) {
                             onOpenMembership = { destination = Destination.Membership },
                         )
                         Destination.Membership -> MembershipScreen(
-                            onJoin = { tier, _ -> checkout = tier },
+                            onJoin = { tier, price -> checkout = tier to price },
                         )
                         Destination.Studio -> StudioScreen()
                         Destination.Account -> AccountScreen(
@@ -164,11 +170,35 @@ fun PlatformApp(themeController: ThemeController) {
                 ) { height -> height },
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
-                CheckoutSheet(
-                    tier = checkout ?: "Studio",
-                    onDismiss = { checkout = null },
-                )
+                lastCheckout?.let { (tier, price) ->
+                    CheckoutSheet(
+                        tier = tier,
+                        price = price,
+                        onSimulate = {
+                            simulatedTier = tier
+                            checkout = null
+                        },
+                        onDismiss = { checkout = null },
+                    )
+                }
             }
+        }
+
+        // The confirmation is an overlay too, so the membership list is never lost.
+        AnimatedVisibility(
+            visible = simulatedTier != null,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 2 } + fadeIn(tween(motion.transition)),
+            exit = slideOutVertically(tween(motion.feedback)) { height -> height / 2 } +
+                fadeOut(tween(motion.feedback)),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(20.dp),
+        ) {
+            SimulatedPaymentCard(
+                tier = simulatedTier ?: "Studio",
+                cta = "Done",
+                onDone = { simulatedTier = null },
+            )
         }
     }
 }

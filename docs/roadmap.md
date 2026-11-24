@@ -31,3 +31,23 @@
 | زمن استجابة التسريب | كشف < 24س، إزالة < 72س |
 | توفّر API | 99.9% |
 | مستويات عضوية لكل صانع | ≥ 4 مدعومة تقنيًا |
+
+---
+
+## Status note (2026-11-26) — payments decoupled from delivery
+
+Payment-provider research is **paused by owner decision**. The roadmap continues end to end
+without a live gateway:
+
+- the simulated provider is the development and demonstration engine and runs the real
+  checkout, webhook, entitlement, ledger and earnings code paths;
+- every simulated intent and ledger posting is stamped `simulated` in the database, `/v1/meta`
+  publishes `data_class`, and every client surface that shows money carries a DEMO label;
+- staging and production refuse the simulated provider at boot; `APP_ENV=demo` exists so
+  demonstrations have a home that is not staging;
+- a real provider is integrated only after the owner activates one in his own account and
+  approves the integration; until then no paid capability is exposed to real users.
+
+Next milestones proceed in order: messaging and DMs, tips, creator payouts and statement,
+moderation and reports, notifications, then the PWA shell.
+

@@ -54,18 +54,20 @@ var (
 
 // Intent is one purchase attempt.
 type Intent struct {
-	ID             string     `json:"id"`
-	UserID         string     `json:"user_id"`
-	Purpose        string     `json:"purpose"`
-	CreatorID      string     `json:"creator_id,omitempty"`
-	TierID         string     `json:"tier_id,omitempty"`
-	PostID         string     `json:"post_id,omitempty"`
-	AmountMinor    int64      `json:"amount_minor"`
-	Currency       string     `json:"currency"`
-	Provider       string     `json:"provider"`
-	ProviderRef    string     `json:"provider_ref,omitempty"`
-	Status         string     `json:"status"`
-	CheckoutURL    string     `json:"checkout_url,omitempty"`
+	ID          string `json:"id"`
+	UserID      string `json:"user_id"`
+	Purpose     string `json:"purpose"`
+	CreatorID   string `json:"creator_id,omitempty"`
+	TierID      string `json:"tier_id,omitempty"`
+	PostID      string `json:"post_id,omitempty"`
+	AmountMinor int64  `json:"amount_minor"`
+	Currency    string `json:"currency"`
+	Provider    string `json:"provider"`
+	ProviderRef string `json:"provider_ref,omitempty"`
+	Status      string `json:"status"`
+	CheckoutURL string `json:"checkout_url,omitempty"`
+	// Simulated marks this intent as test data. Nothing was charged.
+	Simulated      bool       `json:"simulated"`
 	FailureReason  string     `json:"failure_reason,omitempty"`
 	IdempotencyKey string     `json:"-"`
 	CreatedAt      time.Time  `json:"created_at"`
@@ -97,6 +99,10 @@ type Capabilities struct {
 	HostedCheckout bool `json:"hosted_checkout"`
 	Webhooks       bool `json:"webhooks"`
 	Refunds        bool `json:"refunds"`
+	// Simulated means the provider moves no money. Everything it produces is test
+	// data: intents and ledger rows are stamped simulated=true and clients must
+	// label them. A real gateway reports false.
+	Simulated bool `json:"simulated"`
 }
 
 // Provider is the payment seam. Implementations must verify their own webhook

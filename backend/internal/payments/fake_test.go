@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 )
@@ -59,6 +60,23 @@ func TestFakeProviderVerifiesSignatureAndWindow(t *testing.T) {
 	}, time.Now())
 	if _, err := f.ParseEvent(context.Background(), badKind, badKindBody); !errors.Is(err, ErrInvalidInput) {
 		t.Fatalf("unknown kind: want ErrInvalidInput, got %v", err)
+	}
+}
+
+// The fake must announce that it is a simulation. Everything downstream — the intent
+// row, the ledger posting, /v1/meta, the client label — keys off this one flag, so a
+// fake that claimed to be real would silently defeat the whole separation.
+func TestFakeDeclaresItselfSimulated(t *testing.T) {
+	f, err := NewFake([]byte(strings.Repeat("k", 32)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !f.Capabilities().Simulated {
+		t.Fatal("fake provider must report Simulated=true")
+	}
+	var unavailable Unavailable
+	if unavailable.Capabilities().Simulated {
+		t.Fatal("the fail-closed provider must not claim to be a simulation")
 	}
 }
 

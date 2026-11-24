@@ -79,6 +79,9 @@ type Posting struct {
 	Currency  string
 	Memo      string
 	Entries   []Entry
+	// Simulated marks a posting that came from a test payment. It is stored on the
+	// transaction row so balances and payouts can exclude it. False for real money.
+	Simulated bool
 }
 
 // Balance is a summed account balance in minor units.

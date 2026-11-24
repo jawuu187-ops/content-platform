@@ -69,10 +69,10 @@ func (s *Store) Post(ctx context.Context, p Posting) (string, error) {
 
 	var txnID string
 	err = tx.QueryRow(ctx, `
-		INSERT INTO ledger.transactions (kind, reference, currency, memo)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO ledger.transactions (kind, reference, currency, memo, simulated)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (kind, reference) DO NOTHING
-		RETURNING id::text`, p.Kind, p.Reference, p.Currency, p.Memo).Scan(&txnID)
+		RETURNING id::text`, p.Kind, p.Reference, p.Currency, p.Memo, p.Simulated).Scan(&txnID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrDuplicate
 	}

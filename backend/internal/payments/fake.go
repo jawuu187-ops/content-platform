@@ -39,7 +39,7 @@ func (f *Fake) Name() string { return "fake" }
 
 // Capabilities implements Provider.
 func (f *Fake) Capabilities() Capabilities {
-	return Capabilities{HostedCheckout: false, Webhooks: true, Refunds: true}
+	return Capabilities{HostedCheckout: false, Webhooks: true, Refunds: true, Simulated: true}
 }
 
 // CreateIntent implements Provider. There is no hosted page, so the intent goes

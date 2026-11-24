@@ -257,6 +257,12 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 		Payments                struct {
 			Available bool   `json:"available"`
 			Provider  string `json:"provider"`
+			// Simulated is true when the installed provider is the development one.
+			// A client that sees it must label every amount it renders as test data.
+			Simulated bool `json:"simulated"`
+			// DataClass is "test" or "live", so an operator can assert the class of a
+			// running instance without reading its environment.
+			DataClass string `json:"data_class"`
 		} `json:"payments"`
 		ContentPolicy struct {
 			PublicSurface string `json:"public_surface"`
@@ -271,9 +277,13 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 		Payments: struct {
 			Available bool   `json:"available"`
 			Provider  string `json:"provider"`
+			Simulated bool   `json:"simulated"`
+			DataClass string `json:"data_class"`
 		}{
 			Available: s.payments != nil && s.payments.Configured(),
 			Provider:  providerName(s.payments),
+			Simulated: s.payments != nil && s.payments.Capabilities().Simulated,
+			DataClass: dataClass(s.payments),
 		},
 		ContentPolicy: struct {
 			PublicSurface string `json:"public_surface"`
@@ -285,6 +295,17 @@ func (s *Server) handleMeta(w http.ResponseWriter, r *http.Request) {
 			AlwaysBlocked: "explicit/pornographic content, minors, non-consensual content",
 		},
 	})
+}
+
+// dataClass reports whether money this instance records would be test data or real.
+func dataClass(svc *payments.Service) string {
+	if svc != nil && svc.Capabilities().Simulated {
+		return "test"
+	}
+	if svc != nil && svc.Configured() {
+		return "live"
+	}
+	return "none"
 }
 
 // providerName reports the installed provider, or "unconfigured" when none is.

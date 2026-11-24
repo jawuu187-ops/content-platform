@@ -147,6 +147,8 @@ func TestMetaPublishesPolicy(t *testing.T) {
 		Payments                struct {
 			Available bool   `json:"available"`
 			Provider  string `json:"provider"`
+			Simulated bool   `json:"simulated"`
+			DataClass string `json:"data_class"`
 		} `json:"payments"`
 		ContentPolicy struct {
 			PublicSurface string `json:"public_surface"`
@@ -169,6 +171,11 @@ func TestMetaPublishesPolicy(t *testing.T) {
 	}
 	if body.Payments.Provider != "unconfigured" {
 		t.Fatalf("provider = %q, want unconfigured", body.Payments.Provider)
+	}
+	// An instance with no provider must not claim test data either: "none" is the
+	// honest answer, and it is what a production build reports.
+	if body.Payments.Simulated || body.Payments.DataClass != "none" {
+		t.Fatalf("unconfigured instance must report no data class: %+v", body.Payments)
 	}
 }
 

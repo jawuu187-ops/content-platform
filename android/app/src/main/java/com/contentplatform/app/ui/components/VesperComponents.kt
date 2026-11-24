@@ -294,6 +294,31 @@ fun SpacerH(dp: Int) = Spacer(Modifier.height(dp.dp))
 @Composable
 fun SpacerW(dp: Int) = Spacer(Modifier.width(dp.dp))
 
+/**
+ * The test-data label.
+ *
+ * This build runs the simulated payment provider, so anything that looks like money is
+ * demo data. The label sits on the surface itself and not in a footnote: a screenshot of
+ * this screen must never be readable as a real balance or a real receipt.
+ */
+@Composable
+fun DemoBanner(text: String, modifier: Modifier = Modifier) {
+    val palette = LocalVesperPalette.current
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(palette.brass.copy(alpha = 0.14f))
+            .border(1.dp, palette.brass.copy(alpha = 0.36f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        LabelMono("DEMO", color = palette.brass)
+        SpacerW(8)
+        Text(text, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)
+    }
+}
+
 /** Fade used by every overlay scrim, so sheets open with the same weight. */
 @Composable
 fun rememberScrimAlpha(visible: Boolean): Float {

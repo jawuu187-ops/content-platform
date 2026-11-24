@@ -199,7 +199,7 @@ func run() error {
 				return fmt.Errorf("configure payment provider: %w", err)
 			}
 			provider = fake
-			logger.Warn("payment provider is the development fake: no money can move")
+			logger.Warn("payment provider is the development fake: no money can move; intents and ledger postings are stamped simulated=true")
 		}
 		ledgerStore := ledger.New(db.Pool(), ledger.WithLogger(logger))
 		paymentService = payments.New(db.Pool(),

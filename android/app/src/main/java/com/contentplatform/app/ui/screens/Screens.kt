@@ -37,6 +37,7 @@ import com.contentplatform.app.ui.components.CardSurface
 import com.contentplatform.app.ui.components.Chip
 import com.contentplatform.app.ui.components.ChipTone
 import com.contentplatform.app.ui.components.Chrome
+import com.contentplatform.app.ui.components.DemoBanner
 import com.contentplatform.app.ui.components.Divider
 import com.contentplatform.app.ui.components.LabelMono
 import com.contentplatform.app.ui.components.MediaPanel
@@ -60,14 +61,16 @@ import com.contentplatform.app.ui.theme.LocalVesperPalette
  * Nothing here invents a metric the backend does not serve.
  */
 /**
- * Nothing in this client is wired to the API yet, so no figure here is real. Every number is
- * gated: the shipped build shows "—" and a "not connected" mark rather than inventing
- * members, revenue, balances or history. The canonical dataset stays in the design board for
- * review and is never presented as account state.
+ * Demo data, in one place.
+ *
+ * This build is not wired to the API yet, so every figure on these screens is invented for
+ * product demonstration: it is not account state and not revenue. Surfaces that render one
+ * also render a demo label, and the payments path runs through the backend's simulated
+ * provider, which stamps every intent and ledger posting as test data. When the real
+ * endpoints land, `value` returns server data and the labels come off; nothing else changes.
  */
 private object Data {
-    const val connected = false
-    fun value(real: String): String = if (connected) real else "—"
+    fun value(demo: String): String = demo
 }
 
 private const val CREATOR_NAME = "Lina Marchetti"
@@ -429,19 +432,27 @@ fun StudioScreen() {
                             }
                         }
                         SpacerH(16)
+                        DemoBanner("Simulated payments only: every balance, member count and unlock below is test data.")
+                        SpacerH(12)
                         CardSurface {
                             Column(Modifier.padding(14.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    LabelMono("Earnings")
+                                    LabelMono("Earnings · available")
                                     Box(Modifier.weight(1f))
-                                    Chip("Not connected", ChipTone.Pending)
+                                    Chip("Demo", ChipTone.Pending)
                                 }
-                                SpacerH(6)
-                                Text(
-                                    "No payment provider is approved, so no balance is shown. Earnings, payouts and transaction history stay empty until one is.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = palette.muted,
-                                )
+                                SpacerH(4)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Money("$1,284.40", color = palette.ink)
+                                    Box(Modifier.weight(1f))
+                                    Text(
+                                        "+ $3,240.00 this month",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = palette.sage,
+                                    )
+                                }
+                                SpacerH(4)
+                                LabelMono("MRR $115,048 · 37 unlocks · 7d · payout not connected")
                             }
                         }
                         SpacerH(12)
@@ -562,17 +573,20 @@ private fun ThemeRow(
 }
 
 /**
- * Checkout, deliberately not operational.
+ * Checkout against the simulated provider.
  *
- * No PSP has been approved for this business model, so this sheet cannot take money and
- * cannot create a paid state. It says so plainly and offers one way out. It stays an overlay
- * so the membership list behind it keeps its position — the shape a real provider will slot
- * into is exactly what is being built now.
+ * This deliberately does not take card details and does not reach a gateway: it calls the
+ * backend's fake provider, which marks the intent and the ledger posting `simulated`. The
+ * sheet says so on every surface, because a demo that looks like a receipt is a lie even
+ * when the code is honest. Swapping in a real provider replaces the button and the copy; the
+ * layout, the overlay behaviour and the confirmation state stay as they are.
  */
 @Composable
 fun CheckoutSheet(
     tier: String,
+    price: String,
     modifier: Modifier = Modifier,
+    onSimulate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val palette: VesperPalette = LocalVesperPalette.current
@@ -591,41 +605,65 @@ fun CheckoutSheet(
                 LabelMono("Checkout · $tier")
                 Text(CREATOR_NAME, style = MaterialTheme.typography.headlineSmall, color = palette.ink)
             }
-            Chip("Unavailable", ChipTone.Pending)
+            Money("\$$price", color = palette.ink)
         }
         SpacerH(12)
+        DemoBanner("Test checkout. No card is charged and no real subscription is created.")
+        SpacerH(12)
         CardSurface {
-            Column(Modifier.padding(14.dp)) {
-                Text(
-                    "Card payments are not available yet.",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = palette.ink,
-                )
-                SpacerH(6)
-                Text(
-                    "No payment provider has been approved for this business model, so nothing can be charged and no membership can be activated. " +
-                        "No card details are collected here.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = palette.muted,
-                )
-                SpacerH(10)
-                Divider()
-                SpacerH(10)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Price", style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)
-                    Box(Modifier.weight(1f))
-                    Money("—", color = palette.muted)
-                }
+            Column(Modifier.padding(12.dp)) {
+                Row { Text("Studio membership, one month", style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary); Box(Modifier.weight(1f)); Money("\$$price") }
                 SpacerH(4)
-                Text(
-                    "A tier price stays a proposal until a provider is approved.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = palette.muted,
-                )
+                Row { Text("Platform fee, included (20%)", style = MaterialTheme.typography.bodySmall, color = palette.muted); Box(Modifier.weight(1f)); Money("$1.80", color = palette.muted) }
+                SpacerH(8)
+                Divider()
+                SpacerH(8)
+                Row { Text("Due today", style = MaterialTheme.typography.titleMedium, color = palette.ink); Box(Modifier.weight(1f)); Money("\$$price", color = palette.ink) }
             }
         }
         SpacerH(12)
-        OutlineButton("Close", onDismiss)
+        ActionButton("Simulate payment \$$price", "no card charged", onClick = onSimulate)
+        SpacerH(8)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+            Text(
+                "Simulated provider · renews monthly in the demo · cancel any time",
+                modifier = Modifier.pressScale(LocalVesperMotion.current, onDismiss),
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.muted,
+            )
+        }
+    }
+}
+
+/**
+ * The confirmation for a simulated payment.
+ *
+ * The copy states what actually happened: the backend wrote a test intent, a test ledger
+ * posting and a test entitlement. When a real provider is approved this card keeps its shape
+ * and swaps the label for a real receipt; nothing else about the flow changes.
+ */
+@Composable
+fun SimulatedPaymentCard(tier: String, cta: String, onDone: () -> Unit) {
+    val palette = LocalVesperPalette.current
+    CardSurface {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Chip("Test payment", ChipTone.Pending)
+                Box(Modifier.weight(1f))
+                Money("$9.00", color = palette.ink)
+            }
+            SpacerH(8)
+            Text("$tier is open in the demo", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+            SpacerH(4)
+            Text(
+                "Simulated. No card was charged and no money moved. The intent and its ledger " +
+                    "posting are marked as test data, so they never reach a real balance or payout.",
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.muted,
+            )
+            SpacerH(12)
+            OutlineButton(cta, onDone)
+        }
     }
 }
 

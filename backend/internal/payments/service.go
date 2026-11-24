@@ -99,7 +99,12 @@ func (s *Service) CreateIntent(ctx context.Context, p identity.Principal, in Cre
 		return Intent{}, fmt.Errorf("%w: idempotency_key must be 8-128 characters", ErrInvalidInput)
 	}
 
-	intent := Intent{UserID: p.UserID, IdempotencyKey: key, Provider: s.provider.Name()}
+	intent := Intent{
+		UserID:         p.UserID,
+		IdempotencyKey: key,
+		Provider:       s.provider.Name(),
+		Simulated:      s.provider.Capabilities().Simulated,
+	}
 	switch in.Purpose {
 	case PurposeSubscription:
 		if in.TierID == "" {
@@ -185,17 +190,17 @@ func (s *Service) insertIntent(ctx context.Context, in Intent) (Intent, bool, er
 	var settled *time.Time
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO payments.intents
-		    (user_id, purpose, creator_id, tier_id, post_id, amount_minor, currency, provider, idempotency_key)
-		VALUES ($1::uuid, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid, $6, $7, $8, $9)
+		    (user_id, purpose, creator_id, tier_id, post_id, amount_minor, currency, provider, idempotency_key, simulated)
+		VALUES ($1::uuid, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid, $6, $7, $8, $9, $10)
 		ON CONFLICT (user_id, idempotency_key) DO NOTHING
 		RETURNING id::text, user_id::text, purpose, COALESCE(creator_id::text, ''), COALESCE(tier_id::text, ''),
 		          COALESCE(post_id::text, ''), amount_minor, currency, provider, COALESCE(provider_ref, ''),
-		          status, checkout_url, failure_reason, created_at, settled_at`,
+		          status, checkout_url, failure_reason, created_at, settled_at, simulated`,
 		in.UserID, in.Purpose, in.CreatorID, in.TierID, in.PostID, in.AmountMinor, in.Currency,
-		in.Provider, in.IdempotencyKey).
+		in.Provider, in.IdempotencyKey, in.Simulated).
 		Scan(&out.ID, &out.UserID, &out.Purpose, &out.CreatorID, &out.TierID, &out.PostID, &out.AmountMinor,
 			&out.Currency, &out.Provider, &out.ProviderRef, &out.Status, &out.CheckoutURL, &out.FailureReason,
-			&out.CreatedAt, &settled)
+			&out.CreatedAt, &settled, &out.Simulated)
 	if errors.Is(err, pgx.ErrNoRows) {
 		existing, err := s.intentByIdempotency(ctx, in.UserID, in.IdempotencyKey)
 		return existing, false, err
@@ -212,7 +217,7 @@ func (s *Service) scanIntent(row pgx.Row) (Intent, error) {
 	var settled *time.Time
 	err := row.Scan(&out.ID, &out.UserID, &out.Purpose, &out.CreatorID, &out.TierID, &out.PostID,
 		&out.AmountMinor, &out.Currency, &out.Provider, &out.ProviderRef, &out.Status, &out.CheckoutURL,
-		&out.FailureReason, &out.CreatedAt, &settled)
+		&out.FailureReason, &out.CreatedAt, &settled, &out.Simulated)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Intent{}, ErrNotFound
 	}
@@ -225,7 +230,7 @@ func (s *Service) scanIntent(row pgx.Row) (Intent, error) {
 
 const intentColumns = `id::text, user_id::text, purpose, COALESCE(creator_id::text, ''), COALESCE(tier_id::text, ''),
 	COALESCE(post_id::text, ''), amount_minor, currency, provider, COALESCE(provider_ref, ''),
-	status, checkout_url, failure_reason, created_at, settled_at`
+	status, checkout_url, failure_reason, created_at, settled_at, simulated`
 
 func (s *Service) intentByIdempotency(ctx context.Context, userID, key string) (Intent, error) {
 	return s.scanIntent(s.pool.QueryRow(ctx,
@@ -366,6 +371,7 @@ func (s *Service) settle(ctx context.Context, intent Intent) error {
 	posting := ledger.Posting{
 		Kind:      kind,
 		Reference: intent.ID,
+		Simulated: intent.Simulated,
 		Currency:  intent.Currency,
 		Memo:      fmt.Sprintf("%s %s", intent.Purpose, intent.ID),
 		Entries: []ledger.Entry{
@@ -399,6 +405,7 @@ func (s *Service) applyRefund(ctx context.Context, intent Intent) error {
 	posting := ledger.Posting{
 		Kind:      ledger.TxnRefund,
 		Reference: "refund:" + intent.ID,
+		Simulated: intent.Simulated,
 		Currency:  intent.Currency,
 		Memo:      "refund " + intent.ID,
 		Entries: []ledger.Entry{

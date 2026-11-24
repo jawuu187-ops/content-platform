@@ -17,7 +17,11 @@ import (
 type Environment string
 
 const (
-	EnvLocal      Environment = "local"
+	EnvLocal Environment = "local"
+	// EnvDemo is the internal demonstration environment: a real deployment with a
+	// real database where the simulated payment provider is allowed and every
+	// record it writes is stamped simulated. It is not staging and not production.
+	EnvDemo       Environment = "demo"
 	EnvStaging    Environment = "staging"
 	EnvProduction Environment = "production"
 )
@@ -176,6 +180,17 @@ func (c *Config) IsProduction() bool { return c.Env == EnvProduction }
 // IsLocal reports whether the process is running on a developer machine.
 func (c *Config) IsLocal() bool { return c.Env == EnvLocal }
 
+// IsDemo reports whether the process is the demo environment used for internal
+// product demonstrations. It is a real environment with a real database, so it is
+// kept separate from staging — but simulated payments are allowed there and
+// nowhere else, and every row they create is stamped simulated=true.
+func (c *Config) IsDemo() bool { return c.Env == EnvDemo }
+
+// AllowsTestPayments reports whether simulated payments may run here: a developer
+// machine or the demo environment. Production and staging never allow them, so a
+// staging instance that looks like production cannot quietly settle fake access.
+func (c *Config) AllowsTestPayments() bool { return c.IsLocal() || c.IsDemo() }
+
 var errInvalid = errors.New("config: invalid configuration")
 
 func (c *Config) validate() error {
@@ -265,11 +280,11 @@ func (c *Config) validate() error {
 		problems = append(problems, "AGE_CALLBACK_SECRET must be at least 16 characters")
 	}
 
-	// Simulated payments are a local development instrument only. Staging and
-	// production both refuse them, because a staging environment that looks like
+	// Simulated payments run on a developer machine and in the demo environment.
+	// Staging and production refuse them, because an environment that looks like
 	// production is exactly where a fake settlement gets mistaken for a real one.
-	if c.FakePayments && !c.IsLocal() {
-		problems = append(problems, "ENABLE_FAKE_PAYMENTS is allowed only with APP_ENV=local: it grants access without payment")
+	if c.FakePayments && !c.AllowsTestPayments() {
+		problems = append(problems, "ENABLE_FAKE_PAYMENTS is allowed only with APP_ENV=local or APP_ENV=demo: it grants access without payment")
 	}
 
 	// A simulated provider is a development instrument. It must never be able to
@@ -278,8 +293,8 @@ func (c *Config) validate() error {
 	case "", "none", "unavailable":
 		// No provider: every payment route answers 503.
 	case "fake":
-		if !c.IsLocal() {
-			problems = append(problems, "PAY_PROVIDER=fake is allowed only with APP_ENV=local: no simulated payment may settle real access")
+		if !c.AllowsTestPayments() {
+			problems = append(problems, "PAY_PROVIDER=fake is allowed only with APP_ENV=local or APP_ENV=demo: no simulated payment may settle real access")
 		}
 	default:
 		problems = append(problems, "PAY_PROVIDER must be empty or fake until an approved gateway is integrated")
@@ -347,12 +362,14 @@ func parseEnv(v string) (Environment, error) {
 	switch Environment(strings.ToLower(v)) {
 	case EnvLocal:
 		return EnvLocal, nil
+	case EnvDemo:
+		return EnvDemo, nil
 	case EnvStaging:
 		return EnvStaging, nil
 	case EnvProduction:
 		return EnvProduction, nil
 	default:
-		return "", fmt.Errorf("%w: APP_ENV must be one of local, staging, production (got %q)", errInvalid, v)
+		return "", fmt.Errorf("%w: APP_ENV must be one of local, demo, staging, production (got %q)", errInvalid, v)
 	}
 }
 

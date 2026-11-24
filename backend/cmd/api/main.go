@@ -23,6 +23,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/ledger"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
+	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
@@ -230,16 +231,17 @@ func run() error {
 	}
 
 	handler := httpapi.New(httpapi.Deps{
-		Config:   cfg,
-		Logger:   logger,
-		Database: db,
-		Identity: identityService,
-		Creators: creatorService,
-		AgeGate:  ageGate,
-		Media:    mediaService,
-		Payments: paymentService,
-		Limits:   limits,
-		Build:    httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
+		Config:         cfg,
+		Logger:         logger,
+		Database:       db,
+		Identity:       identityService,
+		Creators:       creatorService,
+		AgeGate:        ageGate,
+		Media:          mediaService,
+		Payments:       paymentService,
+		DirectMessages: messaging.New(db.Pool()),
+		Limits:         limits,
+		Build:          httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})
 
 	srv := &http.Server{

@@ -10,6 +10,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
+	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
@@ -39,6 +40,8 @@ type Deps struct {
 	Media *media.Service
 	// AgeGate is the age-verification service. Nil answers 503 on its routes.
 	AgeGate *agegate.Service
+	// DirectMessages is the creator/fan messaging service. Nil answers 503.
+	DirectMessages *messaging.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -56,6 +59,7 @@ type Server struct {
 	ageGate   *agegate.Service
 	media     *media.Service
 	payments  *payments.Service
+	dm        *messaging.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -79,6 +83,7 @@ func New(d Deps) http.Handler {
 		ageGate:   d.AgeGate,
 		media:     d.Media,
 		payments:  d.Payments,
+		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
 		startedAt: d.StartedAt,
@@ -116,6 +121,14 @@ func New(d Deps) http.Handler {
 			mux.HandleFunc("/v1/media/", func(w http.ResponseWriter, r *http.Request) {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
 					"media delivery is not configured on this instance")
+			})
+		}
+		if s.dm != nil {
+			newDMHandler(authHandler, s.dm, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("/v1/dm/", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"direct messages are not configured on this instance")
 			})
 		}
 		if s.ageGate != nil {

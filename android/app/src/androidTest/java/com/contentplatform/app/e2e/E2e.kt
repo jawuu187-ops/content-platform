@@ -2,9 +2,8 @@ package com.contentplatform.app.e2e
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.ComposeTestRule
+import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.fetchSemanticsNodes
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -31,10 +30,15 @@ object E2e {
     /** The emulator's alias for the host loopback address. */
     const val BASE_URL = "http://10.0.2.2:8080"
 
-    // Created by cmd/e2eseed. A constant in a test APK is not a secret: the account only
-    // exists in the disposable CI database.
+    // Created by cmd/e2eseed. The account exists only in the disposable CI database, and
+    // the password is supplied by the workflow as an instrumentation argument rather than
+    // committed here.
     const val EMAIL = "fan@e2e.test"
-    const val PASSWORD = "e2e-device-test-password"
+
+    /** The fixture password passed as `-P...e2ePassword=...`; absent means misconfigured. */
+    val password: String
+        get() = InstrumentationRegistry.getArguments().getString("e2ePassword").orEmpty()
+            .ifBlank { throw IllegalStateException("e2ePassword instrumentation argument is missing") }
 
     const val CREATOR = "Mira Vale"
     const val SEED_MESSAGE = "Welcome in. The new set is up"
@@ -77,7 +81,7 @@ fun ComposeTestRule.signInIfPrompted() {
     if (!hasText("Connect an account")) return
 
     onNodeWithContentDescription("Email").performTextInput(E2e.EMAIL)
-    onNodeWithContentDescription("Password").performTextInput(E2e.PASSWORD)
+    onNodeWithContentDescription("Password").performTextInput(E2e.password)
     onNodeWithText("Sign in").performClick()
     awaitNode("the signed-in inbox header") { hasText("Sign out") }
 }

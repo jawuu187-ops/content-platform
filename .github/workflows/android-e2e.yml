@@ -42,6 +42,9 @@ env:
   ENABLE_FAKE_PAYMENTS: "true"
   MEDIA_LOCAL_DIR: ${{ github.workspace }}/.e2e-media
   MEDIA_SIGNING_KEY: e2e-media-signing-key-0123456789abcdef
+  # Generated per run, shared by the seed tool and the device test. Not a secret and not
+  # committed: the account lives only in this job's disposable database.
+  E2E_PASSWORD: e2e-device-${{ github.run_id }}-${{ github.run_attempt }}-password
 
 jobs:
   device-tests:
@@ -151,9 +154,9 @@ jobs:
           # The runner executes each line in its own shell, so every line is
           # self-contained: `-p android` instead of a cd that would be forgotten.
           script: |
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest'
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest' -Pandroid.testInstrumentationRunnerArguments.e2ePassword=$E2E_PASSWORD
             ./backend/bin/e2eseed -expire
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword=$E2E_PASSWORD
             mkdir -p e2e-shots && adb pull /sdcard/Android/data/com.contentplatform.app.debug/files/e2e e2e-shots || true
             ls -l e2e-shots
 
@@ -165,9 +168,10 @@ jobs:
           set -euo pipefail
           creator_id="$(jq -r .creator_id "$RUNNER_TEMP/seed.json")"
           conversation_id="$(jq -r .conversation_id "$RUNNER_TEMP/seed.json")"
+          payload="$(jq -nc --arg email "fan@e2e.test" --arg password "$E2E_PASSWORD" \
+            '{email:$email, password:$password, mfa_code:"", device:{fingerprint:"e2e-api", platform:"ci", name:"curl"}}')"
           token="$(curl -sf -X POST http://127.0.0.1:8080/v1/auth/login \
-            -H 'Content-Type: application/json' \
-            -d '{"email":"fan@e2e.test","password":"e2e-device-test-password","mfa_code":"","device":{"fingerprint":"e2e-api","platform":"ci","name":"curl"}}' \
+            -H 'Content-Type: application/json' -d "$payload" \
             | jq -r .tokens.access_token)"
           test -n "$token"
 

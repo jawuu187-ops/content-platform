@@ -25,13 +25,15 @@ import (
 )
 
 const (
-	fanEmail     = "fan@e2e.test"
-	creatorEmail = "creator@e2e.test"
-	// Long enough to satisfy the password policy and readable in a CI log.
-	password      = "e2e-device-test-password"
+	fanEmail      = "fan@e2e.test"
+	creatorEmail  = "creator@e2e.test"
 	creatorHandle = "mira_e2e"
 	creatorName   = "Mira Vale"
 )
+
+// password is filled from E2E_PASSWORD at start; it is never written to a log line
+// or to the fixture file.
+var password string
 
 type allowAll struct{}
 
@@ -40,7 +42,6 @@ func (allowAll) AllowAdult(context.Context, string) (bool, error) { return true,
 type seed struct {
 	BaseURL        string `json:"base_url"`
 	FanEmail       string `json:"fan_email"`
-	Password       string `json:"password"`
 	CreatorID      string `json:"creator_id"`
 	CreatorName    string `json:"creator_name"`
 	ConversationID string `json:"conversation_id"`
@@ -69,6 +70,13 @@ func run() error {
 	url := os.Getenv("DATABASE_URL")
 	if url == "" {
 		return errors.New("DATABASE_URL is not set")
+	}
+	// The password comes from the workflow, not from this file: a literal in a
+	// repository is a credential, and the device test is told the same value
+	// through an instrumentation argument.
+	password = os.Getenv("E2E_PASSWORD")
+	if len(password) < 16 {
+		return errors.New("E2E_PASSWORD must be set to at least 16 characters")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -154,7 +162,6 @@ func run() error {
 	fixture := seed{
 		BaseURL:        os.Getenv("E2E_BASE_URL"),
 		FanEmail:       fanEmail,
-		Password:       password,
 		CreatorID:      creatorUser,
 		CreatorName:    creatorName,
 		ConversationID: conv.ID,

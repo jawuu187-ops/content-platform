@@ -19,12 +19,12 @@ import (
 // so this endpoint cannot be used to enumerate private posts or messages.
 
 type moderationHandler struct {
-	auth     *authHandler
-	reports  *moderation.Service
-	logger   *slog.Logger
-	submit   *limiter
-	read     *limiter
-	decide   *limiter
+	auth    *authHandler
+	reports *moderation.Service
+	logger  *slog.Logger
+	submit  *limiter
+	read    *limiter
+	decide  *limiter
 }
 
 func newModerationHandler(auth *authHandler, svc *moderation.Service, logger *slog.Logger,

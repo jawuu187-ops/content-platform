@@ -166,6 +166,16 @@ fun Bitmap.brightnessAt(x: Int, y: Int, size: Int = 12): Int {
     return if (samples == 0) 0 else (total / samples).toInt()
 }
 
+/**
+ * Closes the soft keyboard. The send and decision buttons sit under it on a 1080x2340
+ * screen, and a tap that lands on the keyboard is silently swallowed: the form looked
+ * filled in and nothing was sent.
+ */
+fun ComposeTestRule.hideKeyboard() {
+    shell("input keyevent 4")
+    Thread.sleep(400)
+}
+
 /** Runs a shell command on the device, used to take the emulator offline and back. */
 fun shell(command: String) {
     val pfd = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command)

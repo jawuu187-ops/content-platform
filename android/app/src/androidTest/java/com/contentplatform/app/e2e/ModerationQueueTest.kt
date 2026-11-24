@@ -42,6 +42,7 @@ class ModerationQueueTest {
 
         rule.onNodeWithContentDescription("Decision note")
             .performTextInput("Reviewed in the emulator test; the thread was warned and left up.")
+        rule.hideKeyboard()
         rule.tapText("Action taken")
         rule.awaitNode("the closed state", 30_000) { rule.hasText("Actioned") }
         rule.capture("13-moderation-actioned")

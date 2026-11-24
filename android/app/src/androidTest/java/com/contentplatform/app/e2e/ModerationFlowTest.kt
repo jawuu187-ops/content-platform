@@ -32,6 +32,7 @@ class ModerationFlowTest {
         rule.onNodeWithContentDescription("What happened")
             .performTextInput("Repeated threats in the thread, from the emulator test.")
 
+        rule.hideKeyboard()
         rule.tapText("Send report")
         rule.awaitNode("the receipt", 45_000) { rule.hasText("Report received") }
         rule.awaitNode("the reference") { rule.hasText("Reference") }

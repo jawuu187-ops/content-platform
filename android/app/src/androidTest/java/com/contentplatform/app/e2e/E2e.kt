@@ -193,31 +193,25 @@ fun shell(command: String) {
 }
 
 /**
- * Writes a PNG of the current screen to /sdcard/Download/e2e, which the workflow pulls off
- * the emulator. A screenshot problem never fails a test: the evidence is useful, the
- * assertion is the contract. It uses a shell `screencap` rather than a Compose or
- * UiAutomation capture, because this AVD image answers both of those with "Failed to take
- * screenshot" while `screencap` writes a real frame. The shell user cannot write into the
- * app's private directory, hence the download folder.
+ * Asks the workflow's host-side watcher for a screenshot of the current screen. The
+ * instrumented process cannot read pixels back on this AVD image (SurfaceFlinger refuses
+ * the readback and the file stays empty), but the host can, so the test drops a request
+ * file and waits for the watcher to consume it. A screenshot problem never fails a test:
+ * the evidence is useful, the assertion is the contract.
  */
 fun ComposeTestRule.capture(name: String) {
     try {
-        val dir = "/sdcard/Download/e2e"
-        val path = "$dir/$name.png"
-        shell("mkdir -p $dir")
-        InstrumentationRegistry.getInstrumentation().uiAutomation
-            .executeShellCommand("screencap -p $path").close()
-        // screencap returns before the file is complete on this image, and a zero-byte PNG
-        // is worse than no evidence at all, so the file has to have bytes before we move on.
-        var written = false
-        for (attempt in 1..20) {
-            if (File(path).length() > 0L || shellOutput("test -s $path && echo yes").contains("yes")) {
-                written = true
-                break
+        val dir = "/sdcard/Download/requests"
+        val request = "$dir/$name.request"
+        shell("mkdir -p $dir && touch $request")
+        for (attempt in 1..40) {
+            if (!shellOutput("ls $request 2>/dev/null").contains(name)) {
+                println("screenshot $name captured by the host watcher")
+                return
             }
-            Thread.sleep(150)
+            Thread.sleep(100)
         }
-        println(if (written) "screenshot $name captured" else "screenshot $name empty after 3s")
+        println("screenshot $name not served by the host watcher within 4s")
     } catch (t: Throwable) {
         println("screenshot $name skipped: ${t.message}")
     }

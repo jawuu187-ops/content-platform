@@ -157,15 +157,14 @@ jobs:
           # one line to the next: a failing gradle line fails the job on its own, and the
           # screenshot lines are deliberately tolerant so evidence survives a red test.
           script: |
-            mkdir -p e2e-shots && nohup bash -c 'while true; do for req in $(adb shell ls /sdcard/Download/requests 2>/dev/null | tr -d "\r"); do adb exec-out screencap -p > "e2e-shots/${req%.request}.png"; adb shell rm -f "/sdcard/Download/requests/$req"; done; sleep 0.4; done' > /tmp/watcher.log 2>&1 &
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest,com.contentplatform.app.e2e.ModerationFlowTest' -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
+            mkdir -p e2e-shots
+            ( while true; do for req in $(adb shell ls /sdcard/Download/requests 2>/dev/null | tr -d "\r"); do adb exec-out screencap -p > "e2e-shots/${req%.request}.png"; adb shell rm -f "/sdcard/Download/requests/$req"; done; sleep 0.3; done ) & gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest,com.contentplatform.app.e2e.ModerationFlowTest' -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part1 || true
             ./backend/bin/e2eseed -expire
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
+            ( while true; do for req in $(adb shell ls /sdcard/Download/requests 2>/dev/null | tr -d "\r"); do adb exec-out screencap -p > "e2e-shots/${req%.request}.png"; adb shell rm -f "/sdcard/Download/requests/$req"; done; sleep 0.3; done ) & gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part2 || true
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ModerationQueueTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
+            ( while true; do for req in $(adb shell ls /sdcard/Download/requests 2>/dev/null | tr -d "\r"); do adb exec-out screencap -p > "e2e-shots/${req%.request}.png"; adb shell rm -f "/sdcard/Download/requests/$req"; done; sleep 0.3; done ) & gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ModerationQueueTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD"
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part3 || true
-            mkdir -p e2e-shots && adb pull /sdcard/Download/e2e/. e2e-shots || true
             adb exec-out screencap -p > e2e-shots/99-final-screen.png || true
             ls -l e2e-shots
             echo "screenshots collected: $(find e2e-shots -name '*.png' -size +0 | wc -l) non-empty of $(find e2e-shots -name '*.png' | wc -l)"

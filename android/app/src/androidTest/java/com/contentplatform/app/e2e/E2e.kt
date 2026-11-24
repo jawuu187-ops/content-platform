@@ -196,11 +196,15 @@ fun ComposeTestRule.capture(name: String) {
         // and a screenshot that silently lands in "null/e2e" is worse than none. The
         // workflow pulls these with `run-as`, which works because the test APK is debug.
         val dir = File(context.filesDir, "e2e").apply { mkdirs() }
-        val bitmap = onRoot().captureToImage().asAndroidBitmap()
+        // A device screenshot rather than a Compose capture: it includes the status bar and
+        // is what a person would have seen. Compose capture needs a drawn frame and returns
+        // nothing useful on this AVD image.
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
         FileOutputStream(File(dir, "$name.png")).use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
         }
         bitmap.recycle()
+        println("screenshot $name written")
     } catch (t: Throwable) {
         println("screenshot $name skipped: ${t.message}")
     }

@@ -168,6 +168,9 @@ jobs:
             mkdir -p e2e-shots
             for name in $(adb shell run-as com.contentplatform.app.debug ls files/e2e | tr -d '\r'); do adb exec-out run-as com.contentplatform.app.debug cat "files/e2e/$name" > "e2e-shots/$name" || true; done
             ls -lR e2e-shots
+            shots=$(ls e2e-shots | wc -l)
+            echo "screenshots pulled: $shots"
+            [ "$shots" -ge 8 ] || { echo "expected at least 8 screenshots, found $shots"; rc=1; }
             exit $rc
 
       # The device tests prove what the app does. These checks prove what the server

@@ -278,7 +278,7 @@ Defects CI found in this slice and fixed:
 | D3-6 | Owner review and written approval | **blocked** | awaiting owner; no UI work starts before it |
 
 
-| P2-P18 | Device E2E on a GitHub-hosted emulator | done — messaging, tips, theme, offline and expiry run against the real API at 10.0.2.2; run 45333194899 green |
+| P2-P18 | Device E2E on a GitHub-hosted emulator | done — messaging, tips, theme, offline, expiry, reporting and moderation against the real API at 10.0.2.2; run 45351387665 green; screenshots partial (see docs/operations/device-verification.md) |
 | P2-P19 | Simulated-vs-real split survives the device path | done — the tip receipt shows the server's TEST label; contract checks assert `simulated: true` and the 400/403 refusals |
 | P2-P20 | Reporting and moderation backend | done — reports, append-only events, queue, transitions, permissions; backend CI green |
 | P2-P21 | Reporting and moderator UI | done — fan report sheet and moderator queue/detail; verified on device by ModerationFlowTest and ModerationQueueTest |

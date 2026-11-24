@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.printToLog
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.io.FileOutputStream
@@ -54,6 +55,13 @@ fun ComposeTestRule.awaitNode(what: String, timeoutMillis: Long = 30_000, condit
     while (System.currentTimeMillis() < deadline) {
         if (condition()) return
         Thread.sleep(200)
+    }
+    // The semantics tree is the difference between "the screen is wrong" and "the test
+    // looked in the wrong place", so it goes to logcat next to the failure.
+    try {
+        onRoot().printToLog("E2E")
+    } catch (t: Throwable) {
+        println("semantics dump unavailable: ${t.message}")
     }
     throw AssertionError("timed out after ${timeoutMillis}ms waiting for $what")
 }

@@ -82,20 +82,18 @@ fun PlatformApp(themeController: ThemeController) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
     val context = LocalContext.current
+    // One session store for the whole process: the messaging store, the moderation store
+    // and the shell all have to see the same sign-in, or a moderator who signs in during
+    // this session would keep a fan's permissions.
+    val sessions = remember(context) { SessionStore(context.applicationContext) }
     // One messaging store for the whole app, created once and reused across recompositions
     // and configuration changes within the process.
-    val dmStore = remember(context) {
-        val sessions = SessionStore(context.applicationContext)
-        DmStore(sessions, DmApi(sessions))
-    }
+    val dmStore = remember(context) { DmStore(sessions, DmApi(sessions)) }
     // The same session and HTTP client serve safety reports; kept separate so a failed
     // report never disturbs a message thread.
-    val moderationStore = remember(context) {
-        val sessions = SessionStore(context.applicationContext)
-        ModerationStore(sessions, DmApi(sessions))
-    }
-    LaunchedEffect(Unit) { moderationStore.loadMe() }
-
+    val moderationStore = remember(context) { ModerationStore(sessions, DmApi(sessions)) }
+    // Permissions are re-read whenever the stored session changes, not only at launch.
+    LaunchedEffect(sessions.revision) { moderationStore.loadMe() }
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     var creatorOpen by rememberSaveable { mutableStateOf(false) }
     var messagesOpen by rememberSaveable { mutableStateOf(false) }

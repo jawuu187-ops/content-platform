@@ -1,6 +1,9 @@
 package com.contentplatform.app.dm
 
 import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import java.util.Locale
 import java.util.UUID
 
@@ -25,6 +28,14 @@ class SessionStore(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences("vesper.session", Context.MODE_PRIVATE)
 
+    /**
+     * Incremented whenever the stored session changes. The shell keys its permission read
+     * on this, so signing in as a moderator during a session shows the safety queue instead
+     * of hiding it until the next launch.
+     */
+    var revision by mutableIntStateOf(0)
+        private set
+
     fun current(): Session = Session(
         baseUrl = prefs.getString(KEY_BASE_URL, "").orEmpty(),
         accessToken = prefs.getString(KEY_ACCESS_TOKEN, "").orEmpty(),
@@ -37,12 +48,14 @@ class SessionStore(context: Context) {
             .putString(KEY_ACCESS_TOKEN, session.accessToken)
             .putString(KEY_EMAIL, session.email)
             .apply()
+        revision++
     }
 
     fun signOut() {
         prefs.edit()
             .remove(KEY_ACCESS_TOKEN)
             .apply()
+        revision++
     }
 
     /** Stable per-install identifier used as the device fingerprint on login. */

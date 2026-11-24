@@ -1,8 +1,6 @@
 package com.contentplatform.app.e2e
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.performTextInput
 import com.contentplatform.app.MainActivity
 import org.junit.Rule
 import org.junit.Test
@@ -21,15 +19,11 @@ class ModerationQueueTest {
     @Test
     fun aModeratorReviewsAndClosesTheQueuedReport() {
         rule.capture("09-moderation-boot")
-        rule.signOutIfSignedIn()
-        rule.capture("10-moderation-signed-out")
-        rule.tapDescription("Tab You")
-        rule.awaitNode("the sign-in panel") { rule.hasText("Connect an account") }
-        rule.onNodeWithContentDescription("Email").performTextInput(E2e.MODERATOR_EMAIL)
-        rule.onNodeWithContentDescription("Password").performTextInput(E2e.password)
-        rule.tapText("Sign in")
-        rule.awaitNode("the signed-in account screen") { rule.hasText("Sign out") }
+        rule.signInAs(E2e.MODERATOR_EMAIL)
+        rule.capture("10-moderation-signed-in")
 
+        rule.tapDescription("Tab You")
+        rule.awaitNode("the account screen") { rule.hasText("Reports") }
         rule.tapText("Reports")
         rule.awaitNode("the queue header") { rule.hasText("Safety queue") }
         rule.awaitNode("the queued report", 45_000) {

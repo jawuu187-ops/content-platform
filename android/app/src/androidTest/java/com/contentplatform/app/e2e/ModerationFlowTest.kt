@@ -27,6 +27,8 @@ class ModerationFlowTest {
         rule.capture("06-report-sheet")
 
         rule.tapDescription("Reason Harassment or threats")
+        // Selection is a state change; sending before it lands submits a blank reason.
+        rule.awaitNode("the selected reason") { rule.hasText("Selected") }
         rule.onNodeWithContentDescription("What happened")
             .performTextInput("Repeated threats in the thread, from the emulator test.")
 

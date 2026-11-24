@@ -80,18 +80,27 @@ fun ComposeTestRule.tapDescription(description: String) {
 }
 
 /**
- * Signs the current session out, if there is one, so a test can switch accounts. It is
- * tolerant on purpose: when the account screen never appears, the caller's own assertion
- * is the one that should fail, and the exception here would say less.
+ * Signs in as [email] from the inbox, switching accounts when a session is already
+ * present. The inbox header owns both "Sign out" and the sign-in panel, so this is the
+ * only place that can change identity.
  */
-fun ComposeTestRule.signOutIfSignedIn() {
-    tapDescription("Tab You")
-    awaitNode("the account screen", 20_000) {
-        hasText("Sign out") || hasText("Connect an account")
+fun ComposeTestRule.signInAs(email: String) {
+    openInbox()
+    awaitNode("the inbox header") {
+        hasText("Sign out") || hasText("Connect an account") || hasDescription(E2e.CREATOR)
     }
-    if (!hasText("Sign out")) return
-    tapText("Sign out")
-    awaitNode("the sign-in panel") { hasText("Connect an account") }
+    if (hasText("Sign out")) {
+        tapText("Sign out")
+        awaitNode("the sign-in panel") { hasText("Connect an account") }
+    }
+    if (hasText("Connect an account")) {
+        onNodeWithContentDescription("Email").performTextInput(email)
+        onNodeWithContentDescription("Password").performTextInput(E2e.password)
+        tapText("Sign in")
+    }
+    awaitNode("a usable session", 45_000) {
+        hasText("No conversations yet") || hasDescription(E2e.CREATOR) || hasText("You do not have")
+    }
 }
 
 /** Opens You -> Inbox. Safe when the tab bar is already showing. */

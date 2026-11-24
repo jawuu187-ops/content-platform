@@ -280,7 +280,7 @@ jobs:
 
           # The trail itself lives on the detail endpoint: submission, review, decision.
           report_id="$(jq -r '.reports[0].id' actioned.json)"
-          curl -sf "http://127.0.0.1:8080/v1/moderation/reports/$report_id" \
+          curl -sf "http://127.0.0.1:8080/v1/reports/$report_id" \
             -H "Authorization: Bearer $moderator" > detail.json
           jq -c '.report.events[] | {action, to_status}' detail.json
           [ "$(jq '.report.events | length' detail.json)" -ge 3 ] \

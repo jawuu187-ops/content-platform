@@ -8,7 +8,6 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -40,6 +39,9 @@ object E2e {
     val password: String
         get() = InstrumentationRegistry.getArguments().getString("e2ePassword").orEmpty()
             .ifBlank { throw IllegalStateException("e2ePassword instrumentation argument is missing") }
+
+    /** The moderator fixture, created and granted safety.review by cmd/e2eseed. */
+    const val MODERATOR_EMAIL = "moderator@e2e.test"
 
     const val CREATOR = "Mira Vale"
     const val SEED_MESSAGE = "Welcome in. The new set is up"
@@ -75,6 +77,15 @@ fun ComposeTestRule.tapText(text: String) {
 fun ComposeTestRule.tapDescription(description: String) {
     awaitNode("a control described as $description") { hasDescription(description) }
     onAllNodesWithContentDescription(description, substring = false).onFirst().performClick()
+}
+
+/** Signs the current session out, if there is one, so a test can switch accounts. */
+fun ComposeTestRule.signOutIfSignedIn() {
+    tapDescription("Tab You")
+    awaitNode("the account screen") { hasText("Sign out") || hasText("Connect an account") }
+    if (!hasText("Sign out")) return
+    tapText("Sign out")
+    awaitNode("the sign-in panel") { hasText("Connect an account") }
 }
 
 /** Opens You -> Inbox. Safe when the tab bar is already showing. */

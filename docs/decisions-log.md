@@ -85,3 +85,21 @@ significant, hard-to-reverse consequences live as ADRs in `docs/architecture/adr
 | D-072 | 2026-11-26 | The device suite is split around the membership ending: messaging, tips, theme and offline states run first, the workflow then expires the seeded membership with the same support action the seed tool performs, and a fourth run proves history survives while sending stops | Accepted | A single run cannot prove both halves of D-068 without waiting for a real subscription to lapse. Ending the membership between runs keeps each assertion honest: the same account, the same thread, only the entitlement changed |
 | D-073 | 2026-11-26 | Safety reports live in `moderation.reports` with an append-only `moderation.report_events` trail; the event table refuses `UPDATE` and `DELETE` at the database level, and a closed report must carry `resolved_at` and `resolved_by` | Accepted | A moderation system is judged on its record, not its buttons. If a decision could be edited after the fact, an appeal, a regulator or a court could not rely on it. The constraint makes "forgot to record why" a schema error rather than a habit |
 | D-074 | 2026-11-26 | Anyone with a session may report a subject they can actually see; only `safety.review` may read the queue or change a report; one open report per reporter and subject; and a moderator decision needs a note of at least three characters | Accepted | Reporting a private message you cannot see would turn the endpoint into an existence oracle, and duplicate submissions would let one person flood the queue. The note requirement is enforced in the service and shown in the UI, so the reason for a closure always exists |
+
+## D-075 — Device tests address controls by what a screen reader would hear
+
+Given, the emulator suite failed on ambiguous text ("You" is a tab and a message prefix,
+"Messages" is a heading and a card). Decision: bottom-bar destinations carry
+`contentDescription = "Tab <label>"`, and the tests tap the first node matching a label
+rather than asserting uniqueness. Rationale: the assertion that matters is what happens
+next, not how many copies of a word the tree contains, and the same handles make the shell
+navigable by assistive technology.
+
+## D-076 — Moderation is verified on a device, not only in Go tests
+
+Given, the reporting UI and the moderator queue existed but had never run against a real
+API. Decision: the emulator job files a report as a fan (including the duplicate collapse),
+then signs in as a seeded moderator, moves the report to reviewing, and closes it with a
+note; the job afterwards asserts through the API that the queue is a permission, that an
+anonymous report is refused, and that an actioned report carries its closure stamp and a
+three-event history. Rationale: a screen that has never submitted anything is not evidence.

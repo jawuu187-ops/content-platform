@@ -154,11 +154,16 @@ jobs:
           # The runner executes each line in its own shell, so every line is
           # self-contained: `-p android` instead of a cd that would be forgotten.
           script: |
-            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest' -Pandroid.testInstrumentationRunnerArguments.e2ePassword=$E2E_PASSWORD
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class='com.contentplatform.app.e2e.MessagingFlowTest,com.contentplatform.app.e2e.TipsFlowTest,com.contentplatform.app.e2e.ThemeAndFailureTest,com.contentplatform.app.e2e.ModerationFlowTest' -Pandroid.testInstrumentationRunnerArguments.e2ePassword=$E2E_PASSWORD
+            cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part1
             ./backend/bin/e2eseed -expire
             gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ExpiredMembershipTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword=$E2E_PASSWORD
-            mkdir -p e2e-shots && adb pull /sdcard/Android/data/com.contentplatform.app.debug/files/e2e e2e-shots || true
-            ls -l e2e-shots
+            cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part2
+            gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ModerationQueueTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword=$E2E_PASSWORD
+            cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part3
+            mkdir -p e2e-shots
+            for dir in $(adb shell 'find /sdcard/Android/data -type d -name e2e' | tr -d '\r'); do adb pull "$dir" e2e-shots || true; done
+            ls -lR e2e-shots
 
       # The device tests prove what the app does. These checks prove what the server
       # refuses, using the same account the app used.
@@ -209,10 +214,59 @@ jobs:
             -H "Authorization: Bearer $token" | jq -e '.messages | length > 0' > /dev/null \
             || fail "history disappeared after the membership ended"
 
-          # Nothing simulated may leak into the live earnings figure.
-          echo "live earnings:"
-          curl -sf "http://127.0.0.1:8080/v1/creator/earnings" -H "Authorization: Bearer $token" \
-            | jq -c .earnings || true
+          # Creator earnings are a finance permission, and a fan must not have it.
+          code=$(curl -s -o earnings.json -w '%{http_code}' \
+            "http://127.0.0.1:8080/v1/creator/earnings" -H "Authorization: Bearer $token")
+          echo "fan asking for creator earnings -> $code"
+          [ "$code" = "403" ] || fail "a fan could read creator earnings ($code)"
+
+      - name: moderation contract checks (queue is a permission, decisions are recorded)
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          fail() { echo "E2E FAILURE: $1"; exit 1; }
+
+          tok() {
+            local email="$1"
+            local body
+            body="$(jq -nc --arg email "$email" --arg pw "$E2E_PASSWORD" \
+              '{email:$email, password:$pw, mfa_code:"", device:{fingerprint:"e2e-api", platform:"ci", name:"curl"}}')"
+            curl -sf -X POST http://127.0.0.1:8080/v1/auth/login \
+              -H 'Content-Type: application/json' -d "$body" | jq -r .tokens.access_token
+          }
+
+          fan="$(tok fan@e2e.test)"
+          moderator="$(tok moderator@e2e.test)"
+
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/v1/moderation/reports \
+            -H "Authorization: Bearer $fan")
+          echo "fan asking for the moderation queue -> $code"
+          [ "$code" = "403" ] || fail "a fan could read the moderation queue ($code)"
+
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/v1/reports \
+            -H 'Content-Type: application/json' -d '{"subject_type":"message","subject_id":"x","reason":"spam"}')
+          echo "anonymous report -> $code"
+          [ "$code" = "401" ] || fail "an anonymous report was not refused ($code)"
+
+          # The report the device test filed, and the decision the moderator made.
+          curl -sf "http://127.0.0.1:8080/v1/moderation/reports?status=actioned" \
+            -H "Authorization: Bearer $moderator" > actioned.json
+          count="$(jq '.reports | length' actioned.json)"
+          echo "actioned reports: $count"
+          jq -c '.reports[0] | {reason, status, resolved_at, events: (.events | length)}' actioned.json
+          [ "$count" -ge 1 ] || fail "no actioned report reached the server"
+          jq -e '.reports[0].status == "actioned" and .reports[0].resolved_at != null' actioned.json > /dev/null \
+            || fail "an actioned report is missing its closure stamp"
+
+          # The trail itself lives on the detail endpoint: submission, review, decision.
+          report_id="$(jq -r '.reports[0].id' actioned.json)"
+          curl -sf "http://127.0.0.1:8080/v1/moderation/reports/$report_id" \
+            -H "Authorization: Bearer $moderator" > detail.json
+          jq -c '.report.events[] | {action, to_status}' detail.json
+          [ "$(jq '.report.events | length' detail.json)" -ge 3 ] \
+            || fail "the report history lost the submission, review or decision event"
+          jq -e '[.report.events[].to_status] | index("actioned") != null' detail.json > /dev/null \
+            || fail "the decision event was not recorded"
 
       - name: upload device test evidence
         if: always()
@@ -222,6 +276,7 @@ jobs:
           path: |
             android/app/build/reports/androidTests/**
             android/app/build/outputs/androidTest-results/**
+            android/app/build/outputs/results-part*/**
             e2e-shots/**
             backend/api.log
           retention-days: 14

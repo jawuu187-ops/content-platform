@@ -25,9 +25,10 @@ import (
 )
 
 const (
-	fanEmail      = "fan@e2e.test"
-	creatorEmail  = "creator@e2e.test"
-	creatorHandle = "mira_e2e"
+	fanEmail       = "fan@e2e.test"
+	creatorEmail   = "creator@e2e.test"
+	moderatorEmail = "moderator@e2e.test"
+	creatorHandle  = "mira_e2e"
 	creatorName   = "Mira Vale"
 )
 
@@ -42,6 +43,7 @@ func (allowAll) AllowAdult(context.Context, string) (bool, error) { return true,
 type seed struct {
 	BaseURL        string `json:"base_url"`
 	FanEmail       string `json:"fan_email"`
+	ModeratorEmail string `json:"moderator_email"`
 	CreatorID      string `json:"creator_id"`
 	CreatorName    string `json:"creator_name"`
 	ConversationID string `json:"conversation_id"`
@@ -150,6 +152,16 @@ func run() error {
 		return fmt.Errorf("grant membership: %w", err)
 	}
 
+	// A moderator account for the safety queue. The role is granted here rather than
+	// through the API because this tool only runs against a disposable demo database.
+	modUser, _, err := account(ctx, identitySvc, moderatorEmail)
+	if err != nil {
+		return fmt.Errorf("seed moderator: %w", err)
+	}
+	if _, err := identitySvc.GrantRole(ctx, creatorPrincipal, modUser, "admin", "e2eseed-moderator"); err != nil {
+		return fmt.Errorf("grant moderator role: %w", err)
+	}
+
 	conv, err := dm.Open(ctx, fanPrincipal, creatorUser)
 	if err != nil {
 		return fmt.Errorf("open conversation: %w", err)
@@ -162,6 +174,7 @@ func run() error {
 	fixture := seed{
 		BaseURL:        os.Getenv("E2E_BASE_URL"),
 		FanEmail:       fanEmail,
+		ModeratorEmail: moderatorEmail,
 		CreatorID:      creatorUser,
 		CreatorName:    creatorName,
 		ConversationID: conv.ID,

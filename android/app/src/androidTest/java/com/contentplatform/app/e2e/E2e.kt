@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -61,12 +62,26 @@ fun ComposeTestRule.hasText(text: String): Boolean =
 fun ComposeTestRule.hasDescription(text: String): Boolean =
     onAllNodesWithContentDescription(text, substring = true).fetchSemanticsNodes().isNotEmpty()
 
+/**
+ * Clicks the first node carrying [text]. Several surfaces legitimately repeat a word (a
+ * tab and a heading, a label and a button), and demanding uniqueness would make these
+ * tests brittle rather than strict: the assertions that matter are on what comes next.
+ */
+fun ComposeTestRule.tapText(text: String) {
+    awaitNode("a control labelled $text") { hasText(text) }
+    onAllNodesWithText(text, substring = false).onFirst().performClick()
+}
+
+fun ComposeTestRule.tapDescription(description: String) {
+    awaitNode("a control described as $description") { hasDescription(description) }
+    onAllNodesWithContentDescription(description, substring = false).onFirst().performClick()
+}
+
 /** Opens You -> Inbox. Safe when the tab bar is already showing. */
 fun ComposeTestRule.openInbox() {
-    awaitNode("the You tab") { hasText("You") }
-    onNodeWithText("You").performClick()
+    tapDescription("Tab You")
     awaitNode("the Inbox card") { hasText("Inbox") }
-    onNodeWithText("Inbox").performClick()
+    tapText("Inbox")
 }
 
 /**
@@ -82,7 +97,7 @@ fun ComposeTestRule.signInIfPrompted() {
 
     onNodeWithContentDescription("Email").performTextInput(E2e.EMAIL)
     onNodeWithContentDescription("Password").performTextInput(E2e.password)
-    onNodeWithText("Sign in").performClick()
+    tapText("Sign in")
     awaitNode("the signed-in inbox header") { hasText("Sign out") }
 }
 

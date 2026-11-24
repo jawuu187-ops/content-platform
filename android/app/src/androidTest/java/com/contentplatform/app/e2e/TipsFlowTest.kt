@@ -3,7 +3,6 @@ package com.contentplatform.app.e2e
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -28,13 +27,13 @@ class TipsFlowTest {
     fun presetsBoundsAndSimulatedReceipt() {
         rule.openSeededThread()
 
-        rule.onNodeWithText("Tip").performClick()
+        rule.tapText("Tip")
         rule.awaitNode("the tip sheet") { rule.hasText("Send a tip") }
         rule.capture("05-tip-open")
 
         // A preset is selected by default and is immediately sendable.
         rule.onNodeWithContentDescription("Tip $5.00").assertIsDisplayed()
-        rule.onNodeWithText("Send $5.00").assertIsDisplayed()
+        rule.awaitNode("the default action") { rule.hasText("Send $5.00") }
 
         // Choosing another preset reprices the action.
         rule.onNodeWithContentDescription("Tip $10.00").performClick()
@@ -43,7 +42,7 @@ class TipsFlowTest {
         // Below the minimum: explained before the request, and the action refuses.
         rule.onNodeWithContentDescription("Other amount, e.g. 15").performTextInput("0.5")
         rule.awaitNode("the lower bound message") { rule.hasText("The smallest tip is $1.00") }
-        rule.onNodeWithText("Send $0.50").performClick()
+        rule.tapText("Send $0.50")
         rule.awaitNode("the sheet to stay open") { rule.hasText("Send a tip") }
 
         // Above the maximum.
@@ -57,7 +56,7 @@ class TipsFlowTest {
         rule.onNodeWithContentDescription("Other amount, e.g. 15").performTextInput("12.34")
         rule.onNodeWithContentDescription("Say what it is for").performTextInput("emulator happy path")
         rule.awaitNode("a sendable custom amount") { rule.hasText("Send $12.34") }
-        rule.onNodeWithText("Send $12.34").performClick()
+        rule.tapText("Send $12.34")
 
         rule.awaitNode("the receipt", 45_000) { rule.hasText("Tip sent") }
         rule.awaitNode("the simulated TEST banner") { rule.hasText("Test payment") }
@@ -70,7 +69,7 @@ class TipsFlowTest {
             throw AssertionError("the send control survived the receipt and could double-submit")
         }
 
-        rule.onNodeWithText("Done").performClick()
+        rule.tapText("Done")
         rule.awaitNode("the thread after the receipt") { rule.hasDescription(E2e.SEED_MESSAGE) }
         rule.capture("08-thread-after-tip")
     }

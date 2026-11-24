@@ -3,7 +3,6 @@ package com.contentplatform.app.e2e
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.contentplatform.app.MainActivity
@@ -39,14 +38,14 @@ class MessagingFlowTest {
         // Send, and wait for the bubble the server returned.
         val mine = "Sending this from the emulator test ${System.currentTimeMillis()}"
         rule.onNodeWithContentDescription("Write a message").performTextInput(mine)
-        rule.onNodeWithText("Send").performClick()
+        rule.tapText("Send")
         rule.awaitNode("the sent bubble", 45_000) { rule.hasDescription("You: $mine") }
         rule.capture("03-thread-sent")
 
         // Back to the inbox and refresh: the newest message is now ours.
         rule.onNodeWithContentDescription("Back").performClick()
         rule.awaitNode("the inbox after sending") { rule.hasText("Sign out") }
-        rule.onNodeWithText("Messages").assertIsDisplayed()
+        rule.awaitNode("the inbox header") { rule.hasDescription(E2e.CREATOR) }
 
         // A fresh activity reads the inbox from the server, proving the preview is not
         // left over from local state.

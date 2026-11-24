@@ -2,7 +2,6 @@ package com.contentplatform.app.e2e
 
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import com.contentplatform.app.MainActivity
@@ -34,7 +33,7 @@ class ThemeAndFailureTest {
         rule.onNodeWithContentDescription("Back").performClick()
         rule.onNodeWithContentDescription("Back").performClick()
         rule.awaitNode("the account screen") { rule.hasText("Appearance") }
-        rule.onNodeWithText("Dark").performClick()
+        rule.tapText("Dark")
         rule.capture("10-account-dark")
 
         rule.openInbox()
@@ -54,14 +53,14 @@ class ThemeAndFailureTest {
         // The screen is not merely dark: it still works.
         val mine = "Dark theme message ${System.currentTimeMillis()}"
         rule.onNodeWithContentDescription("Write a message").performTextInput(mine)
-        rule.onNodeWithText("Send").performClick()
+        rule.tapText("Send")
         rule.awaitNode("the bubble in dark", 45_000) { rule.hasDescription("You: $mine") }
 
         // Leave the device in the light theme for whatever runs next.
         rule.onNodeWithContentDescription("Back").performClick()
         rule.onNodeWithContentDescription("Back").performClick()
         rule.awaitNode("the account screen again") { rule.hasText("Appearance") }
-        rule.onNodeWithText("Light").performClick()
+        rule.tapText("Light")
     }
 
     @Test
@@ -76,7 +75,7 @@ class ThemeAndFailureTest {
             rule.capture("12-offline")
 
             shell("cmd connectivity airplane-mode disable")
-            rule.onNodeWithText("Try again").performClick()
+            rule.tapText("Try again")
             rule.awaitNode("the inbox once the network is back", 60_000) {
                 rule.hasDescription(E2e.CREATOR) || rule.hasText("No conversations yet")
             }

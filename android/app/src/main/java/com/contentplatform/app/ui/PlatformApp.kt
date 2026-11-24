@@ -38,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.contentplatform.app.dm.DmApi
@@ -308,6 +310,9 @@ private fun VesperBottomBar(selected: Destination, onSelect: (Destination) -> Un
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        // A stable handle for devices tests and for anyone listening to the
+                        // screen: "Tab You" is unambiguous where the label "You" is not.
+                        .semantics { contentDescription = "Tab ${dest.label}" }
                         .pressScale(motion, onClick = { onSelect(dest) })
                         .padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,

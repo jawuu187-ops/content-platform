@@ -84,7 +84,8 @@ fun ComposeTestRule.tapText(text: String) {
 
 fun ComposeTestRule.tapDescription(description: String) {
     awaitNode("a control described as $description") { hasDescription(description) }
-    onAllNodesWithContentDescription(description, substring = false).onFirst().performClick()
+    // Substring: a queue row describes itself as "reason, status, subject type".
+    onAllNodesWithContentDescription(description, substring = true).onFirst().performClick()
 }
 
 /**

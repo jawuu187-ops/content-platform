@@ -100,6 +100,16 @@ jobs:
       - name: coverage summary
         run: go tool cover -func=coverage.out | tail -n 25
 
+      # Named evidence for the milestones that are easiest to misreport as "done":
+      # a tip must settle and grant nothing, and earnings must be able to exclude
+      # simulated money. Passing silently inside the suite is not evidence a
+      # reviewer can read, so these run verbosely by name.
+      - name: tip and earnings tests (named evidence)
+        env:
+          CGO_ENABLED: "1"
+          TEST_DATABASE_URL: postgres://platform:platform@127.0.0.1:5432/platform_identity_test?sslmode=disable
+        run: go test -run 'TestTip|TestEarnings|TestOnlyTips' -v ./internal/payments
+
       - name: build binaries (static, no cgo)
         env:
           CGO_ENABLED: "0"

@@ -377,8 +377,14 @@ jobs:
             -H "Authorization: Bearer $fan_access" -H 'Content-Type: application/json' \
             -d "{\"purpose\":\"ppv\",\"post_id\":\"$ppv_id\",\"idempotency_key\":\"smoke-$ppv_id\"}")
           echo "POST /v1/payments/intents -> $intent_code"
+          meta_json=$(curl -s http://127.0.0.1:8080/v1/meta)
+          echo "$meta_json" | grep -q '"data_class":"test"' || fail "meta did not report the test data class"
+          echo "$meta_json" | grep -q '"simulated":true' || fail "meta did not report the simulated provider"
           [ "$intent_code" = "201" ] || fail "payment intent creation returned $intent_code"
           grep -q '"amount_minor":500' intent.json || fail "the intent amount did not come from the post price"
+          # The simulated provider must stamp its work as test data, and the instance
+          # must advertise that class. A production build reports data_class=none.
+          grep -q '"simulated":true' intent.json || fail "a simulated intent was not marked as test data"
           intent_id=$(python3 -c 'import json; print(json.load(open("intent.json"))["payment"]["id"])') \
             || fail "intent carried no id"
 

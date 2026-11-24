@@ -20,7 +20,9 @@ class ModerationQueueTest {
 
     @Test
     fun aModeratorReviewsAndClosesTheQueuedReport() {
+        rule.capture("09-moderation-boot")
         rule.signOutIfSignedIn()
+        rule.capture("10-moderation-signed-out")
         rule.tapDescription("Tab You")
         rule.awaitNode("the sign-in panel") { rule.hasText("Connect an account") }
         rule.onNodeWithContentDescription("Email").performTextInput(E2e.MODERATOR_EMAIL)
@@ -33,11 +35,11 @@ class ModerationQueueTest {
         rule.awaitNode("the queued report", 45_000) {
             rule.hasDescription("Harassment or threats")
         }
-        rule.capture("09-moderation-queue")
+        rule.capture("11-moderation-queue")
 
         rule.tapDescription("Harassment or threats")
         rule.awaitNode("the report detail") { rule.hasText("History") }
-        rule.capture("10-moderation-detail")
+        rule.capture("12-moderation-detail")
 
         rule.tapText("Start review")
         rule.awaitNode("the reviewing state", 30_000) { rule.hasText("Reviewing") }
@@ -46,6 +48,6 @@ class ModerationQueueTest {
             .performTextInput("Reviewed in the emulator test; the thread was warned and left up.")
         rule.tapText("Action taken")
         rule.awaitNode("the closed state", 30_000) { rule.hasText("Actioned") }
-        rule.capture("11-moderation-actioned")
+        rule.capture("13-moderation-actioned")
     }
 }

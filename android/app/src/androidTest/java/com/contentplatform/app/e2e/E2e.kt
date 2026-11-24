@@ -79,10 +79,16 @@ fun ComposeTestRule.tapDescription(description: String) {
     onAllNodesWithContentDescription(description, substring = false).onFirst().performClick()
 }
 
-/** Signs the current session out, if there is one, so a test can switch accounts. */
+/**
+ * Signs the current session out, if there is one, so a test can switch accounts. It is
+ * tolerant on purpose: when the account screen never appears, the caller's own assertion
+ * is the one that should fail, and the exception here would say less.
+ */
 fun ComposeTestRule.signOutIfSignedIn() {
     tapDescription("Tab You")
-    awaitNode("the account screen") { hasText("Sign out") || hasText("Connect an account") }
+    awaitNode("the account screen", 20_000) {
+        hasText("Sign out") || hasText("Connect an account")
+    }
     if (!hasText("Sign out")) return
     tapText("Sign out")
     awaitNode("the sign-in panel") { hasText("Connect an account") }
@@ -158,7 +164,10 @@ fun shell(command: String) {
 fun ComposeTestRule.capture(name: String) {
     try {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val dir = File(context.getExternalFilesDir(null), "e2e").apply { mkdirs() }
+        // Internal storage, not external: on a bare AVD getExternalFilesDir can be null,
+        // and a screenshot that silently lands in "null/e2e" is worse than none. The
+        // workflow pulls these with `run-as`, which works because the test APK is debug.
+        val dir = File(context.filesDir, "e2e").apply { mkdirs() }
         val bitmap = onRoot().captureToImage().asAndroidBitmap()
         FileOutputStream(File(dir, "$name.png")).use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)

@@ -166,7 +166,7 @@ jobs:
             gradle -p android --no-daemon --stacktrace :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.contentplatform.app.e2e.ModerationQueueTest -Pandroid.testInstrumentationRunnerArguments.e2ePassword="$E2E_PASSWORD" || rc=1
             cp -r android/app/build/outputs/androidTest-results android/app/build/outputs/results-part3 || true
             mkdir -p e2e-shots
-            for dir in $(adb shell 'find /sdcard/Android/data -type d -name e2e' | tr -d '\r'); do adb pull "$dir" e2e-shots || true; done
+            for name in $(adb shell run-as com.contentplatform.app.debug ls files/e2e | tr -d '\r'); do adb exec-out run-as com.contentplatform.app.debug cat "files/e2e/$name" > "e2e-shots/$name" || true; done
             ls -lR e2e-shots
             exit $rc
 

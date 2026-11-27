@@ -82,7 +82,25 @@ data class StudioSnapshot(
     val testMoneyMinor: Long,
 )
 
-/** One ledger movement from the CSV export. */
+/** One payment intent shown in a fan's receipt history. */
+data class FanPayment(
+    val id: String,
+    val purpose: String,
+    val amountMinor: Long,
+    val currency: String,
+    val status: String,
+    val provider: String,
+    val simulated: Boolean,
+    val createdAt: String,
+    val settledAt: String?,
+)
+
+sealed interface PaymentsState {
+    data object Idle : PaymentsState
+    data object Loading : PaymentsState
+    data class Ready(val items: List<FanPayment>) : PaymentsState
+    data class Failed(val message: String) : PaymentsState
+}
 data class StatementRow(
     val occurredAt: String,
     val kind: String,

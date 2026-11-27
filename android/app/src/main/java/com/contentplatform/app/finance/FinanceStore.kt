@@ -72,11 +72,21 @@ class FinanceStore(
         private set
     var adminNotice by mutableStateOf<String?>(null)
         private set
+    var payments by mutableStateOf<PaymentsState>(PaymentsState.Idle)
         private set
     var saving by mutableStateOf(false)
         private set
 
     val signedIn: Boolean get() = sessions.current().signedIn
+
+    suspend fun loadPayments() {
+        payments = PaymentsState.Loading
+        payments = try {
+            PaymentsState.Ready(api.myPayments())
+        } catch (t: Throwable) {
+            PaymentsState.Failed(t.toFinanceFailure().explain())
+        }
+    }
 
     suspend fun loadStudio(currency: String = "USD") {
         studio = StudioState.Loading

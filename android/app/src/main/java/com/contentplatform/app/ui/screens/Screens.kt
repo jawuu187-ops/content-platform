@@ -583,6 +583,7 @@ fun AccountScreen(
     canReviewAge: Boolean = false,
     onOpenAgeReview: () -> Unit = {},
     onOpenSecurity: () -> Unit = {},
+    onOpenPayments: () -> Unit = {},
     canReviewPayouts: Boolean = false,
     onOpenAdminPayouts: () -> Unit = {},
 ) {
@@ -618,6 +619,21 @@ fun AccountScreen(
                             Column(Modifier.weight(1f)) {
                                 Text("Security & sessions", style = MaterialTheme.typography.titleMedium, color = palette.ink)
                                 Text("Email verification, two-factor authentication, sign out", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+                            }
+                            LabelMono("\u2192")
+                        }
+                    }
+                    SpacerH(12)
+                    CardSurface {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .pressScale(motion, onClick = onOpenPayments)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Payments", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                Text("Memberships, unlocks, tips and simulated receipts", style = MaterialTheme.typography.bodySmall, color = palette.muted)
                             }
                             LabelMono("\u2192")
                         }

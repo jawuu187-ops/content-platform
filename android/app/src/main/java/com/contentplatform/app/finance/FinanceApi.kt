@@ -103,6 +103,26 @@ class FinanceApi(private val sessions: SessionStore) {
      * The CSV export. Totals come from the `X-Export-*` headers, which the server computes
      * from the same rows, so a screen and the file can never disagree.
      */
+    suspend fun myPayments(): List<FanPayment> {
+        val body = JSONObject(get("/v1/me/payments"))
+        val arr = body.optJSONArray("payments") ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { i ->
+            val p = arr.optJSONObject(i) ?: return@mapNotNull null
+            if (p.optString("id").isBlank()) return@mapNotNull null
+            FanPayment(
+                id = p.optString("id"),
+                purpose = p.optString("purpose"),
+                amountMinor = p.optLong("amount_minor"),
+                currency = p.optString("currency"),
+                status = p.optString("status"),
+                provider = p.optString("provider"),
+                simulated = p.optBoolean("simulated"),
+                createdAt = p.optString("created_at"),
+                settledAt = p.optString("settled_at").takeIf { it.isNotBlank() },
+            )
+        }
+    }
+
     suspend fun adminQueue(): List<AdminPayout> {
         val body = JSONObject(get("/v1/admin/payouts?status=all"))
         val arr = body.optJSONArray("payouts") ?: return emptyList()

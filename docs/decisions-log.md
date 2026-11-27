@@ -194,3 +194,21 @@ and is exercised solely by the cross-slot race test. Rationale: a `count(*)` che
 alone is not safe when two activations lock different slots, so the guarantee must
 be enforced by the database. PostgreSQL superusers and privileged table owners can
 still disable triggers; that access is restricted rather than claimed impossible.
+
+## D-082 — Age review is manual, metadata-only, owner-only, and MFA-bound
+
+The public age-verification provider path could not be purchased, and an uploaded-ID
+flow would create a document-storage obligation the product does not want. Decision:
+an account may open a manual review request (`POST /v1/verify/age/review`); the owner
+sees the pending queue and can approve, reject or revoke. Approval writes a
+`verify.checks` row with `method='manual_review'`, the configured validity window and
+no evidence; rejection stores one of five fixed non-sensitive reason codes. The
+schema has no document/blob/bytea column and migration 0016 refuses to apply if one
+appears. Every action is authorized server-side by the owner role, `verify.review`
+and a second-factor proof from the same session no older than five minutes. Nobody
+may decide or revoke their own verification. Each request, approval, rejection and
+revocation is appended to `ops.audit_log` in the same transaction as the state
+change, and the audit hash is stored as the request's non-sensitive audit reference;
+an audit failure rolls the decision back. Expiry is evaluated from `expires_at` on
+every access decision, so a lapsed review loses access immediately without a
+background job. Only slot 1 owner activation is configured; slot 2 stays dormant.

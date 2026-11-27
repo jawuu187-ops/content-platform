@@ -27,6 +27,9 @@ var expectedMatrix = map[string]map[Permission]bool{
 	RoleSupport: {
 		PermUsersRead: true, PermSupportView: true,
 	},
+	RoleOwner: {
+		PermUsersRead: true, PermVerifyReview: true,
+	},
 }
 
 func TestPermissionMatrixForEveryRoleAndPermission(t *testing.T) {
@@ -59,7 +62,7 @@ func TestDeniedPermissionsAreExactlyTheMissingOnes(t *testing.T) {
 		PermContentWrite, PermContentPublish, PermContentModerate,
 		PermUsersRead, PermUsersWrite, PermRolesGrant,
 		PermFinanceRead, PermPayoutRequest, PermPayoutApprove,
-		PermSubscriptionManage, PermSafetyReview, PermSupportView, PermAdminAll,
+		PermSubscriptionManage, PermSafetyReview, PermSupportView, PermVerifyReview, PermAdminAll,
 	}
 	for _, perm := range denied {
 		if HasPermission([]string{RoleFan}, perm) {
@@ -130,7 +133,7 @@ func TestEveryPermissionBelongsToAtLeastOneRole(t *testing.T) {
 			continue
 		}
 		held := false
-		for _, role := range []string{RoleFan, RoleCreator, RoleCreatorTeam, RoleModerator, RoleFinance, RoleSupport} {
+		for _, role := range []string{RoleFan, RoleCreator, RoleCreatorTeam, RoleModerator, RoleFinance, RoleSupport, RoleOwner} {
 			if HasPermission([]string{role}, perm) {
 				held = true
 				break

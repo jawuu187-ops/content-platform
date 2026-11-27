@@ -31,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,6 +45,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.contentplatform.app.dm.DmApi
 import com.contentplatform.app.dm.DmStore
+import com.contentplatform.app.age.AgeApi
+import com.contentplatform.app.age.AgeStore
 import com.contentplatform.app.dm.ModerationStore
 import com.contentplatform.app.dm.SessionStore
 import com.contentplatform.app.finance.FinanceApi
@@ -54,6 +57,7 @@ import com.contentplatform.app.ui.dm.DmThreadScreen
 import com.contentplatform.app.ui.finance.PayoutHistoryScreen
 import com.contentplatform.app.ui.finance.PayoutRequestSheet
 import com.contentplatform.app.ui.finance.StatementScreen
+import com.contentplatform.app.ui.age.AgeReviewScreen
 import com.contentplatform.app.ui.moderation.ModerationScreen
 import com.contentplatform.app.ui.motion.LocalVesperMotion
 import com.contentplatform.app.ui.motion.pressScale
@@ -66,6 +70,7 @@ import com.contentplatform.app.ui.screens.MembershipScreen
 import com.contentplatform.app.ui.screens.StudioScreen
 import com.contentplatform.app.ui.theme.LocalVesperPalette
 import com.contentplatform.app.ui.theme.ThemeController
+import kotlinx.coroutines.launch
 
 /**
  * Four destinations and one overlay stack.
@@ -87,6 +92,7 @@ fun PlatformApp(themeController: ThemeController) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
     val context = LocalContext.current
+    val appScope = rememberCoroutineScope()
     // One session store for the whole process: the messaging store, the moderation store
     // and the shell all have to see the same sign-in, or a moderator who signs in during
     // this session would keep a fan's permissions.
@@ -100,6 +106,9 @@ fun PlatformApp(themeController: ThemeController) {
     // Money surfaces share one store: the studio card, the request sheet, the history and the
     // statement all read the same last server answer instead of three divergent copies.
     val financeStore = remember(context) { FinanceStore(sessions, FinanceApi(sessions)) }
+    // Age verification and the owner review queue share one store, so the status card and
+    // the queue never disagree about a decision the server just applied.
+    val ageStore = remember(context) { AgeStore(sessions, AgeApi(sessions)) }
     var requestOpen by rememberSaveable { mutableStateOf(false) }
     var statementOpen by rememberSaveable { mutableStateOf(false) }
     var payoutsOpen by rememberSaveable { mutableStateOf(false) }
@@ -110,10 +119,12 @@ fun PlatformApp(themeController: ThemeController) {
     // refusal, not a screen of zeros.
     LaunchedEffect(destination, sessions.revision) {
         if (destination == Destination.Studio) financeStore.loadStudio()
+        if (destination == Destination.Account) ageStore.loadAccount()
     }
     var creatorOpen by rememberSaveable { mutableStateOf(false) }
     var messagesOpen by rememberSaveable { mutableStateOf(false) }
     var moderationOpen by rememberSaveable { mutableStateOf(false) }
+    var ageReviewOpen by rememberSaveable { mutableStateOf(false) }
     var openThreadId by rememberSaveable { mutableStateOf<String?>(null) }
     // Checkout is a pair of (tier, price) in the demo. A real provider replaces the price
     // with a server-issued intent; the sheet does not compute it.
@@ -160,6 +171,16 @@ fun PlatformApp(themeController: ThemeController) {
                             onOpenMessages = { messagesOpen = true },
                             onOpenModeration = { moderationOpen = true },
                             canModerate = moderationStore.canModerate,
+                            ageVerification = ageStore.verification,
+                            ageReview = ageStore.review,
+                            ageBusy = ageStore.requesting,
+                            ageError = ageStore.requestError,
+                            onRequestAgeReview = {
+                                appScope.launch { ageStore.requestManual() }
+                            },
+                            canReviewAge = moderationStore.roles.contains("owner") &&
+                                moderationStore.permissions.contains("verify.review"),
+                            onOpenAgeReview = { ageReviewOpen = true },
                         )
                     }
                 }
@@ -237,6 +258,22 @@ fun PlatformApp(themeController: ThemeController) {
         ) {
             Box(Modifier.fillMaxSize().background(palette.ground)) {
                 ModerationScreen(store = moderationStore, onBack = { moderationOpen = false })
+            }
+        }
+
+        // The owner-only age review queue, pushed over the account screen. The server
+        // enforces the owner role, verify.review and a recent MFA step-up on every action.
+        AnimatedVisibility(
+            visible = ageReviewOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                AgeReviewScreen(store = ageStore, onBack = { ageReviewOpen = false })
             }
         }
 

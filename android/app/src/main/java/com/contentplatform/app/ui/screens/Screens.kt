@@ -32,6 +32,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.contentplatform.app.BuildConfig
+import com.contentplatform.app.age.AgeReviewRequest
+import com.contentplatform.app.age.AgeVerification
+import com.contentplatform.app.age.statusLabel
 import com.contentplatform.app.dm.money
 import com.contentplatform.app.finance.PayoutBalance
 import com.contentplatform.app.finance.StudioState
@@ -48,6 +51,7 @@ import com.contentplatform.app.ui.components.LabelMono
 import com.contentplatform.app.ui.components.MediaPanel
 import com.contentplatform.app.ui.components.Monogram
 import com.contentplatform.app.ui.components.Money
+import com.contentplatform.app.ui.age.AgeVerificationCard
 import com.contentplatform.app.ui.components.OutlineButton
 import com.contentplatform.app.ui.components.SectionTitle
 import com.contentplatform.app.ui.components.SpacerH
@@ -572,6 +576,13 @@ fun AccountScreen(
     onOpenMessages: () -> Unit,
     onOpenModeration: () -> Unit = {},
     canModerate: Boolean = false,
+    ageVerification: AgeVerification? = null,
+    ageReview: AgeReviewRequest? = null,
+    ageBusy: Boolean = false,
+    ageError: String? = null,
+    onRequestAgeReview: () -> Unit = {},
+    canReviewAge: Boolean = false,
+    onOpenAgeReview: () -> Unit = {},
 ) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
@@ -585,7 +596,41 @@ fun AccountScreen(
                         SpacerH(0)
                         Column(Modifier.padding(start = 12.dp)) {
                             Text("Fan account", style = MaterialTheme.typography.titleMedium, color = palette.ink)
-                            LabelMono("18+ verified · sandbox build")
+                            LabelMono(ageVerification?.let { statusLabel(it.status) } ?: "Age check")
+                        }
+                    }
+                    SpacerH(16)
+                    SectionTitle("Age verification", "18+ required")
+                    SpacerH(8)
+                    AgeVerificationCard(
+                        verification = ageVerification,
+                        review = ageReview,
+                        busy = ageBusy,
+                        error = ageError,
+                        onRequest = onRequestAgeReview,
+                    )
+                    if (canReviewAge) {
+                        SpacerH(16)
+                        SectionTitle("Owner tools", "private")
+                        SpacerH(8)
+                        CardSurface {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .pressScale(motion, onClick = onOpenAgeReview)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Age review queue", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                    Text(
+                                        "Approve, reject or revoke manual verification decisions",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = palette.muted,
+                                    )
+                                }
+                                LabelMono("\u2192")
+                            }
                         }
                     }
                     SpacerH(16)

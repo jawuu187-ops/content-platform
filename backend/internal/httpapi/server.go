@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/agegate"
+	"github.com/jawuu187-ops/content-platform/backend/internal/agereview"
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/earnings"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
@@ -54,6 +55,8 @@ type Deps struct {
 	Payouts *payouts.Service
 	// OwnerActivation consumes the one-time owner secret. Nil answers 503.
 	OwnerActivation *owneraccess.Service
+	// AgeReview is the manual age-review workflow. Nil answers 503.
+	AgeReview *agereview.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -76,6 +79,7 @@ type Server struct {
 	reports   *moderation.Service
 	payouts   *payouts.Service
 	ownerAct  *owneraccess.Service
+	ageReview *agereview.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -103,6 +107,7 @@ func New(d Deps) http.Handler {
 		reports:   d.Moderation,
 		payouts:   d.Payouts,
 		ownerAct:  d.OwnerActivation,
+		ageReview: d.AgeReview,
 		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
@@ -125,6 +130,9 @@ func New(d Deps) http.Handler {
 		authHandler.registerRoutes(mux)
 		if s.ownerAct != nil {
 			newOwnerHandler(authHandler, s.ownerAct, d.Logger).registerRoutes(mux)
+		}
+		if s.ageReview != nil {
+			newAgeReviewHandler(authHandler, s.ageReview, d.Logger).registerRoutes(mux)
 		}
 		if s.payments != nil && s.creators != nil {
 			newPaymentHandler(authHandler, s.payments, d.Logger, s.limits).registerRoutes(mux)

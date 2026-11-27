@@ -18,6 +18,7 @@ const (
 	RoleFinance     = "finance"
 	RoleSupport     = "support"
 	RoleAdmin       = "admin"
+	RoleOwner       = "owner"
 )
 
 // Permission names a capability.
@@ -46,6 +47,9 @@ const (
 	PermSafetyReview Permission = "safety.review"
 	PermSupportView  Permission = "support.view"
 
+	// Age verification
+	PermVerifyReview Permission = "verify.review"
+
 	// Platform
 	PermAdminAll Permission = "admin.all"
 )
@@ -57,7 +61,7 @@ var AllPermissions = []Permission{
 	PermUsersRead, PermUsersWrite, PermRolesGrant,
 	PermFinanceRead, PermPayoutRequest, PermPayoutApprove, PermSubscriptionManage,
 	PermMessagesSend, PermSafetyReview, PermSupportView,
-	PermAdminAll,
+	PermVerifyReview, PermAdminAll,
 }
 
 // rolePermissions is the single source of truth for the matrix.
@@ -98,6 +102,13 @@ var rolePermissions = map[string][]Permission{
 	},
 	RoleAdmin: {
 		PermAdminAll,
+	},
+	// The owner is a single deployment-designated account and the only role that
+	// may decide an age review. Admin holds every permission in the matrix but
+	// the review service additionally requires RoleOwner, so support tooling with
+	// admin rights still cannot approve an account.
+	RoleOwner: {
+		PermVerifyReview, PermUsersRead,
 	},
 }
 

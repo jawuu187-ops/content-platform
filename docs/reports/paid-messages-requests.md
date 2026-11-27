@@ -87,3 +87,10 @@ and returns the unlocked message. A replay with the same key returns the same in
   composer for `subscribers`.
 - Paid-message composer uses the creator's default price; per-message custom pricing
   is not exposed in Android yet.
+
+## CI evidence
+
+- Android CI `46031074061` — success (compile, unit tests, lint; no APK/AAB).
+- Backend CI `46030832209` — success for the feature commit.
+- Security `46031073765` — success.
+- Docs `46030832169` — success.

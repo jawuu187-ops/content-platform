@@ -39,9 +39,9 @@ class CreatorStudioStore(
             if (mine == null) CreatorToolsState.NoProfile
             else {
                 val posts = try {
-                    api.posts(mine.first.handle)
+                    api.myPosts()
                 } catch (_: Throwable) {
-                    emptyList()
+                    api.posts(mine.first.handle)
                 }
                 CreatorToolsState.Ready(mine.first, mine.second, posts)
             }
@@ -129,7 +129,8 @@ class CreatorStudioStore(
         }
     }
 
-    suspend fun publish(uri: Uri?, body: String, visibility: String, priceMinor: Long?, currency: String) {
+    suspend fun publish(uri: Uri?, body: String, visibility: String, priceMinor: Long?, currency: String,
+                        scheduledAt: String? = null) {
         action {
             val mediaId = uri?.let {
                 val stream = context.contentResolver.openInputStream(it)
@@ -137,8 +138,8 @@ class CreatorStudioStore(
                 val mime = context.contentResolver.getType(it) ?: "application/octet-stream"
                 api.uploadStream(stream, mime)
             }
-            api.createPost(body, visibility, priceMinor, currency, listOfNotNull(mediaId))
-            message = "Post published."
+            api.createPost(body, visibility, priceMinor, currency, listOfNotNull(mediaId), scheduledAt)
+            message = if (scheduledAt == null) "Post published." else "Post scheduled."
             load()
         }
     }

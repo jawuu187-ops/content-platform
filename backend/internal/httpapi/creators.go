@@ -67,6 +67,16 @@ func (h *creatorHandler) handleListCreators(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, http.StatusOK, map[string]any{"creators": profiles, "next_offset": next})
 }
 
+func (h *creatorHandler) handleMyPosts(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	posts, err := h.creators.MyPosts(r.Context(), p)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"posts": posts})
+}
+
 func (h *creatorHandler) handleMyProfile(w http.ResponseWriter, r *http.Request, p identity.Principal) {
 	profile, tiers, err := h.creators.MyProfile(r.Context(), p.UserID)
 	if err != nil {
@@ -296,6 +306,8 @@ func (h *creatorHandler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/creators", rateLimited(h.read, "creator_list", h.handleListCreators))
 	mux.HandleFunc("GET /v1/creators/me", rateLimited(h.read, "creator_me",
 		h.auth.requireAuth(h.handleMyProfile)))
+	mux.HandleFunc("GET /v1/creators/me/posts", rateLimited(h.read, "creator_my_posts",
+		h.auth.requireAuth(h.handleMyPosts)))
 	mux.HandleFunc("POST /v1/creators", rateLimited(h.write, "creator_create", h.auth.requireAuth(h.handleCreateProfile)))
 	mux.HandleFunc("PATCH /v1/creators/me", rateLimited(h.write, "creator_patch",
 		h.requireCreator(identity.PermContentPublish, h.handlePatchProfile)))

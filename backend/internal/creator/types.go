@@ -118,6 +118,7 @@ const (
 // Post statuses.
 const (
 	PostDraft     = "draft"
+	PostScheduled = "scheduled"
 	PostPublished = "published"
 	PostRemoved   = "removed"
 )
@@ -143,6 +144,7 @@ type Post struct {
 	Currency    string      `json:"currency,omitempty"`
 	Status      string      `json:"status"`
 	PublishedAt *time.Time  `json:"published_at,omitempty"`
+	ScheduledAt *time.Time  `json:"scheduled_at,omitempty"`
 	CreatedAt   time.Time   `json:"created_at"`
 	Media       []PostMedia `json:"media"`
 	Locked      bool        `json:"locked"`

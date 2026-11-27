@@ -137,6 +137,7 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
     var body by remember { mutableStateOf("") }
     var visibility by remember { mutableStateOf("public") }
     var price by remember { mutableStateOf("") }
+    var scheduleHours by remember { mutableStateOf("") }
     var picked by remember { mutableStateOf<Uri?>(null) }
     var editingTier by remember { mutableStateOf<Tier?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { picked = it }
@@ -234,10 +235,10 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                 }
             }
             SpacerH(18)
-            Text("Published posts", style = MaterialTheme.typography.headlineSmall, color = palette.ink)
+            Text("Your posts and vault", style = MaterialTheme.typography.headlineSmall, color = palette.ink)
             if (state.posts.isEmpty()) {
                 SpacerH(6)
-                Text("Nothing published yet.", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+                Text("No posts or drafts yet.", style = MaterialTheme.typography.bodySmall, color = palette.muted)
             }
             state.posts.forEach { post ->
                 SpacerH(6)
@@ -250,7 +251,7 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                                 maxLines = 2,
                                 modifier = Modifier.weight(1f),
                             )
-                            LabelMono(post.visibility.uppercase())
+                            LabelMono(post.status.uppercase() + " · " + post.visibility.uppercase())
                         }
                         if (post.priceMinor != null) {
                             SpacerH(4)
@@ -283,6 +284,9 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                         SpacerH(6)
                         ToolsField("Unlock price in cents", price, { price = it.filter(Char::isDigit).take(9) }, "500", KeyboardType.Number)
                     }
+                    SpacerH(8)
+                    ToolsField("Schedule in hours (optional)", scheduleHours,
+                        { scheduleHours = it.filter(Char::isDigit).take(4) }, "24", KeyboardType.Number)
                     SpacerH(8)
                     OutlineButton(if (picked == null) "Choose image or video" else "Media selected", onClick = {
                         picker.launch("*/*")

@@ -273,6 +273,24 @@ func run() error {
 	if db != nil {
 		notificationService = notifications.New(db.Pool())
 		go notifications.RunWorker(ctx, notificationService, logger, 2*time.Second)
+		if creatorService != nil {
+			go func() {
+				ticker := time.NewTicker(30 * time.Second)
+				defer ticker.Stop()
+				for {
+					if n, err := creatorService.PublishDueScheduled(ctx); err != nil {
+						logger.Error("scheduled post pass failed", "error", err)
+					} else if n > 0 {
+						logger.Info("scheduled posts published", "count", n)
+					}
+					select {
+					case <-ctx.Done():
+						return
+					case <-ticker.C:
+					}
+				}
+			}()
+		}
 	}
 	handler := httpapi.New(httpapi.Deps{
 		Config:          cfg,

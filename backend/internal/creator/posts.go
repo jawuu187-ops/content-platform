@@ -13,12 +13,13 @@ import (
 
 // PostInput is a create-or-update payload for a post.
 type PostInput struct {
-	Body       string   `json:"body"`
-	Visibility string   `json:"visibility"`
-	PriceMinor *int64   `json:"price_minor"`
-	Currency   string   `json:"currency"`
-	MediaIDs   []string `json:"media_ids"`
-	Publish    *bool    `json:"published"`
+	Body        string     `json:"body"`
+	Visibility  string     `json:"visibility"`
+	PriceMinor  *int64     `json:"price_minor"`
+	Currency    string     `json:"currency"`
+	MediaIDs    []string   `json:"media_ids"`
+	Publish     *bool      `json:"published"`
+	ScheduledAt *time.Time `json:"scheduled_at"`
 }
 
 func validatePost(in PostInput, creating bool) (PostInput, error) {
@@ -65,6 +66,16 @@ func (s *Service) CreatePost(ctx context.Context, p identity.Principal, in PostI
 		return Post{}, err
 	}
 	publish := in.Publish != nil && *in.Publish
+	if in.ScheduledAt != nil {
+		if publish {
+			return Post{}, fmt.Errorf("%w: a post cannot be published and scheduled at once", ErrInvalidInput)
+		}
+		at := in.ScheduledAt.UTC()
+		if at.Before(s.now().UTC().Add(time.Minute)) || at.After(s.now().UTC().AddDate(1, 0, 0)) {
+			return Post{}, fmt.Errorf("%w: scheduled time must be between one minute and one year from now", ErrInvalidInput)
+		}
+		in.ScheduledAt = &at
+	}
 	if publish && in.Visibility == VisibilityPPV && in.PriceMinor == nil {
 		return Post{}, fmt.Errorf("%w: a pay-per-view post needs a price", ErrInvalidInput)
 	}
@@ -83,6 +94,8 @@ func (s *Service) CreatePost(ctx context.Context, p identity.Principal, in PostI
 	if publish {
 		now := s.now().UTC()
 		publishedAt, status = &now, PostPublished
+	} else if in.ScheduledAt != nil {
+		status = PostScheduled
 	}
 	var post Post
 	var price *int64
@@ -96,13 +109,13 @@ func (s *Service) CreatePost(ctx context.Context, p identity.Principal, in PostI
 		currency = &c
 	}
 	err = tx.QueryRow(ctx, `
-		INSERT INTO creator.posts (creator_id, body, visibility, price_minor, currency, status, published_at)
-		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7)
+		INSERT INTO creator.posts (creator_id, body, visibility, price_minor, currency, status, published_at, scheduled_at)
+		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id::text, creator_id::text, body, visibility, price_minor, COALESCE(currency, ''),
-		          status, published_at, created_at`,
-		p.UserID, in.Body, in.Visibility, price, currency, status, publishedAt,
+		          status, published_at, scheduled_at, created_at`,
+		p.UserID, in.Body, in.Visibility, price, currency, status, publishedAt, in.ScheduledAt,
 	).Scan(&post.ID, &post.CreatorID, &post.Body, &post.Visibility, &post.PriceMinor, &post.Currency,
-		&post.Status, &post.PublishedAt, &post.CreatedAt)
+		&post.Status, &post.PublishedAt, &post.ScheduledAt, &post.CreatedAt)
 	if err != nil {
 		return Post{}, fmt.Errorf("creator: insert post: %w", err)
 	}
@@ -207,7 +220,7 @@ func (s *Service) UpdatePost(ctx context.Context, p identity.Principal, postID s
 		          status, published_at, created_at`,
 		postID, p.UserID, in.Body, visibility, price, currency, publishNow,
 	).Scan(&post.ID, &post.CreatorID, &post.Body, &post.Visibility, &post.PriceMinor, &post.Currency,
-		&post.Status, &publishedAt, &post.CreatedAt)
+		&post.Status, &publishedAt, &post.ScheduledAt, &post.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Post{}, ErrNotFound
 	}
@@ -250,10 +263,10 @@ func (s *Service) postByID(ctx context.Context, postID string) (Post, error) {
 	var p Post
 	err := s.pool.QueryRow(ctx, `
 		SELECT id::text, creator_id::text, body, visibility, price_minor, COALESCE(currency, ''),
-		       status, published_at, created_at
+		       status, published_at, scheduled_at, created_at
 		FROM creator.posts WHERE id = $1::uuid`, postID).
 		Scan(&p.ID, &p.CreatorID, &p.Body, &p.Visibility, &p.PriceMinor, &p.Currency, &p.Status,
-			&p.PublishedAt, &p.CreatedAt)
+			&p.PublishedAt, &p.ScheduledAt, &p.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Post{}, ErrNotFound
 	}
@@ -302,7 +315,7 @@ func (s *Service) Posts(ctx context.Context, p *identity.Principal, handle strin
 	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT id::text, creator_id::text, body, visibility, price_minor, COALESCE(currency, ''),
-		       status, published_at, created_at
+		       status, published_at, scheduled_at, created_at
 		FROM creator.posts
 		WHERE creator_id = $1::uuid AND status = 'published'
 		ORDER BY published_at DESC
@@ -315,7 +328,7 @@ func (s *Service) Posts(ctx context.Context, p *identity.Principal, handle strin
 	for rows.Next() {
 		var post Post
 		if err := rows.Scan(&post.ID, &post.CreatorID, &post.Body, &post.Visibility, &post.PriceMinor,
-			&post.Currency, &post.Status, &post.PublishedAt, &post.CreatedAt); err != nil {
+			&post.Currency, &post.Status, &post.PublishedAt, &post.ScheduledAt, &post.CreatedAt); err != nil {
 			return nil, fmt.Errorf("creator: scan post: %w", err)
 		}
 		post.Media, err = s.postMedia(ctx, post.ID)

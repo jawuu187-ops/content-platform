@@ -44,6 +44,11 @@ class CatalogApi(private val sessions: SessionStore) {
             .orFail("creator profile missing") to parseTiers(body.optJSONArray("tiers"))
     }
 
+    suspend fun myPosts(): List<CreatorPost> {
+        val arr = JSONObject(get("/v1/creators/me/posts")).optJSONArray("posts")
+        return (0 until (arr?.length() ?: 0)).mapNotNull { parsePost(arr?.optJSONObject(it)) }
+    }
+
     suspend fun posts(handle: String): List<CreatorPost> {
         val arr = JSONObject(get("/v1/creators/" + encode(handle) + "/posts")).optJSONArray("posts")
         return (0 until (arr?.length() ?: 0)).mapNotNull { parsePost(arr?.optJSONObject(it)) }
@@ -259,13 +264,15 @@ class CatalogApi(private val sessions: SessionStore) {
         priceMinor: Long?,
         currency: String,
         mediaIds: List<String>,
+        scheduledAt: String? = null,
     ): CreatorPost {
         val payload = JSONObject()
             .put("body", body.trim())
             .put("visibility", visibility)
             .put("currency", currency)
             .put("media_ids", JSONArray(mediaIds))
-            .put("published", true)
+            .put("published", scheduledAt == null)
+        if (scheduledAt != null) payload.put("scheduled_at", scheduledAt)
         if (priceMinor != null) payload.put("price_minor", priceMinor)
         return parsePost(JSONObject(post("/v1/posts", payload.toString())).optJSONObject("post"))
             .orFail("post missing from response")

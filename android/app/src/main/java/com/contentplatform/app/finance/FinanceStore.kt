@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.contentplatform.app.dm.ApiException
 import com.contentplatform.app.dm.SessionStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

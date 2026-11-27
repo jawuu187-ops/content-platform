@@ -488,16 +488,6 @@ private fun SearchField(value: String, onChange: (String) -> Unit, onSubmit: () 
     }
 }
 
-private fun money(minor: Long, currency: String): String {
-    val symbol = when (currency) {
-        "USD" -> "$"
-        "EUR" -> "€"
-        "GBP" -> "£"
-        else -> currency + " "
-    }
-    return symbol + String.format(Locale.UK, "%.2f", minor / 100.0)
-}
-
 @Composable
 fun MembershipsScreen(store: CatalogStore) {
     val palette = LocalVesperPalette.current

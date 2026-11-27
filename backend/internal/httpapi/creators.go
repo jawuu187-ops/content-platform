@@ -42,8 +42,6 @@ type subscribeBody struct {
 	TierID string `json:"tier_id"`
 }
 
-type listCreatorsBody struct{}
-
 func (h *creatorHandler) handleListCreators(w http.ResponseWriter, r *http.Request) {
 	limit := 24
 	if v := r.URL.Query().Get("limit"); v != "" {

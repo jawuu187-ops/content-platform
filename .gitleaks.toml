@@ -1,0 +1,13 @@
+# Test-only fixture values and the smoke-test callback secret. These are not
+# production credentials; the production values live only in the server env.
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+  '''backend/internal/owneraccess/service_test\.go''',
+  '''backend/internal/httpapi/owner_activation_test\.go''',
+  '''backend/internal/agegate/service_test\.go''',
+  '''backend/internal/identity/totp_test\.go''',
+  '''\.github/workflows/backend-ci\.yml''',
+]

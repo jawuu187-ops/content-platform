@@ -126,7 +126,8 @@ func TestActivateRefusesWrongUserAndSecret(t *testing.T) {
 	}
 	var denials int
 	if err := pool.QueryRow(context.Background(),
-		`SELECT count(*) FROM ops.audit_log WHERE action = 'owner.activation_denied'`).Scan(&denials); err != nil {
+		`SELECT count(*) FROM ops.audit_log WHERE action = 'owner.activation_denied'
+		   AND target_id IN ($1, $2)`, designated, other).Scan(&denials); err != nil {
 		t.Fatal(err)
 	}
 	if denials != 2 {

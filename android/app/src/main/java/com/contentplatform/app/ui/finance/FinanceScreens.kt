@@ -40,7 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.contentplatform.app.dm.money
+import com.contentplatform.app.finance.money
 import com.contentplatform.app.dm.parseAmountToMinor
 import com.contentplatform.app.finance.FinanceFailure
 import com.contentplatform.app.finance.FinanceStore

@@ -54,3 +54,14 @@ data class Subscription(
 data class Delivery(val url: String, val expiresAt: String?)
 
 data class VideoSource(val url: String, val headers: Map<String, String>)
+
+/** Formats integer minor units for catalog surfaces. */
+fun money(minor: Long, currency: String): String {
+    val symbol = when (currency) {
+        "USD" -> "$"
+        "EUR" -> "€"
+        "GBP" -> "£"
+        else -> currency + " "
+    }
+    return symbol + java.util.Locale.UK.let { java.lang.String.format(it, "%.2f", minor / 100.0) }
+}

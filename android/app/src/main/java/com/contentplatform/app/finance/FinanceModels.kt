@@ -166,7 +166,16 @@ fun FinanceFailure.explain(): String = when (this) {
     is FinanceFailure.Server -> "The server could not handle that request. Try again in a moment."
 }
 
-/** Basis points to a short percentage; nil when there is no member to divide by. */
+/** Formats integer minor units for the finance surfaces. */
+fun money(minor: Long, currency: String): String {
+    val symbol = when (currency) {
+        "USD" -> "$"
+        "EUR" -> "€"
+        "GBP" -> "£"
+        else -> currency + " "
+    }
+    return symbol + java.util.Locale.UK.let { java.lang.String.format(it, "%.2f", minor / 100.0) }
+}
 fun sharePercent(bps: Int?): String {
     if (bps == null) return "—"
     val whole = bps / 100

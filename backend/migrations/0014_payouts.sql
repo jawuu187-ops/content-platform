@@ -8,9 +8,9 @@
 --     actor, the time and the note. payouts.request_events refuses UPDATE and
 --     DELETE, so the trail behind a payment is evidence and not a draft.
 --
---   * One open request per creator and currency. A creator pressing "request"
---     twice is the same intention, not two withdrawals, and a partial unique
---     index is what makes that true under concurrency as well as in the UI.
+--   * One undecided request per creator and currency. A creator pressing
+--     "request" twice is the same intention, not two withdrawals, and a partial
+--     unique index is what makes that true under concurrency as well as in the UI.
 --
 --   * A decided request always says who decided it and when; an undecided one
 --     never does. "We forgot" and "we refused" must not look alike.
@@ -62,18 +62,21 @@ CREATE INDEX IF NOT EXISTS requests_queue_idx
 CREATE INDEX IF NOT EXISTS requests_creator_idx
     ON payouts.requests (creator_id, created_at DESC);
 
--- One open request per creator and currency: the database, not a read-then-write
--- check in the service, is what prevents a double request under concurrency.
+-- One *undecided* request per creator and currency: the database, not a
+-- read-then-write check in the service, is what prevents a double request under
+-- concurrency. An approved request is not part of this rule because its money is
+-- already reserved in the ledger, so it cannot be spent twice; blocking a new
+-- request on it would strand a creator whose payout is waiting for a rail.
+DROP INDEX IF EXISTS payouts.requests_one_open_per_creator;
 CREATE UNIQUE INDEX IF NOT EXISTS requests_one_open_per_creator
     ON payouts.requests (creator_id, currency)
-    WHERE status IN ('requested', 'approved');
+    WHERE status = 'requested';
 
 CREATE TABLE IF NOT EXISTS payouts.request_events (
     id          bigserial   PRIMARY KEY,
     request_id  uuid        NOT NULL REFERENCES payouts.requests (id) ON DELETE CASCADE,
     actor_id    uuid        REFERENCES identity.users (id),
-    -- The verb the actor used (request, approve, reject, cancel). Empty on the
-    -- request's own creation event.
+    -- The verb the actor used: request, approve, reject or cancel.
     action      text        NOT NULL DEFAULT '',
     from_status text,
     to_status   text        NOT NULL,

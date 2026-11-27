@@ -171,7 +171,7 @@ func (s *Service) Request(ctx context.Context, p identity.Principal, in Input) (
 		}
 		return Request{}, fmt.Errorf("payouts: insert request: %w", err)
 	}
-	if err := insertEvent(ctx, tx, req.ID, p.UserID, "", "", StatusRequested, in.Note, now); err != nil {
+	if err := insertEvent(ctx, tx, req.ID, p.UserID, ActionRequest, "", StatusRequested, in.Note, now); err != nil {
 		return Request{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {

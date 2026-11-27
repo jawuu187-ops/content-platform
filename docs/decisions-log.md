@@ -136,3 +136,24 @@ headers, so the file states what it leaves out (D-070). More than 5000 rows is a
 must be reconstructible from the system of record, so the export reads the ledger
 and not the dashboard's aggregates; a silently truncated year would be a return
 that is quietly short.
+
+## D-079 — The device fixture carries ledger money in both data classes, and only one undecided payout per currency
+
+Given, the payout and statement surfaces need a balance to show, a reservation to
+read and a test row to exclude, while `cmd/e2eseed` had until now written no money
+at all. Decision: the seed creates two settled tips — one live (`simulated=false`,
+recorded as fixture money in a disposable demo database, with no provider, card or
+bank behind it) and one simulated (`simulated=true`, the data class the fake
+provider produces) — then has the creator request a payout and finance approve it,
+so the fixture ships a real reservation and its two-event trail. The seed reads the
+numbers back from the ledger and the payout service, refuses to print a fixture
+whose invariants do not hold, and remains unable to run outside `APP_ENV=demo|local`
+with `PAY_PROVIDER=fake`. It also grants the creator role through
+`BecomeCreator`, the audited self-service path the API uses: creating a profile
+through the service alone leaves an account a fan at the API, which every
+creator-only endpoint then refuses with 403. The same slice narrows D-077's "one open request" rule to
+`status='requested'`: an approved request is already reserved in the ledger and
+cannot be spent twice, so it must not block the creator's next request while a rail
+pays it out. Rationale: evidence that a balance, a reservation and a statement work
+has to come from the same paths the product uses, and a fixture whose numbers are
+typed by hand proves nothing except that the author can subtract.

@@ -16,8 +16,11 @@ against that API at `http://10.0.2.2:8080`.
 
 The seed tool refuses to run unless `APP_ENV` is `local` or `demo` **and** the payment
 provider is the fake one, so the job cannot point at production data. Its fixture is one fan,
-one published creator, one live membership granted by support (no subscription row, no
-money), one conversation and one message. The fixture password is generated per run and
+one published creator, one live membership granted by support (no subscription row), one
+conversation and one message, one finance operator, an approved payout, and two settled
+tips — one live and one simulated — so the balance and the statement have both data
+classes to separate (D-079). The live tip is a fixture row in a disposable demo database; no
+provider, card or bank is involved. The fixture password is generated per run and
 passed to the device as an instrumentation argument; no credential lives in the repository.
 
 ## What the device tests prove
@@ -45,7 +48,13 @@ inferred from the screen:
 - one idempotency key sent twice returns the same `tip.id`, and the intent carries
   `simulated: true`;
 - sending after the membership ended returns 403 `subscription_required`;
-- a fan asking for creator earnings is refused with 403;
+- a fan asking for creator earnings or downloading a statement is refused with 403, and a
+  creator reading the finance payout queue is refused with 403;
+- a creator's balance equals the number the seed measured from the ledger, and a payout
+  request approved through the API reduces the available balance by exactly its amount;
+- the statement is a `text/csv` attachment whose default rows carry no test money, whose
+  `X-Export-Excluded-Simulated` header counts the excluded row, whose
+  `include_simulated=true` variant does contain it, and whose EUR variant has zero rows;
 - a fan asking for the moderation queue is refused with 403, and an anonymous report is
   refused with 401;
 - reporting the same subject twice returns 201 then 200, the second carrying the first

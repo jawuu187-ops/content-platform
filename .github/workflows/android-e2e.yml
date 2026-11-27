@@ -120,6 +120,101 @@ jobs:
           E2E_BASE_URL=http://10.0.2.2:8080 ./bin/e2eseed -json "$RUNNER_TEMP/seed.json" | tee "$RUNNER_TEMP/seed.log"
           test -s "$RUNNER_TEMP/seed.json"
 
+      # The seeded fixture carries ledger money in both data classes, an approved
+      # payout and a statement. These checks prove the server side of that fixture and
+      # then walk one more request through approval, so the reservation is not taken
+      # on trust from the seed.
+      - name: payout and statement checks (balance, reservation, CSV export)
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          fail() { echo "E2E FAILURE: $1"; exit 1; }
+          available="$(jq -r .available_minor "$RUNNER_TEMP/seed.json")"
+          seeded_rows="$(jq -r .export_rows "$RUNNER_TEMP/seed.json")"
+
+          tok() {
+            local email="$1"
+            jq -nc --arg email "$email" --arg pw "$E2E_PASSWORD" \
+              '{email:$email, password:$pw, mfa_code:"", device:{fingerprint:"e2e-api", platform:"ci", name:"curl"}}' \
+              | curl -sf -X POST http://127.0.0.1:8080/v1/auth/login \
+                  -H 'Content-Type: application/json' -d @- | jq -r .tokens.access_token
+          }
+          creator_token="$(tok creator@e2e.test)"
+          finance_token="$(tok finance@e2e.test)"
+          fan_token="$(tok fan@e2e.test)"
+          [ -n "$creator_token" ] || fail "the seeded creator could not sign in"
+          [ -n "$finance_token" ] || fail "the seeded finance account could not sign in"
+          [ -n "$fan_token" ] || fail "the seeded fan could not sign in"
+
+          # The balance a creator sees is the ledger's, in the seeded currency only.
+          balance="$(curl -sf http://127.0.0.1:8080/v1/creator/payouts -H "Authorization: Bearer $creator_token")"
+          echo "$balance" | jq -c .balance
+          test "$(echo "$balance" | jq -r .balance.available_minor)" = "$available" \
+            || fail "the creator balance does not match the ledger the seed measured"
+          test "$(echo "$balance" | jq -r .balance.pending_minor)" = "0" \
+            || fail "the fixture left a pending request behind"
+          test "$(echo "$balance" | jq -r .balance.currency)" = "USD" \
+            || fail "the balance currency is not the seeded one"
+
+          # Authorization: the queue is a finance permission, not a creator one.
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/v1/admin/payouts \
+            -H "Authorization: Bearer $creator_token")
+          echo "creator reading the payout queue -> $code"
+          [ "$code" = "403" ] || fail "a creator could read the finance payout queue ($code)"
+
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/v1/creator/payouts \
+            -H "Authorization: Bearer $fan_token")
+          echo "fan reading a creator balance -> $code"
+          [ "$code" = "403" ] || fail "a fan could read a creator balance ($code)"
+
+          # Request and approve through the API. The reservation must reduce the
+          # available balance by exactly the amount, and by nothing else.
+          wanted=1000
+          req="$(curl -sf -X POST http://127.0.0.1:8080/v1/creator/payouts \
+            -H "Authorization: Bearer $creator_token" -H 'Content-Type: application/json' \
+            -d "{\"amount_minor\":$wanted,\"currency\":\"USD\",\"method\":\"bank\",\"note\":\"e2e\"}")"
+          req_id="$(echo "$req" | jq -r '.payout.id')"
+          [ "$(echo "$req" | jq -r '.payout.status')" = "requested" ] || fail "a new payout request is not requested"
+          approved="$(curl -sf -X POST "http://127.0.0.1:8080/v1/admin/payouts/$req_id/approve" \
+            -H "Authorization: Bearer $finance_token" -H 'Content-Type: application/json' \
+            -d '{"note":"e2e approval"}')"
+          [ "$(echo "$approved" | jq -r '.payout.status')" = "approved" ] || fail "the finance approval did not stick"
+          after="$(curl -sf http://127.0.0.1:8080/v1/creator/payouts \
+            -H "Authorization: Bearer $creator_token" | jq -r '.balance.available_minor')"
+          echo "available after approval: $after (was $available)"
+          test "$after" = "$((available - wanted))" || fail "approval did not reserve exactly the requested amount ($after)"
+
+          # The statement is a CSV download of live money, and it reports what it left out.
+          from=$(date -u -d '2 days ago' +%F); to=$(date -u +%F)
+          curl -sf -D statement.headers \
+            "http://127.0.0.1:8080/v1/creator/earnings/export?from=$from&to=$to" \
+            -H "Authorization: Bearer $creator_token" -o statement.csv
+          head -2 statement.csv
+          grep -qi '^content-type: text/csv' statement.headers || fail "the statement is not text/csv"
+          grep -qi '^content-disposition: attachment' statement.headers || fail "the statement is not offered as a download"
+          excluded="$(awk 'tolower($1)=="x-export-excluded-simulated:" {print $2}' statement.headers | tr -d '\r')"
+          test "$excluded" = "1" || fail "the statement did not report its excluded test row ($excluded)"
+          lines=$(tail -n +2 statement.csv | grep -c . || true)
+          test "$lines" = "$((seeded_rows + 1))" || fail "statement rows = $lines, want $((seeded_rows + 1))"
+          if grep -q ',test$' statement.csv; then fail "the default statement carried a test row"; fi
+
+          # Asking for test money includes it, and only then.
+          curl -sf "http://127.0.0.1:8080/v1/creator/earnings/export?from=$from&to=$to&include_simulated=true" \
+            -H "Authorization: Bearer $creator_token" -o statement-test.csv
+          grep -q ',test$' statement-test.csv || fail "include_simulated=true did not include the test row"
+
+          # Currency consistency: a second currency is empty, never converted.
+          curl -sf -D eur.headers "http://127.0.0.1:8080/v1/creator/earnings/export?from=$from&to=$to&currency=EUR" \
+            -H "Authorization: Bearer $creator_token" -o /dev/null
+          eur_rows="$(awk 'tolower($1)=="x-export-rows:" {print $2}' eur.headers | tr -d '\r')"
+          test "$eur_rows" = "0" || fail "the EUR statement carried USD money ($eur_rows rows)"
+
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            "http://127.0.0.1:8080/v1/creator/earnings/export?from=$from&to=$to" \
+            -H "Authorization: Bearer $fan_token")
+          echo "fan downloading a statement -> $code"
+          [ "$code" = "403" ] || fail "a fan could download a creator statement ($code)"
+
       # The emulator needs a CPU accelerator. GitHub's standard Linux runners expose
       # /dev/kvm; when they do not, this step says so instead of leaving a boot timeout
       # to be diagnosed from logs. Nothing here changes the host beyond making the

@@ -49,13 +49,22 @@ func (h *creatorHandler) handleListCreators(w http.ResponseWriter, r *http.Reque
 			limit = n
 		}
 	}
-	profiles, err := h.creators.ListPublished(r.Context(), r.URL.Query().Get("q"), limit)
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+	profiles, next, err := h.creators.ListPublishedPage(r.Context(), creator.DiscoveryQuery{
+		Text: r.URL.Query().Get("q"), Category: r.URL.Query().Get("category"),
+		Limit: limit, Offset: offset,
+	})
 	if err != nil {
 		h.writeError(w, r, err)
 		return
 	}
 	noStore(w)
-	writeJSON(w, http.StatusOK, map[string]any{"creators": profiles})
+	writeJSON(w, http.StatusOK, map[string]any{"creators": profiles, "next_offset": next})
 }
 
 func (h *creatorHandler) handleMyProfile(w http.ResponseWriter, r *http.Request, p identity.Principal) {

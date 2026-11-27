@@ -7,6 +7,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.aspectRatio
@@ -77,6 +79,7 @@ fun DiscoverScreen(
     val palette = LocalVesperPalette.current
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
 
     Column(Modifier.fillMaxSize().background(palette.ground)) {
         Chrome(title = "Discover", subtitle = "Creators on this platform")
@@ -91,8 +94,25 @@ fun DiscoverScreen(
                     SpacerH(8)
                 }
                 SearchField(query, onChange = { query = it }, onSubmit = {
-                    scope.launch { store.loadCreators(query) }
+                    scope.launch { store.loadCreators(query, category) }
                 })
+                SpacerH(8)
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                    listOf("" to "All", "art" to "Art", "music" to "Music", "fitness" to "Fitness",
+                        "lifestyle" to "Lifestyle", "photography" to "Photo", "writing" to "Writing",
+                        "education" to "Education").forEach { (key, label) ->
+                        TextButton(onClick = {
+                            category = key
+                            scope.launch { store.loadCreators(query, key) }
+                        }) {
+                            Text(
+                                (if (category == key) "● " else "") + label,
+                                color = if (category == key) palette.brass else palette.muted,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        }
+                    }
+                }
                 SpacerH(12)
                 when (val state = store.creators) {
                     CreatorsState.Loading -> LabelMono("Loading creators…")
@@ -103,7 +123,7 @@ fun DiscoverScreen(
                     }
                     is CreatorsState.Ready -> {
                         if (state.items.isEmpty()) {
-                            Text("No published creators yet.", color = palette.muted)
+                            Text("No published creators match this filter.", color = palette.muted)
                         }
                     }
                 }
@@ -112,6 +132,15 @@ fun DiscoverScreen(
                 items((store.creators as CreatorsState.Ready).items, key = { it.userId }) { creator ->
                     SpacerH(10)
                     CreatorRow(creator, onClick = { onOpenCreator(creator.handle) })
+                }
+                if (store.nextCreatorOffset >= 0) {
+                    item {
+                        SpacerH(10)
+                        OutlineButton(
+                            label = if (store.loadingMoreCreators) "Loading…" else "Load more",
+                            onClick = { scope.launch { store.loadMoreCreators() } },
+                        )
+                    }
                 }
             }
         }

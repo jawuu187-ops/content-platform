@@ -26,10 +26,16 @@ class CatalogApi(private val sessions: SessionStore) {
         return meta.optJSONObject("payments")?.optBoolean("simulated") == true
     }
 
-    suspend fun creators(query: String = ""): List<CreatorProfile> {
-        val q = if (query.isBlank()) "" else "?q=" + encode(query)
-        val arr = JSONObject(get("/v1/creators$q")).optJSONArray("creators")
-        return (0 until (arr?.length() ?: 0)).mapNotNull { parseCreator(arr?.optJSONObject(it)) }
+    suspend fun creators(query: String = "", category: String = "", offset: Int = 0): Pair<List<CreatorProfile>, Int> {
+        val params = mutableListOf<String>()
+        if (query.isNotBlank()) params += "q=" + encode(query)
+        if (category.isNotBlank()) params += "category=" + encode(category)
+        if (offset > 0) params += "offset=$offset"
+        val suffix = if (params.isEmpty()) "" else "?" + params.joinToString("&")
+        val body = JSONObject(get("/v1/creators$suffix"))
+        val arr = body.optJSONArray("creators")
+        val list = (0 until (arr?.length() ?: 0)).mapNotNull { parseCreator(arr?.optJSONObject(it)) }
+        return list to body.optInt("next_offset", -1)
     }
 
     suspend fun creator(handle: String): Pair<CreatorProfile, List<Tier>> {
@@ -149,14 +155,14 @@ class CatalogApi(private val sessions: SessionStore) {
     suspend fun setLike(postId: String, liked: Boolean): CreatorPost {
         val s = requireSession()
         val method = if (liked) "POST" else "DELETE"
-        val body = JSONObject(request(method, s.baseUrl + "/v1/posts/" + encode(postId) + "/like", s.accessToken, if (liked) "{}" else null))
+        val body = JSONObject(request(method, s.baseUrl + "/v1/posts/" + encode(postId) + "/like", s.accessToken, if (liked) "{}".toByteArray() else null)
         return parsePost(body.optJSONObject("post")) ?: throw ApiException(502, "invalid_response", "post missing from response")
     }
 
     suspend fun setBookmark(postId: String, saved: Boolean) {
         val s = requireSession()
         val method = if (saved) "POST" else "DELETE"
-        request(method, s.baseUrl + "/v1/posts/" + encode(postId) + "/bookmark", s.accessToken, if (saved) "{}" else null)
+        request(method, s.baseUrl + "/v1/posts/" + encode(postId) + "/bookmark", s.accessToken, if (saved) "{}".toByteArray() else null)
     }
 
     suspend fun comments(postId: String): List<PostComment> {
@@ -176,7 +182,7 @@ class CatalogApi(private val sessions: SessionStore) {
     suspend fun addComment(postId: String, body: String): PostComment {
         val s = requireSession()
         val response = JSONObject(request("POST", s.baseUrl + "/v1/posts/" + encode(postId) + "/comments",
-            s.accessToken, JSONObject().put("body", body.trim()).toString()))
+            s.accessToken, JSONObject().put("body", body.trim()).toString().toByteArray()))
         val c = response.optJSONObject("comment") ?: throw ApiException(502, "invalid_response", "comment missing from response")
         return PostComment(
             id = c.optString("id"), postId = c.optString("post_id"),

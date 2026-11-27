@@ -129,7 +129,7 @@ fun AuthScreen(store: AuthStore) {
                     Field("Email", email, { email = it }, keyboardType = KeyboardType.Email)
                     store.resetNotice?.let {
                         SpacerH(8)
-                        Text(it, color = palette.accent, style = MaterialTheme.typography.bodySmall)
+                        Text(it, color = palette.actionText, style = MaterialTheme.typography.bodySmall)
                     }
                     store.resetError?.let {
                         SpacerH(8)
@@ -158,7 +158,7 @@ fun AuthScreen(store: AuthStore) {
                     Field("New password", newPassword, { newPassword = it }, password = true)
                     store.resetNotice?.let {
                         SpacerH(8)
-                        Text(it, color = palette.accent, style = MaterialTheme.typography.bodySmall)
+                        Text(it, color = palette.actionText, style = MaterialTheme.typography.bodySmall)
                     }
                     store.resetError?.let {
                         SpacerH(8)

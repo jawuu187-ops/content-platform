@@ -60,6 +60,14 @@ class CatalogStore(
         private set
     var unlockError by mutableStateOf<String?>(null)
         private set
+    var nextCreatorOffset by mutableStateOf(-1)
+        private set
+    var creatorQuery by mutableStateOf("")
+        private set
+    var creatorCategory by mutableStateOf("")
+        private set
+    var loadingMoreCreators by mutableStateOf(false)
+        private set
     var engagementPostId by mutableStateOf<String?>(null)
         private set
     var comments by mutableStateOf<List<PostComment>>(emptyList())
@@ -69,13 +77,35 @@ class CatalogStore(
     var engagementError by mutableStateOf<String?>(null)
         private set
 
-    suspend fun loadCreators(query: String = "") {
+    suspend fun loadCreators(query: String = "", category: String = "") {
+        creatorQuery = query
+        creatorCategory = category
         creators = CreatorsState.Loading
         creators = try {
             simulatedPayments = api.simulatedPayments()
-            CreatorsState.Ready(api.creators(query))
+            val (items, next) = api.creators(query, category)
+            nextCreatorOffset = next
+            CreatorsState.Ready(items)
         } catch (t: Throwable) {
+            nextCreatorOffset = -1
             CreatorsState.Failed(explain(t))
+        }
+    }
+
+    suspend fun loadMoreCreators() {
+        if (nextCreatorOffset < 0 || loadingMoreCreators) return
+        val current = creators as? CreatorsState.Ready ?: return
+        loadingMoreCreators = true
+        try {
+            val (items, next) = api.creators(creatorQuery, creatorCategory, nextCreatorOffset)
+            nextCreatorOffset = next
+            creators = CreatorsState.Ready(current.items + items.filter { new ->
+                current.items.none { it.userId == new.userId }
+            })
+        } catch (_: Throwable) {
+            // Keep the current page; the next tap retries the same offset.
+        } finally {
+            loadingMoreCreators = false
         }
     }
 

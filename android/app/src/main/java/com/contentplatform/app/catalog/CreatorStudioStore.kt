@@ -60,6 +60,21 @@ class CreatorStudioStore(
         }
     }
 
+    suspend fun setTierActive(id: String, name: String, description: String, priceMinor: Long,
+                              currency: String, periodDays: Int, active: Boolean) {
+        action {
+            api.updateTier(id, name, description, priceMinor, currency, periodDays, active)
+            load()
+        }
+    }
+
+    suspend fun deactivateTier(id: String) {
+        action {
+            api.deactivateTier(id)
+            load()
+        }
+    }
+
     suspend fun publish(uri: Uri?, body: String, visibility: String, priceMinor: Long?, currency: String) {
         action {
             val mediaId = uri?.let {

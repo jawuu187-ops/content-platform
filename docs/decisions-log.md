@@ -226,3 +226,15 @@ The app no longer treats a successful screen render as proof of a feature. Payme
 remains blocked by the absent gateway: the server keeps a subscription pending rather than
 claiming money moved. Payout settlement now records an external reference and a `paid`
 state, but the actual bank/rail transfer remains an external operation.
+
+## D-084 — The local server is running against its own database and media store
+
+The domain currently resolves to a different host and this machine has no privileged
+Caddy/systemd deployment, so no public HTTPS endpoint was configured. The API is running
+as a user process on `127.0.0.1:8080` with a dedicated PostgreSQL database and media
+directory, and was verified end to end: registration, creator profile, tier, upload, post,
+age verification, subscription, single-use media delivery and discovery. This is a real
+running backend, not a mock; it is not publicly reachable. Android's default development
+address remains `http://10.0.2.2:8080`, which reaches the host loopback from an emulator.
+Real payments remain blocked: the configured provider is the explicit development fake,
+and no adult-compatible payment processor or payout rail has been contracted.

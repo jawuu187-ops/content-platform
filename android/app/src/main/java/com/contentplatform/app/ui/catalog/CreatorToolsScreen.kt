@@ -164,9 +164,31 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
             state.tiers.forEach { tier ->
                 SpacerH(6)
                 CardSurface {
-                    Row(Modifier.fillMaxWidth().padding(12.dp)) {
-                        Text(tier.name + " · " + money(tier.priceMinor, tier.currency), color = palette.ink, modifier = Modifier.weight(1f))
-                        LabelMono(if (tier.active) "ACTIVE" else "OFF")
+                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(tier.name + " · " + money(tier.priceMinor, tier.currency), color = palette.ink, modifier = Modifier.weight(1f))
+                            LabelMono(if (tier.active) "ACTIVE" else "OFF")
+                        }
+                        SpacerH(6)
+                        Row {
+                            OutlineButton(if (tier.active) "Deactivate" else "Reactivate", onClick = {
+                                scope.launch {
+                                    store.setTierActive(
+                                        tier.id,
+                                        tier.name,
+                                        tier.description,
+                                        tier.priceMinor,
+                                        tier.currency,
+                                        tier.periodDays,
+                                        !tier.active,
+                                    )
+                                }
+                            })
+                            SpacerH(6)
+                            OutlineButton("Retire", onClick = {
+                                scope.launch { store.deactivateTier(tier.id) }
+                            })
+                        }
                     }
                 }
             }

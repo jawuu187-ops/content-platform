@@ -115,6 +115,32 @@ class CatalogApi(private val sessions: SessionStore) {
             .orFail("tier missing from response")
     }
 
+    suspend fun updateTier(
+        id: String,
+        name: String,
+        description: String,
+        priceMinor: Long,
+        currency: String,
+        periodDays: Int,
+        active: Boolean,
+    ): Tier {
+        val payload = JSONObject()
+            .put("name", name.trim())
+            .put("description", description.trim())
+            .put("price_minor", priceMinor)
+            .put("currency", currency)
+            .put("period_days", periodDays)
+            .put("active", active)
+            .toString()
+        val body = JSONObject(patch("/v1/creators/me/tiers/" + encode(id), payload))
+        return parseTier(body.optJSONObject("tier")).orFail("tier missing from response")
+    }
+
+    suspend fun deactivateTier(id: String) {
+        val s = requireSession()
+        request("DELETE", s.baseUrl + "/v1/creators/me/tiers/" + encode(id), s.accessToken, null)
+    }
+
     suspend fun upload(bytes: ByteArray, contentType: String): String {
         val session = requireSession()
         val response = request("POST", session.baseUrl + "/v1/media", session.accessToken, bytes, contentType)

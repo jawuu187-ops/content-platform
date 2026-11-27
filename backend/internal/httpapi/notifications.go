@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"errors"
-	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -18,11 +17,8 @@ type notificationHandler struct {
 	write *limiter
 }
 
-func newNotificationHandler(auth *authHandler, svc *notifications.Service, logger *slog.Logger,
+func newNotificationHandler(auth *authHandler, svc *notifications.Service,
 	shared *ratelimit.Backend) *notificationHandler {
-	if logger == nil {
-		logger = slog.Default()
-	}
 	return &notificationHandler{
 		auth: auth, svc: svc,
 		read:  newLimiter(240, 60*60, shared),

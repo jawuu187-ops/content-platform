@@ -208,7 +208,7 @@ func New(d Deps) http.Handler {
 			newCreatorVerifyHandler(authHandler, s.verify, d.Logger, s.limits).registerRoutes(mux)
 		}
 		if s.notify != nil {
-			newNotificationHandler(authHandler, s.notify, d.Logger, s.limits).registerRoutes(mux)
+			newNotificationHandler(authHandler, s.notify, s.limits).registerRoutes(mux)
 		} else {
 			mux.HandleFunc("/v1/notifications", func(w http.ResponseWriter, r *http.Request) {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",

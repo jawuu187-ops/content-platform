@@ -79,6 +79,14 @@ fun DiscoverScreen(
         Chrome(title = "Discover", subtitle = "Creators on this platform")
         LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
             item {
+                if (store.simulatedPayments) {
+                    Text(
+                        "SIMULATED PAYMENTS · test money only, no card is charged",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.brass,
+                    )
+                    SpacerH(8)
+                }
                 SearchField(query, onChange = { query = it }, onSubmit = {
                     scope.launch { store.loadCreators(query) }
                 })
@@ -208,6 +216,7 @@ fun PublicCreatorScreen(store: CatalogStore, onBack: () -> Unit) {
         TierSheet(
             tier = tier,
             state = store.subscribeState,
+            simulated = store.simulatedPayments,
             onSubscribe = { scope.launch { store.subscribe(tier) } },
             onDismiss = {
                 subscribeTier = null
@@ -381,6 +390,7 @@ private fun formatDuration(ms: Int): String {
 private fun TierSheet(
     tier: Tier,
     state: SubscribeState,
+    simulated: Boolean,
     onSubscribe: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -391,6 +401,14 @@ private fun TierSheet(
                 Text(tier.name, style = MaterialTheme.typography.titleMedium, color = palette.ink)
                 Text(money(tier.priceMinor, tier.currency) + " / " + tier.periodDays + " days", color = palette.inkSecondary)
                 SpacerH(10)
+                if (simulated) {
+                    Text(
+                        "SIMULATED CHECKOUT · no money moves; access is test access.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.brass,
+                    )
+                    SpacerH(6)
+                }
                 when (state) {
                     SubscribeState.Idle -> {
                         Text(
@@ -443,7 +461,7 @@ fun MembershipsScreen(store: CatalogStore) {
     val scope = rememberCoroutineScope()
     androidx.compose.runtime.LaunchedEffect(Unit) { store.loadMemberships() }
     Column(Modifier.fillMaxSize().background(palette.ground)) {
-        Chrome(title = "Memberships", subtitle = "Your active subscriptions")
+        Chrome(title = "Memberships", subtitle = if (store.simulatedPayments) "SIMULATED memberships" else "Your active subscriptions")
         when (val state = store.memberships) {
             com.contentplatform.app.catalog.MembershipsState.Loading ->
                 LabelMono("Loading memberships…")

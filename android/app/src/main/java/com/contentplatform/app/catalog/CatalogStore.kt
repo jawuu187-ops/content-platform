@@ -52,10 +52,13 @@ class CatalogStore(
         private set
     var openHandle by mutableStateOf<String?>(null)
         private set
+    var simulatedPayments by mutableStateOf(false)
+        private set
 
     suspend fun loadCreators(query: String = "") {
         creators = CreatorsState.Loading
         creators = try {
+            simulatedPayments = api.simulatedPayments()
             CreatorsState.Ready(api.creators(query))
         } catch (t: Throwable) {
             CreatorsState.Failed(explain(t))

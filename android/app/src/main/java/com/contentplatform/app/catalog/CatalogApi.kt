@@ -21,6 +21,11 @@ import java.net.URLEncoder
  */
 class CatalogApi(private val sessions: SessionStore) {
 
+    suspend fun simulatedPayments(): Boolean {
+        val meta = JSONObject(get("/v1/meta"))
+        return meta.optJSONObject("payments")?.optBoolean("simulated") == true
+    }
+
     suspend fun creators(query: String = ""): List<CreatorProfile> {
         val q = if (query.isBlank()) "" else "?q=" + encode(query)
         val arr = JSONObject(get("/v1/creators$q")).optJSONArray("creators")

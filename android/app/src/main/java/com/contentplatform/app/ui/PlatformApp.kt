@@ -278,9 +278,16 @@ fun PlatformApp(themeController: ThemeController) {
             }
         }
 
-        // Request payout is a sheet over whichever money surface opened it.
+        // Request payout is a sheet over whichever money surface opened it. Dismissing it
+        // clears the last receipt so the next open starts at the amount field.
         if (requestOpen) {
-            PayoutRequestSheet(store = financeStore, onDismiss = { requestOpen = false })
+            PayoutRequestSheet(
+                store = financeStore,
+                onDismiss = {
+                    financeStore.dismissRequest()
+                    requestOpen = false
+                },
+            )
         }
 
         // Checkout: scrim and sheet animate independently, so the scrim never slides.

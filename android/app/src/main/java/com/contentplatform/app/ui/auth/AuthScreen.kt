@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.contentplatform.app.BuildConfig
 import com.contentplatform.app.auth.AuthStore
+import com.contentplatform.app.auth.PasswordPolicy
 import com.contentplatform.app.dm.SessionStore
 import com.contentplatform.app.ui.components.ActionButton
 import com.contentplatform.app.ui.components.CardSurface
@@ -83,6 +84,15 @@ fun AuthScreen(store: AuthStore) {
                     Field("Email", email, { email = it }, keyboardType = KeyboardType.Email)
                     SpacerH(10)
                     Field("Password", password, { password = it }, password = true)
+                    if (registerMode) {
+                        SpacerH(4)
+                        val problem = PasswordPolicy.problem(password)
+                        Text(
+                            problem ?: "At least ${PasswordPolicy.MinBytes} characters.",
+                            color = if (password.isNotEmpty() && problem != null) palette.danger else palette.muted,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     if (!registerMode && store.mfaRequired) {
                         SpacerH(10)
                         Field("Authenticator code", mfa, { mfa = it.take(6) }, keyboardType = KeyboardType.Number)
@@ -105,7 +115,9 @@ fun AuthScreen(store: AuthStore) {
                                 else store.login(baseUrl, email, password, mfa)
                             }
                         },
-                        enabled = !store.busy && email.isNotBlank() && password.isNotEmpty() && baseUrl.isNotBlank(),
+                        enabled = !store.busy && email.isNotBlank() && password.isNotEmpty() &&
+                            baseUrl.isNotBlank() &&
+                            (!registerMode || PasswordPolicy.problem(password) == null),
                     )
                     SpacerH(8)
                     OutlineButton(

@@ -340,3 +340,44 @@ func TestAuthEndpointsReportMissingDependency(t *testing.T) {
 		t.Fatalf("want 503 without identity service, got %d", rec.Code)
 	}
 }
+
+// Regression: the Android client used to allow a short password through, producing a
+// 400 weak_password on registration and then a confusing 401 when the person tried to
+// sign in with the account that was never created. The contract must stay explicit.
+func TestRegisterRejectsShortPasswordAndAllowsRetryLogin(t *testing.T) {
+	h, _ := authServer(t)
+	email := "short-policy@example.test"
+
+	rec := doJSON(t, h, http.MethodPost, "/v1/auth/register", "", registerBody(email, "short"))
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("short password: want 400, got %d", rec.Code)
+	}
+	if p := decodeProblem(t, rec); p.Code != "weak_password" {
+		t.Fatalf("short password: want weak_password, got %q", p.Code)
+	}
+
+	const password = "a-very-long-password"
+	rec = doJSON(t, h, http.MethodPost, "/v1/auth/register", "", registerBody(email, password))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("valid registration: want 201, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	registered := decodeAuth(t, rec)
+
+	rec = doJSON(t, h, http.MethodPost, "/v1/auth/login", "", registerBody(email, password))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login after registration: want 200, got %d", rec.Code)
+	}
+	loggedIn := decodeAuth(t, rec)
+	if loggedIn.User.ID != registered.User.ID {
+		t.Fatal("login after registration returned a different account")
+	}
+
+	rec = doJSON(t, h, http.MethodPost, "/v1/auth/logout", loggedIn.Tokens.AccessToken, "")
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("logout: want 204, got %d", rec.Code)
+	}
+	rec = doJSON(t, h, http.MethodPost, "/v1/auth/login", "", registerBody(email, password))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login after logout: want 200, got %d", rec.Code)
+	}
+}

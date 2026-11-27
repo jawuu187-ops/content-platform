@@ -50,8 +50,10 @@ fun VerifyEmailScreen(store: AuthStore, onPostpone: () -> Unit) {
         LabelMono("ONE STEP LEFT")
         Text("Confirm your email", style = MaterialTheme.typography.displaySmall, color = palette.ink)
         Text(
-            "We send a six-character code to " + (store.pendingVerificationEmail ?: "your address") +
-                ". It can be used once and expires in 30 minutes.",
+            "No real email is delivered in this build. A six-character code for " +
+                (store.pendingVerificationEmail ?: "your address") +
+                " is written to the simulated development mailbox. It can be used once, expires " +
+                "in 30 minutes, and you can choose Verify later.",
             style = MaterialTheme.typography.bodyMedium,
             color = palette.muted,
         )

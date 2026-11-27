@@ -56,6 +56,10 @@ class AuthStore(
 
     suspend fun register(baseUrl: String, email: String, password: String) {
         if (busy) return
+        PasswordPolicy.problem(password)?.let {
+            error = it
+            return
+        }
         busy = true
         error = null
         var created = false
@@ -80,7 +84,7 @@ class AuthStore(
         verificationNotice = null
         try {
             api.requestEmailVerification()
-            verificationNotice = "Confirmation code sent to $target. It expires in 30 minutes."
+            verificationNotice = "Simulated mail: a confirmation code for $target was written to the development mailbox. It expires in 30 minutes."
         } catch (t: Throwable) {
             verificationError = explain(t)
         } finally {
@@ -167,11 +171,14 @@ class AuthStore(
     }
 
     private fun explain(t: Throwable): String = when (t) {
-        is ApiException -> when (t.status) {
-            400 -> t.detail.ifBlank { "Check the email, password and server address." }
-            401 -> t.detail.ifBlank { "Email or password is incorrect." }
-            409 -> t.detail.ifBlank { "That email is already registered." }
-            else -> t.detail.ifBlank { "The server could not complete the request." }
+        is ApiException -> when (t.code) {
+            "weak_password" -> "Use at least ${PasswordPolicy.MinBytes} characters for your password."
+            else -> when (t.status) {
+                400 -> t.detail.ifBlank { "Check the email, password and server address." }
+                401 -> t.detail.ifBlank { "Email or password is incorrect." }
+                409 -> t.detail.ifBlank { "That email is already registered." }
+                else -> t.detail.ifBlank { "The server could not complete the request." }
+            }
         }
         is IOException -> "You are offline."
         else -> t.message ?: "The request failed."

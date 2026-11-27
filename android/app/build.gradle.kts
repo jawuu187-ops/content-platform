@@ -16,8 +16,8 @@ android {
         applicationId = "com.contentplatform.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0-test"
 
         // Device tests drive the installed app against a real API; see
         // .github/workflows/android-e2e.yml for the runner that owns that API.
@@ -31,12 +31,25 @@ android {
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
+    val releaseKeystore = providers.gradleProperty("releaseKeystoreFile").orNull
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = providers.gradleProperty("releaseStorePassword").orNull
+                keyAlias = providers.gradleProperty("releaseKeyAlias").orNull
+                keyPassword = providers.gradleProperty("releaseKeyPassword").orNull
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

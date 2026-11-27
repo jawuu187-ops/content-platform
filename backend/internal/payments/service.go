@@ -627,3 +627,24 @@ func (s *Service) SimulateSettle(ctx context.Context, intentID string) error {
 	}
 	return s.settle(ctx, intent)
 }
+
+// SimulateSettleFor completes a fake-provider intent only for the account that
+// owns it. It is the device-side completion path for simulated checkout.
+func (s *Service) SimulateSettleFor(ctx context.Context, p identity.Principal, intentID string) (Intent, error) {
+	intent, err := s.Get(ctx, p, intentID)
+	if err != nil {
+		return Intent{}, err
+	}
+	if intent.UserID != p.UserID {
+		return Intent{}, ErrForbidden
+	}
+	if !intent.Simulated {
+		return Intent{}, ErrForbidden
+	}
+	if intent.Status != StatusSucceeded {
+		if err := s.settle(ctx, intent); err != nil {
+			return Intent{}, err
+		}
+	}
+	return s.Get(ctx, p, intentID)
+}

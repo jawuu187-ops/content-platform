@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -168,3 +169,39 @@ func TestConcurrentPaidMessageSettlementsCannotDoubleCharge(t *testing.T) {
 }
 
 func ptrBool(v bool) *bool { return &v }
+
+func TestSimulateSettleForRequiresOwner(t *testing.T) {
+	pool := dbtest.Pool(t)
+	ctx := context.Background()
+	ids := identity.New(pool, identity.WithHasher(identity.NewHasher(identity.TestParams())))
+	creators := creator.New(pool, creator.WithFakePayments(true), creator.WithAgeGate(tipGate{}))
+	fake, _ := NewFake([]byte(strings.Repeat("o", 32)))
+	pay := New(pool, WithProvider(fake), WithCreators(creators))
+	var owner, fan, other identity.Principal
+	for i, p := range []*identity.Principal{&owner, &fan, &other} {
+		res, err := ids.Register(ctx, []string{"sim-owner@example.test", "sim-fan@example.test", "sim-other@example.test"}[i],
+			"a-very-long-password", identity.DeviceInfo{Fingerprint: "s"}, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		*p = res.Principal
+	}
+	if _, err := creators.CreateProfile(ctx, owner, creator.ProfileInput{
+		Handle: "sim_studio", DisplayName: "Sim", Category: "art", Publish: ptrBool(true),
+	}, ""); err != nil {
+		t.Fatal(err)
+	}
+	intent, err := pay.CreateIntent(ctx, fan, CreateInput{
+		Purpose: PurposeTip, CreatorID: owner.UserID, AmountMinor: 500, IdempotencyKey: "sim-tip-key",
+	}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pay.SimulateSettleFor(ctx, other, intent.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("other user simulate = %v", err)
+	}
+	done, err := pay.SimulateSettleFor(ctx, fan, intent.ID)
+	if err != nil || done.Status != StatusSucceeded || !done.Simulated {
+		t.Fatalf("owner simulate = %+v %v", done, err)
+	}
+}

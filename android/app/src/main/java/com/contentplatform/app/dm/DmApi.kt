@@ -138,7 +138,9 @@ class DmApi(private val sessions: SessionStore) {
             .put("idempotency_key", idempotencyKey)
             .toString()
         val body = post("/v1/tips", payload)
-        return parsePayment(JSONObject(body).optJSONObject("tip"))
+        val created = parsePayment(JSONObject(body).optJSONObject("tip")) ?: return null
+        val settled = post("/v1/payments/${encode(created.id)}/simulate", "{}")
+        return parsePayment(JSONObject(settled).optJSONObject("payment")) ?: created
     }
 
     /**

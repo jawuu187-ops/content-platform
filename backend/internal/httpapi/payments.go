@@ -123,6 +123,18 @@ func (h *paymentHandler) handleTip(w http.ResponseWriter, r *http.Request, p ide
 	writeJSON(w, http.StatusCreated, map[string]any{"tip": intent})
 }
 
+// handleSimulate completes a fake-provider intent for its owner. A real intent
+// cannot pass: the service checks the provider's `simulated` stamp.
+func (h *paymentHandler) handleSimulate(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	intent, err := h.payments.SimulateSettleFor(r.Context(), p, r.PathValue("id"))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"payment": intent})
+}
+
 func (h *paymentHandler) handleGet(w http.ResponseWriter, r *http.Request, p identity.Principal) {
 	intent, err := h.payments.Get(r.Context(), p, r.PathValue("id"))
 	if err != nil {
@@ -218,6 +230,8 @@ func (h *paymentHandler) registerRoutes(mux *http.ServeMux) {
 		rateLimited(h.create, "payment_create", h.auth.requireAuth(h.handleCreate)))
 	mux.HandleFunc("POST /v1/tips",
 		rateLimited(h.tip, "tip_create", h.auth.requireAuth(h.handleTip)))
+	mux.HandleFunc("POST /v1/payments/{id}/simulate",
+		rateLimited(h.create, "payment_simulate", h.auth.requireAuth(h.handleSimulate)))
 	mux.HandleFunc("GET /v1/payments/{id}",
 		rateLimited(h.create, "payment_read", h.auth.requireAuth(h.handleGet)))
 	mux.HandleFunc("GET /v1/me/payments",

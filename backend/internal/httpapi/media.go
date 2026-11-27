@@ -213,6 +213,59 @@ type deliveryBody struct {
 // handleIssueDelivery authorizes the request and, if allowed, mints a short
 // lived single-use link. The link is not an authorization: redemption checks
 // again.
+// handleContent streams media to an authenticated viewer and supports HTTP Range so
+// video players can seek. Authorization is repeated on every request; unlike the
+// single-use delivery token, this endpoint is a normal authenticated read.
+func (h *mediaHandler) handleContent(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	postID := r.PathValue("postID")
+	mediaID := r.PathValue("mediaID")
+	has, err := h.creators.PostHasMedia(r.Context(), postID, mediaID)
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	if !has {
+		writeProblem(w, r, http.StatusNotFound, "not_found", "that media is not part of that post")
+		return
+	}
+	decision, err := h.creators.AuthorizePost(r.Context(), &p, postID)
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	if !decision.Allowed {
+		noStore(w)
+		writeJSON(w, http.StatusForbidden, map[string]any{
+			"allowed": false, "reason": decision.Reason,
+			"detail": "this account may not access that post",
+		})
+		return
+	}
+	obj, err := h.media.ObjectByID(r.Context(), mediaID)
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	body, _, err := h.media.Open(r.Context(), obj.StorageKey)
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	defer func() { _ = body.Close() }()
+	seeker, ok := body.(io.ReadSeeker)
+	if !ok {
+		writeProblem(w, r, http.StatusInternalServerError, "internal_error",
+			"this storage driver cannot serve range requests")
+		return
+	}
+	w.Header().Set("Content-Type", obj.ContentType)
+	w.Header().Set("Content-Disposition", `inline; filename="media"`)
+	w.Header().Set("Cache-Control", "private, no-store, max-age=0")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	http.ServeContent(w, r, "media", obj.CreatedAt, seeker)
+}
+
 func (h *mediaHandler) handleIssueDelivery(w http.ResponseWriter, r *http.Request, p identity.Principal) {
 	var body deliveryBody
 	if err := decodeJSON(w, r, &body); err != nil {
@@ -316,4 +369,6 @@ func (h *mediaHandler) registerRoutes(mux *http.ServeMux) {
 		h.auth.requirePermission(identity.PermAdminAll, h.handleGrantUnlock)))
 	mux.HandleFunc("POST /v1/media/{id}/delivery", rateLimited(h.delivery, "delivery_issue",
 		h.auth.requireAuth(h.handleIssueDelivery)))
+	mux.HandleFunc("GET /v1/posts/{postID}/media/{mediaID}/content", rateLimited(h.delivery, "delivery_content",
+		h.auth.requireAuth(h.handleContent)))
 }

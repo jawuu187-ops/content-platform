@@ -129,12 +129,11 @@ class CatalogStore(
         subscribeState = SubscribeState.Idle
     }
 
-    suspend fun imageBytes(postId: String, mediaId: String): ByteArray {
-        val delivery = api.issueDelivery(postId, mediaId)
-        return api.download(delivery.url)
-    }
+    suspend fun imageBytes(postId: String, mediaId: String): ByteArray =
+        api.mediaContent(postId, mediaId)
 
-    suspend fun videoUrl(postId: String, mediaId: String): String = api.issueDelivery(postId, mediaId).url
+    fun videoSource(postId: String, mediaId: String): VideoSource =
+        api.videoSource(postId, mediaId)
 
     private fun explain(t: Throwable): String = when (t) {
         is ApiException -> when (t.status) {

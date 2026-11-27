@@ -425,3 +425,30 @@ func TestLockedFeedHidesNothingUsable(t *testing.T) {
 		t.Fatalf("anonymous feed did not mark the post locked: %s", rec.Body.String())
 	}
 }
+
+func TestAuthenticatedMediaContentSupportsRangeAndRepeats(t *testing.T) {
+	f := newMediaFixture(t)
+	_, handle, tierID, postID, mediaID := newPost(t, f, creator.VisibilitySubscriber, nil)
+	fan := registerAndGetToken(t, f.handler, "range-fan-"+randSuffix(t)+"@example.test")
+	subscribe(t, f, fan.Tokens.AccessToken, handle, tierID)
+	verifyAccount(t, f.ageFixture(), fan.Tokens.AccessToken, fan.User.ID, "evt_range_"+randSuffix(t),
+		time.Now().Add(24*time.Hour))
+
+	path := "/v1/posts/" + postID + "/media/" + mediaID + "/content"
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.Header.Set("Authorization", "Bearer "+fan.Tokens.AccessToken)
+		req.Header.Set("Range", "bytes=0-3")
+		rec := httptest.NewRecorder()
+		f.handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusPartialContent {
+			t.Fatalf("range request %d: %d %s", i, rec.Code, rec.Body.String())
+		}
+		if rec.Header().Get("Content-Range") == "" {
+			t.Fatal("missing Content-Range")
+		}
+		if rec.Body.Len() != 4 {
+			t.Fatalf("range bytes = %d, want 4", rec.Body.Len())
+		}
+	}
+}

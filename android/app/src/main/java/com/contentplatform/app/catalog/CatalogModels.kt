@@ -52,3 +52,5 @@ data class Subscription(
 )
 
 data class Delivery(val url: String, val expiresAt: String?)
+
+data class VideoSource(val url: String, val headers: Map<String, String>)

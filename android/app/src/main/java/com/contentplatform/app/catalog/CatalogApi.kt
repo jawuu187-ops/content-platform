@@ -141,6 +141,31 @@ class CatalogApi(private val sessions: SessionStore) {
         request("DELETE", s.baseUrl + "/v1/creators/me/tiers/" + encode(id), s.accessToken, null)
     }
 
+    suspend fun uploadStream(input: java.io.InputStream, contentType: String): String = withContext(Dispatchers.IO) {
+        val session = requireSession()
+        val connection = URL(session.baseUrl + "/v1/media").openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 120_000
+            connection.useCaches = false
+            connection.doOutput = true
+            connection.setChunkedStreamingMode(64 * 1024)
+            connection.setRequestProperty("Content-Type", contentType)
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer " + session.accessToken)
+            connection.outputStream.use { out -> input.use { it.copyTo(out) } }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) throw problem(status, text)
+            JSONObject(text).optJSONObject("media")?.optString("id").orEmpty()
+                .ifBlank { throw ApiException(502, "invalid_response", "upload returned no media id") }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     suspend fun upload(bytes: ByteArray, contentType: String): String {
         val session = requireSession()
         val response = request("POST", session.baseUrl + "/v1/media", session.accessToken, bytes, contentType)
@@ -174,6 +199,23 @@ class CatalogApi(private val sessions: SessionStore) {
         var url = delivery.optString("url")
         if (url.startsWith("/")) url = requireSession().baseUrl + url
         return Delivery(url, delivery.optString("expires_at").takeIf { it.isNotBlank() })
+    }
+
+    suspend fun mediaContent(postId: String, mediaId: String): ByteArray {
+        val s = requireSession()
+        return requestBytes(
+            "GET",
+            s.baseUrl + "/v1/posts/" + encode(postId) + "/media/" + encode(mediaId) + "/content",
+            s.accessToken,
+        )
+    }
+
+    fun videoSource(postId: String, mediaId: String): VideoSource {
+        val s = requireSession()
+        return VideoSource(
+            url = s.baseUrl + "/v1/posts/" + encode(postId) + "/media/" + encode(mediaId) + "/content",
+            headers = mapOf("Authorization" to "Bearer " + s.accessToken),
+        )
     }
 
     suspend fun download(url: String): ByteArray = withContext(Dispatchers.IO) {
@@ -299,6 +341,24 @@ class CatalogApi(private val sessions: SessionStore) {
         val s = requireSession()
         return request("PATCH", s.baseUrl + path, s.accessToken, payload.toByteArray())
     }
+
+    private suspend fun requestBytes(method: String, url: String, token: String): ByteArray =
+        withContext(Dispatchers.IO) {
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = method
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 60_000
+                connection.useCaches = false
+                connection.setRequestProperty("Authorization", "Bearer $token")
+                if (connection.responseCode !in 200..299) {
+                    throw ApiException(connection.responseCode, "media_failed", "media could not be loaded")
+                }
+                connection.inputStream.use { it.readBytes() }
+            } finally {
+                connection.disconnect()
+            }
+        }
 
     private suspend fun request(
         method: String,

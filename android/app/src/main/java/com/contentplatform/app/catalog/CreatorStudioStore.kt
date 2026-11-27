@@ -78,19 +78,14 @@ class CreatorStudioStore(
     suspend fun publish(uri: Uri?, body: String, visibility: String, priceMinor: Long?, currency: String) {
         action {
             val mediaId = uri?.let {
-                val (bytes, mime) = readUri(it)
-                api.upload(bytes, mime)
+                val stream = context.contentResolver.openInputStream(it)
+                    ?: throw ApiException(400, "file_unreadable", "the selected file could not be read")
+                val mime = context.contentResolver.getType(it) ?: "application/octet-stream"
+                api.uploadStream(stream, mime)
             }
             api.createPost(body, visibility, priceMinor, currency, listOfNotNull(mediaId))
             message = "Post published."
         }
-    }
-
-    private suspend fun readUri(uri: Uri): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
-        val mime = context.contentResolver.getType(uri) ?: "application/octet-stream"
-        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: throw ApiException(400, "file_unreadable", "the selected file could not be read")
-        bytes to mime
     }
 
     private suspend fun action(block: suspend () -> Unit) {

@@ -1,9 +1,10 @@
 package com.contentplatform.app.ui.catalog
 
 import android.graphics.BitmapFactory
+import android.media.MediaPlayer
 import android.net.Uri
-import android.widget.MediaController
-import android.widget.VideoView
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,8 +21,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,9 +39,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import kotlin.math.max
 import com.contentplatform.app.catalog.CatalogStore
 import com.contentplatform.app.catalog.CreatorPost
 import com.contentplatform.app.catalog.CreatorProfile
@@ -45,6 +52,7 @@ import com.contentplatform.app.catalog.CreatorState
 import com.contentplatform.app.catalog.PostMedia
 import com.contentplatform.app.catalog.CreatorsState
 import com.contentplatform.app.catalog.SubscribeState
+import com.contentplatform.app.catalog.VideoSource
 import com.contentplatform.app.catalog.Tier
 import com.contentplatform.app.ui.components.ActionButton
 import com.contentplatform.app.ui.components.CardSurface
@@ -260,7 +268,7 @@ private fun PostRow(post: CreatorPost, store: CatalogStore) {
 private fun PostMediaView(store: CatalogStore, postId: String, media: PostMedia) {
     val palette = LocalVesperPalette.current
     var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var videoUrl by remember { mutableStateOf<String?>(null) }
+    var videoSource by remember { mutableStateOf<VideoSource?>(null) }
     var failure by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(media.mediaId) {
@@ -270,7 +278,7 @@ private fun PostMediaView(store: CatalogStore, postId: String, media: PostMedia)
                 bitmap = withContext(Dispatchers.IO) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
                 if (bitmap == null) failure = "Image could not be decoded."
             } else if (media.kind == "video") {
-                videoUrl = store.videoUrl(postId, media.mediaId)
+                videoSource = store.videoSource(postId, media.mediaId)
             }
         } catch (t: Throwable) {
             failure = t.message ?: "Media could not be loaded."
@@ -287,24 +295,86 @@ private fun PostMediaView(store: CatalogStore, postId: String, media: PostMedia)
             ),
         )
     }
-    videoUrl?.let { url ->
+    videoSource?.let { AuthenticatedVideo(it) }
+    failure?.let {
+        Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun AuthenticatedVideo(source: VideoSource) {
+    val context = LocalContext.current
+    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var duration by remember { mutableStateOf(0) }
+    var position by remember { mutableStateOf(0) }
+    var playing by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose { player?.release() }
+    }
+    LaunchedEffect(player) {
+        while (player != null) {
+            position = player?.currentPosition ?: 0
+            playing = player?.isPlaying == true
+            delay(500)
+        }
+    }
+
+    Column {
         AndroidView(
             factory = { ctx ->
-                VideoView(ctx).apply {
-                    setVideoURI(Uri.parse(url))
-                    val controller = MediaController(ctx)
-                    controller.setAnchorView(this)
-                    setMediaController(controller)
-                    setOnPreparedListener { it.isLooping = false }
-                    start()
+                SurfaceView(ctx).apply {
+                    holder.addCallback(object : SurfaceHolder.Callback {
+                        override fun surfaceCreated(holder: SurfaceHolder) {
+                            if (player != null) return
+                            val mp = MediaPlayer()
+                            try {
+                                mp.setDataSource(ctx, Uri.parse(source.url), source.headers)
+                                mp.setDisplay(holder)
+                                mp.setOnPreparedListener { prepared ->
+                                    player = prepared
+                                    duration = prepared.duration
+                                    prepared.start()
+                                    playing = true
+                                }
+                                mp.setOnErrorListener { _, _, _ -> player = null; false }
+                                mp.prepareAsync()
+                            } catch (t: Throwable) {
+                                mp.release()
+                                player = null
+                            }
+                        }
+                        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+                        override fun surfaceDestroyed(holder: SurfaceHolder) {
+                            player?.release()
+                            player = null
+                        }
+                    })
                 }
             },
             modifier = Modifier.fillMaxWidth().height(220.dp),
         )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = {
+                player?.let {
+                    if (it.isPlaying) it.pause() else it.start()
+                    playing = it.isPlaying
+                }
+            }) { Text(if (playing) "Pause" else "Play") }
+            Slider(
+                value = position.toFloat().coerceIn(0f, max(1, duration).toFloat()),
+                onValueChange = { player?.seekTo(it.toInt()) },
+                valueRange = 0f..max(1, duration).toFloat(),
+                modifier = Modifier.weight(1f),
+            )
+            Text(formatDuration(position) + " / " + formatDuration(duration), style = MaterialTheme.typography.bodySmall)
+        }
     }
-    failure?.let {
-        Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
-    }
+}
+
+private fun formatDuration(ms: Int): String {
+    val total = (ms / 1000).coerceAtLeast(0)
+    return (total / 60).toString().padStart(2, '0') + ":" + (total % 60).toString().padStart(2, '0')
 }
 
 @Composable

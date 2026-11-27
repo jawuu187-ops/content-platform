@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>21 Payout history</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen bone" style="--onfill:#f6efe6">
+<div class="frame" style="display:flex;flex-direction:column">
+  <div class="statusbar"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
+
+  <div class="masthead">
+    <div class="icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+    </div>
+    <div class="mast-title">Payouts</div>
+    <div class="grow"></div>
+    <span class="meta">1 reserved</span>
+  </div>
+
+  <div style="flex:1;overflow:hidden">
+    <div class="pad" style="padding-top:16px">
+      <div class="row between" style="align-items:flex-end">
+        <div>
+          <div class="meta">Available</div>
+          <div class="num" style="font-size:28px;font-weight:600;margin-top:2px">$30.00</div>
+        </div>
+        <div style="text-align:right">
+          <div class="meta">Pending · $0.00</div>
+          <div class="meta" style="margin-top:2px;text-transform:none">Minimum $10.00 · USD</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="btn sm" style="flex:1">Request payout</div>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:12px">
+      <div class="inset">
+        <div class="small"><b>No rail is connected.</b> “Reserved” means the amount left your available balance and waits in the ledger. It is not a transfer, and this build has no paid state.</div>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:8px">
+      <div class="sec" style="margin-top:8px"><span class="n">01</span><span class="t">Requests</span><span class="g"></span></div>
+
+      <div class="card" style="margin-top:8px">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="flag sage">Reserved</span>
+            <span class="num" style="font-size:14px;font-weight:600">$10.00</span>
+          </div>
+          <div class="meta" style="margin-top:6px;text-transform:none">bank · requested 26 Nov · approved 27 Nov</div>
+          <div class="note" style="margin-top:4px">“Checked against the statement.” — finance</div>
+          <div class="row between" style="margin-top:8px">
+            <span class="meta" style="text-transform:none">2 events · requested → approved</span>
+            <span class="link small">Detail</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:8px;border-left:2px solid var(--flag)">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="flag flag-red">Rejected</span>
+            <span class="num" style="font-size:14px;font-weight:600">$12.00</span>
+          </div>
+          <div class="meta" style="margin-top:6px;text-transform:none">bank · requested 20 Nov · decided 21 Nov</div>
+          <div class="note" style="margin-top:4px">“Bank details need re-verification. Add a payout method, then request again.” — finance</div>
+          <div class="row between" style="margin-top:8px">
+            <span class="meta" style="text-transform:none">2 events · requested → rejected</span>
+            <span class="link small">Detail</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:8px">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="flag">Cancelled</span>
+            <span class="num" style="font-size:14px;font-weight:600">$5.00</span>
+          </div>
+          <div class="meta" style="margin-top:6px;text-transform:none">wallet · requested 13 Nov · cancelled 14 Nov</div>
+          <div class="note" style="margin-top:4px">Cancelled by you before a decision. Nothing was reserved.</div>
+          <div class="row between" style="margin-top:8px">
+            <span class="meta" style="text-transform:none">2 events · requested → cancelled</span>
+            <span class="link small">Detail</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <span class="meta" style="text-transform:none">A rejected or cancelled request can be asked for again. A reserved one does not block a new request.</span>
+      </div>
+    </div>
+  </div>
+</div>
+<script>try{if(location.search.indexOf("dark")>=0)document.body.classList.add("dark")}catch(e){}</script>
+</body></html>

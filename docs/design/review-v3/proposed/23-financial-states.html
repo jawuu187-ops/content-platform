@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>23 Financial states</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen bone" style="--onfill:#f6efe6">
+<div class="frame" style="display:flex;flex-direction:column">
+  <div class="statusbar"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
+
+  <div class="masthead">
+    <div class="mast-title">Financial states</div>
+    <div class="grow"></div>
+    <span class="meta">5 cases</span>
+  </div>
+
+  <div style="flex:1;overflow:hidden">
+    <div class="pad" style="padding-top:12px">
+      <div class="card">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="flag">Requested</span>
+            <span class="num small">$20.00</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">Waiting for finance</div>
+          <p class="small muted" style="margin-top:4px">Nothing is reserved yet. One request per currency can be open; cancel it before a decision.</p>
+          <div class="row between" style="margin-top:8px">
+            <span class="link small">Cancel request</span>
+            <span class="meta">201 · requested</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:10px">
+      <div class="card" style="border-left:2px solid var(--flag)">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="flag flag-red">Not enough</span>
+            <span class="meta">409 · insufficient_balance</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">You asked for $40.00</div>
+          <p class="small muted" style="margin-top:4px">$30.00 is available in USD. Lower the amount to continue.</p>
+          <div class="btn sm outline r8" style="margin-top:8px">Change amount</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:10px">
+      <div class="card" style="border-left:2px solid var(--flag)">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="flag flag-red">Already open</span>
+            <span class="meta">409 · payout_conflict</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">A USD request is already open</div>
+          <p class="small muted" style="margin-top:4px">Wait for the decision or cancel it. A reserved payout does not block a new request.</p>
+          <div class="btn sm outline r8" style="margin-top:8px">View open request</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:10px">
+      <div class="card">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="empty-mark" style="width:32px;height:32px">0</span>
+            <span class="meta">200 · rows []</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">No movements in this period</div>
+          <p class="small muted" style="margin-top:4px">Choose a wider period, or include test rows to see the simulated fixture.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:10px">
+      <div class="card" style="border-left:2px solid var(--flag)">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="flag flag-red">Too many rows</span>
+            <span class="meta">400 · export_too_large</span>
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">More than 5,000 movements</div>
+          <p class="small muted" style="margin-top:4px">The export refuses rather than cutting the end off a year. Narrow the dates.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>try{if(location.search.indexOf("dark")>=0)document.body.classList.add("dark")}catch(e){}</script>
+</body></html>

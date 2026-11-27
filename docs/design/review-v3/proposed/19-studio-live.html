@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>19 Studio · live earnings card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/app.css">
+</head><body class="screen" style="--onfill:#f6efe6">
+<div class="frame" style="display:flex;flex-direction:column">
+  <div class="statusbar"><span>9:41</span><span class="right"><span class="sig"><i></i><i></i><i></i><i></i></span><span class="batt"></span></span></div>
+
+  <div class="masthead">
+    <div class="mast-title" style="font-size:21px">Studio</div>
+    <div class="grow"></div>
+    <span class="flag">Creator</span>
+    <div class="avatar round" style="width:32px;height:32px;margin-left:8px">
+      <img src="../assets/img/hero.jpg" alt="" style="object-position:52% 14%">
+    </div>
+  </div>
+
+  <div style="flex:1;overflow:hidden">
+    <div class="pad" style="padding-top:12px">
+      <div class="btn cta wide">
+        <span>New post</span>
+        <span class="p">photo · video · text</span>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:16px">
+      <div class="row between">
+        <span style="font-size:16px;font-weight:600">Recent posts</span>
+        <span class="meta">48 published</span>
+      </div>
+      <div class="grid-3" style="margin-top:8px">
+        <div class="cell">
+          <img src="../assets/img/hero.jpg" alt="" style="object-position:52% 24%">
+          <div class="chip bl bone">12 Nov</div>
+        </div>
+        <div class="cell">
+          <img src="../assets/img/content-rooftop.jpg" alt="">
+          <div class="chip bl ox">$14</div>
+        </div>
+        <div class="cell">
+          <img src="../assets/img/content-studio.jpg" alt="">
+          <div class="chip bl bone">4 Nov</div>
+        </div>
+        <div class="cell">
+          <img src="../assets/img/hero.jpg" alt="" style="object-position:44% 36%">
+          <div class="chip bl bone">28 Oct</div>
+        </div>
+        <div class="cell">
+          <img src="../assets/img/content-rooftop.jpg" alt="" style="object-position:44% 62%">
+          <div class="chip bl bone">19 Oct</div>
+        </div>
+        <div class="cell">
+          <img src="../assets/img/content-studio.jpg" alt="" style="object-position:60% 40%">
+          <div class="chip bl ox">$9</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <span class="link small">All posts and drafts</span>
+      </div>
+    </div>
+
+    <!-- Updated card: every figure below comes from GET /v1/creator/payouts
+         (balance.available_minor / pending_minor / minimum_minor) and
+         GET /v1/creator/earnings (net_simulated_minor). No monthly delta, no MRR. -->
+    <div class="pad" style="margin-top:16px">
+      <div class="card">
+        <div class="card-body" style="padding:16px">
+          <div class="row between">
+            <span class="meta">Earnings · available</span>
+            <span class="flag">No rail</span>
+          </div>
+          <div class="row between" style="align-items:baseline;margin-top:4px">
+            <div class="num" style="font-size:21px;font-weight:600">$30.00</div>
+            <div class="meta">USD</div>
+          </div>
+          <div class="row between" style="margin-top:8px">
+            <span class="meta" style="text-transform:none">Excludes $7.20 test money</span>
+            <span class="link small">Statement</span>
+          </div>
+          <div class="row between" style="margin-top:12px">
+            <span class="note">Approved requests are reserved, not transferred.</span>
+            <div class="btn sm outline r8" style="flex:none">Request payout</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- The 7-day chart is removed: no endpoint returns a daily series. Its place is
+         a statement entry, which is backed by real ledger rows. -->
+    <div class="pad" style="margin-top:12px">
+      <div class="card">
+        <div class="card-body" style="padding:12px">
+          <div class="row between">
+            <span class="meta">Statement · this year</span>
+            <span class="meta">2 movements</span>
+          </div>
+          <div class="row between" style="margin-top:8px">
+            <span class="small" style="font-weight:600">Gross $50.00 · net $30.00</span>
+            <span class="link small">Open</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pad" style="margin-top:12px">
+      <!-- Non-financial figures the backend does not expose yet are marked, not invented
+           (the same rule v3 applied to tier counts). -->
+      <div class="row" style="gap:8px">
+        <div class="card flat" style="flex:1">
+          <div class="card-body" style="padding:12px">
+            <div class="num" style="font-size:16px;font-weight:600">—</div>
+            <div class="meta" style="margin-top:2px">Members</div>
+          </div>
+        </div>
+        <div class="card flat" style="flex:1">
+          <div class="card-body" style="padding:12px">
+            <div class="num" style="font-size:16px;font-weight:600">—</div>
+            <div class="meta" style="margin-top:2px">On Studio</div>
+          </div>
+        </div>
+        <div class="card flat" style="flex:1">
+          <div class="card-body" style="padding:12px">
+            <div class="num" style="font-size:16px;font-weight:600">—</div>
+            <div class="meta" style="margin-top:2px">Unlocks · 7d</div>
+          </div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <span class="link small">Tiers &amp; audience</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20H4z"/></svg>
+      Home
+    </div>
+    <div class="tab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 14l4-4 5 5 3-3 4 4"/></svg>
+      Library
+    </div>
+    <div class="tab on">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Create
+    </div>
+    <div class="tab">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></svg>
+      You
+    </div>
+  </div>
+</div>
+<script>try{if(location.search.indexOf("dark")>=0)document.body.classList.add("dark")}catch(e){}</script>
+</body></html>

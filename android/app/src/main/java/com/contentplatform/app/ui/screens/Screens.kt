@@ -35,6 +35,7 @@ import com.contentplatform.app.BuildConfig
 import com.contentplatform.app.dm.money
 import com.contentplatform.app.finance.PayoutBalance
 import com.contentplatform.app.finance.StudioState
+import com.contentplatform.app.finance.explain
 import com.contentplatform.app.finance.sharePercent
 import com.contentplatform.app.ui.components.ActionButton
 import com.contentplatform.app.ui.components.CardSurface

@@ -141,16 +141,16 @@ class FinanceStore(
         statementPeriod = period
     }
 
-    fun setCustomFrom(value: String) {
+    fun editCustomFrom(value: String) {
         customFrom = value
     }
 
-    fun setCustomTo(value: String) {
+    fun editCustomTo(value: String) {
         customTo = value
     }
 
-    fun setIncludeSimulated(value: Boolean) {
-        includeSimulated = value
+    fun toggleIncludeSimulated() {
+        includeSimulated = !includeSimulated
     }
 
     fun chooseCurrency(value: String) {

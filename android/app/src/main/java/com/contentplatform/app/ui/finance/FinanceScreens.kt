@@ -417,7 +417,7 @@ fun PayoutHistoryScreen(
             trailing = {
                 Text(
                     "Refresh",
-                    modifier = Modifier.pressScale(motion) { scope.launch { store.loadStudio() } },
+                    modifier = Modifier.pressScale(motion, onClick = { scope.launch { store.loadStudio() } }),
                     style = MaterialTheme.typography.bodySmall,
                     color = palette.muted,
                 )
@@ -737,7 +737,10 @@ fun StatementScreen(
                         } else {
                             "Live money only. Tap to include test rows."
                         },
-                        modifier = Modifier.pressScale(motion) { store.setIncludeSimulated(!store.includeSimulated) },
+                        modifier = Modifier.pressScale(
+                            motion,
+                            onClick = { store.toggleIncludeSimulated() },
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = palette.ink,
                     )
@@ -784,9 +787,9 @@ private fun PeriodControls(store: FinanceStore) {
         Divider()
         if (store.statementPeriod == StatementPeriod.Custom) {
             SpacerH(8)
-            DateField("From", store.customFrom, store::setCustomFrom)
+            DateField("From", store.customFrom, store::editCustomFrom)
             SpacerH(6)
-            DateField("To", store.customTo, store::setCustomTo)
+            DateField("To", store.customTo, store::editCustomTo)
         }
         SpacerH(4)
         Box(Modifier.fillMaxWidth()) {

@@ -87,7 +87,7 @@ jobs:
       - name: verify release signature, package and version
         run: |
           set -euo pipefail
-          APK=$(find android/app/build/outputs/apk/release -name '*.apk' -type f | head -1)
+          APK=$(find app/build/outputs/apk/release -name '*.apk' -type f | head -1)
           if [ -z "$APK" ]; then
             echo "::error::No release APK was produced."
             exit 1
@@ -108,8 +108,8 @@ jobs:
           PACKAGE=$(printf '%s\n' "$BADGING" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
           VNAME=$(printf '%s\n' "$BADGING" | sed -n "s/^package:.*versionName='\([^']*\)'.*/\1/p")
           VCODE=$(printf '%s\n' "$BADGING" | sed -n "s/^package:.*versionCode='\([^']*\)'.*/\1/p")
-          DECL_NAME=$(sed -n 's/^ *versionName = "\(.*\)".*/\1/p' android/app/build.gradle.kts | head -1)
-          DECL_CODE=$(sed -n 's/^ *versionCode = \([0-9][0-9]*\).*/\1/p' android/app/build.gradle.kts | head -1)
+          DECL_NAME=$(sed -n 's/^ *versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)
+          DECL_CODE=$(sed -n 's/^ *versionCode = \([0-9][0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
 
           [ "$PACKAGE" = "com.contentplatform.app" ] || { echo "::error::Package is $PACKAGE, expected com.contentplatform.app"; exit 1; }
           [ "$VNAME" = "$DECL_NAME" ] || { echo "::error::Version name $VNAME does not match declared $DECL_NAME"; exit 1; }

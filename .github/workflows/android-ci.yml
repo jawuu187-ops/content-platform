@@ -77,8 +77,8 @@ jobs:
               -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
             rm -f "$RUNNER_TEMP/release.keystore"
           else
-            echo "::notice::Signing secrets are not configured; producing an unsigned release bundle."
-            gradle --no-daemon --stacktrace :app:bundleRelease
+            echo "::notice::Signing secrets are not configured; producing an unsigned release APK and bundle."
+            gradle --no-daemon --stacktrace :app:bundleRelease :app:assembleRelease
           fi
 
       - name: summarise build outputs

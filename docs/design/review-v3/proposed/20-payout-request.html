@@ -65,28 +65,29 @@
       <div class="btn sm outline r8" style="flex:1">All · $30</div>
     </div>
 
+    <!-- No destination exists in the backend, so no method is offered as if it worked. -->
     <div style="margin-top:16px">
-      <div class="meta">Method</div>
-      <div class="row" style="gap:16px;margin-top:8px">
-        <div class="row" style="gap:8px"><span class="radio on"></span><span class="small">Bank</span></div>
-        <div class="row" style="gap:8px"><span class="radio"></span><span class="small">Wallet</span></div>
-        <div class="row" style="gap:8px"><span class="radio"></span><span class="small">Manual</span></div>
+      <div class="row between">
+        <span class="meta">Method</span>
+        <span class="flag">Not connected</span>
       </div>
-      <div class="note" style="margin-top:8px">A label for finance only. Payout details are not stored in this build; finance arranges the transfer out of band.</div>
+      <div class="note" style="margin-top:6px">No bank, wallet or account is connected. The request stores an informational label only; the API defaults it to “manual”.</div>
     </div>
 
     <div class="field" style="margin-top:8px">
       <span class="meta" style="width:auto">Note</span>
       <span class="val muted">August sets</span>
       <div class="grow"></div>
-      <span class="meta">9 / 500</span>
+      <span class="meta">11 / 500</span>
     </div>
 
-    <div class="btn wide" style="margin-top:16px">Request $20.00</div>
-
-    <div class="inset" style="margin-top:12px">
-      <div class="small"><b>No payout rail is connected.</b> Approval reserves $20.00 from your ledger balance. Nothing is transferred automatically, and no request is ever marked paid by this build.</div>
+    <!-- The consequence of approval is stated before the action, not after it. -->
+    <div class="inset" style="margin-top:16px">
+      <div class="small"><b>Approval reserves $20.00 in your ledger. It does not transfer money.</b></div>
+      <div class="note" style="margin-top:4px">No payout rail is connected. The amount leaves your available balance and waits in payout clearing; nothing is sent to a bank or wallet, and no request is ever marked paid.</div>
     </div>
+
+    <div class="btn wide" style="margin-top:12px">Request $20.00</div>
   </div>
 </div>
 <script>try{if(location.search.indexOf("dark")>=0)document.body.classList.add("dark")}catch(e){}</script>

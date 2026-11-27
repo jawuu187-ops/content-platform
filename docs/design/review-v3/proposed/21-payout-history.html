@@ -36,7 +36,7 @@
 
     <div class="pad" style="margin-top:12px">
       <div class="inset">
-        <div class="small"><b>No rail is connected.</b> “Reserved” means the amount left your available balance and waits in the ledger. It is not a transfer, and this build has no paid state.</div>
+        <div class="small"><b>No rail is connected.</b> “Reserved” means the amount left your available balance and is held in payout clearing. It is not a transfer, and this build has no paid state.</div>
       </div>
     </div>
 
@@ -49,7 +49,7 @@
             <span class="flag sage">Reserved</span>
             <span class="num" style="font-size:14px;font-weight:600">$10.00</span>
           </div>
-          <div class="meta" style="margin-top:6px;text-transform:none">bank · requested 26 Nov · approved 27 Nov</div>
+          <div class="meta" style="margin-top:6px;text-transform:none">method label: bank · no destination stored · 27 Nov</div>
           <div class="note" style="margin-top:4px">“Checked against the statement.” — finance</div>
           <div class="row between" style="margin-top:8px">
             <span class="meta" style="text-transform:none">2 events · requested → approved</span>
@@ -62,10 +62,10 @@
         <div class="card-body" style="padding:12px">
           <div class="row between">
             <span class="flag flag-red">Rejected</span>
-            <span class="num" style="font-size:14px;font-weight:600">$12.00</span>
+            <span class="num" style="font-size:14px;font-weight:600">$15.00</span>
           </div>
-          <div class="meta" style="margin-top:6px;text-transform:none">bank · requested 20 Nov · decided 21 Nov</div>
-          <div class="note" style="margin-top:4px">“Bank details need re-verification. Add a payout method, then request again.” — finance</div>
+          <div class="meta" style="margin-top:6px;text-transform:none">method label: manual · 27 Nov</div>
+          <div class="note" style="margin-top:4px">“Review window closed before the cutoff. Request again after 1 Dec.” — finance</div>
           <div class="row between" style="margin-top:8px">
             <span class="meta" style="text-transform:none">2 events · requested → rejected</span>
             <span class="link small">Detail</span>
@@ -77,9 +77,9 @@
         <div class="card-body" style="padding:12px">
           <div class="row between">
             <span class="flag">Cancelled</span>
-            <span class="num" style="font-size:14px;font-weight:600">$5.00</span>
+            <span class="num" style="font-size:14px;font-weight:600">$20.00</span>
           </div>
-          <div class="meta" style="margin-top:6px;text-transform:none">wallet · requested 13 Nov · cancelled 14 Nov</div>
+          <div class="meta" style="margin-top:6px;text-transform:none">method label: manual · requested 27 Nov · cancelled 27 Nov</div>
           <div class="note" style="margin-top:4px">Cancelled by you before a decision. Nothing was reserved.</div>
           <div class="row between" style="margin-top:8px">
             <span class="meta" style="text-transform:none">2 events · requested → cancelled</span>
@@ -89,7 +89,7 @@
       </div>
 
       <div class="row" style="margin-top:12px">
-        <span class="meta" style="text-transform:none">A rejected or cancelled request can be asked for again. A reserved one does not block a new request.</span>
+        <span class="note">A rejected or cancelled request can be asked for again. A reserved payout does not block a new request.</span>
       </div>
     </div>
   </div>

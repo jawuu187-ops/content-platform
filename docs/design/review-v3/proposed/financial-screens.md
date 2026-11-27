@@ -1,151 +1,171 @@
-# Proposed creator financial screens — review draft
+# Proposed creator financial screens — review draft r2
 
-**Status: proposed, awaiting owner approval. No Android code exists for these screens.**
-Built on the approved direction (review-v3) with its own `assets/app.css`; the 18 existing
-screens, boards and renders are untouched. Nothing here is rendered by CI yet, and nothing
-was built locally.
-
-Files (all in this folder):
+**Status: adjusted after owner review; awaiting approval. No Android code exists for these screens.**
+Direction review-v3 only: its stylesheet, imagery, type and spacing are reused; the 18 original
+screens, boards and renders are untouched.
 
 | File | What it shows |
 | --- | --- |
-| `19-studio-live.html` | The existing Studio screen with its earnings card driven by the live API |
-| `20-payout-request.html` | Payout request sheet: available balance, amount, presets, method, note, validation, honesty note |
-| `21-payout-history.html` | Creator payout history: reserved/approved, rejected with reason, cancelled |
-| `22-earnings-statement.html` | Creator earnings statement: period, currency, ledger movements, totals, CSV export |
-| `23-financial-states.html` | Five non-happy states: requested, insufficient, conflict, empty statement, export too large |
+| `19-studio-live.html` | Studio, unchanged layout, earnings card wired to the live API |
+| `20-payout-request.html` | Payout request sheet with no operational method and the reserve warning before the action |
+| `21-payout-history.html` | Requested / approved-as-reserved / rejected / cancelled, with reasons and event trail |
+| `22-earnings-statement.html` | Creator statement: period, currency, ledger rows, gross vs net, CSV export |
+| `23-financial-states.html` | Five states verified against real responses: requested, insufficient, conflict, empty, too-large |
 
-Open them in a browser from the repository; they link to `../assets/app.css` and
-`../assets/img/*` exactly like the existing screens.
+## 1. Verification method
 
-## 1. The canonical dataset used in the mockups
+Every figure and message below was captured from a running local API (`APP_ENV=local`,
+fake payment provider) seeded by `cmd/e2eseed`, on a disposable database, then cross-checked
+against the CSV body and response headers. The commands and payloads are quoted verbatim.
 
-The numbers are the ones `backend/cmd/e2eseed` now produces and asserts (D-079), so a
-reviewer can compare a screen with the seeded database field by field:
+Captured canonical state (creator `Mira Vale`, USD):
 
-| Value | Minor units | Displayed |
+| Source | Value |
+| --- | --- |
+| `GET /v1/creator/payouts` → `balance` | `available_minor: 3000`, `pending_minor: 0`, `minimum_minor: 1000`, `currency: USD` |
+| Same → `payouts[]` | approved 1000 (method label `bank`), rejected 1500 (`manual`), cancelled 2000 (`manual`) |
+| `GET /v1/creator/earnings` | live net `3000`, test net `720`, live count 1, test count 1, bucket tip gross `5000` |
+| `GET /v1/creator/earnings/export` headers | `X-Export-Rows: 2`, `X-Export-Gross-Minor: 5000`, `X-Export-Net-Minor: 3000`, `X-Export-Excluded-Simulated: 1`, `X-Export-Currency: USD` |
+| CSV body | `tip,…,5000,4000,real` and `payout,…,0,-1000,real` |
+| `include_simulated=true` | rows 3, gross 5900, net 3720, excluded 0, one `test` row |
+| `currency=EUR` | rows 0, gross 0, net 0 — no conversion |
+
+## 2. Studio (19): what is live, and the one gap
+
+The layout, cards, photography, typography and tab bar are unchanged.
+
+**Live, endpoint-backed:**
+
+| Element | Field |
+| --- | --- |
+| Available balance | `balance.available_minor` (3000 → $30.00) |
+| Currency | `balance.currency` |
+| Excluded test money | `net_simulated_minor` (720 → $7.20) |
+| No-rail flag | no payout rail exists; approval reserves only |
+| Statement entry | export headers: 2 movements, gross $50.00, net $30.00 |
+
+Removed because no endpoint returns them: the 7-day chart, "+$3,240 this month", "MRR
+$115,048", "37 unlocks · 7d". They were invented in v3 and cannot be shown as real.
+
+**Audience statistics — exact gap, reported rather than invented:**
+
+- Data exists in the database: `creator.subscriptions` (status, tier), `creator.entitlements`
+  (scope/source/expiry), `creator.post_unlocks` (granted_at), `creator.posts`, `creator.tiers`.
+  For the seeded account the real values are 1 active subscriber-scope entitlement (source
+  `admin`), 0 active subscriptions, 0 unlocks in the last 7 days.
+- **No endpoint exposes any of them.** There is no `analytics` service (the package directory
+  is empty) and no creator stats route; `GET /v1/creators/{handle}` and `/tiers` return no
+  counts.
+- Therefore the mockup shows the three tiles with no figure and the label only. Nothing is
+  fabricated. To make the tiles live, one small read-only endpoint is needed — proposed, not
+  implemented:
+
+```sql
+-- GET /v1/creator/stats?currency=USD  (creator only; payouts.request or finance.read)
+SELECT
+  (SELECT count(*) FROM creator.entitlements e
+    WHERE e.creator_id = $1 AND e.scope IN ('subscriber','all')
+      AND e.revoked_at IS NULL AND (e.expires_at IS NULL OR e.expires_at > now())) AS members,
+  (SELECT count(*) FROM creator.subscriptions s
+    WHERE s.creator_id = $1 AND s.status = 'active'
+      AND s.current_period_end > now()) AS paid_members,
+  (SELECT count(*) FROM creator.post_unlocks u JOIN creator.posts p ON p.id = u.post_id
+    WHERE p.creator_id = $1 AND u.granted_at > now() - interval '7 days') AS unlocks_7d,
+  (SELECT t.id FROM creator.tiers t
+    WHERE t.creator_id = $1 AND t.is_active ORDER BY t.sort_order LIMIT 1) AS top_tier;
+```
+
+"On Studio" would be `paid_members on the top tier / paid_members`; with the seeded account
+it is 0 of 0 (no paid members), which is why no number is drawn. **Approval request:** allow
+this endpoint with the Android work, or leave the tiles label-only.
+
+## 3. Payout request (20)
+
+- No bank, wallet or manual option is offered as if it worked. The method row is
+  **informational**: "No bank, wallet or account is connected… the API defaults it to
+  `manual`". The server accepts a label (`manual`, `bank`, `wallet`) and stores no
+  destination; omitting it yields `manual` (verified in the 201 body).
+- The reserve warning sits **immediately above the CTA**, not after it:
+  "Approval reserves $20.00 in your ledger. It does not transfer money." followed by the
+  no-rail explanation.
+- Bounds and validation are the server's: 1000 … 10,000,000 minor units (verified 400
+  `invalid_payout` for 100), one undecided request per currency (verified 409
+  `payout_conflict`), available balance (verified 409 `insufficient_balance`), note ≤ 500
+  (server trims and limits), currency USD/EUR/GBP.
+- The `method` on the seeded approved row is displayed in history as "method label: bank · no
+  destination stored", never as a connected rail.
+
+## 4. Payout history (21)
+
+Verified list payload states: `approved` (reserved, decision note), `rejected` (decision note
+required, ≥ 3 characters), `cancelled` (nothing reserved). Detail events are exactly two per
+row: `request` then `approve`/`reject`/`cancel`, with `from_status`/`to_status`.
+
+- No paid or transferred state is shown; no endpoint sets `paid`/`failed`.
+- "Reserved" wording matches the ledger: `payout:<id>` debits the creator payable and credits
+  `platform:payout_clearing`.
+- `decision_note` is displayed as finance wrote it. The approval-note text in the mockup is
+  illustrative (notes are free text); amounts, statuses, method labels and event counts come
+  from the captured responses.
+
+## 5. Creator statement (22) — totals checked against the CSV
+
+| Element | Value (from headers/body) |
+| --- | --- |
+| Net movement | `X-Export-Net-Minor` 3000 → $30.00 |
+| Gross | `X-Export-Gross-Minor` 5000 → $50.00 |
+| Entries | `X-Export-Rows` 2 |
+| Test rows excluded | `X-Export-Excluded-Simulated` 1 |
+| Tip row | gross 5000 → $50.00, net 4000 → +$40.00, `real` |
+| Payout row | gross 0 → "—", net −1000 → −$10.00, `real` |
+| By kind | tips +$40.00, payouts −$10.00 |
+
+Gross is what the fan was charged; net is the creator's movement after the platform share and
+includes refunds and payouts as negative lines. Periods are inclusive UTC days; over 400 days
+is 400 `invalid_export` ("the period may span at most 400 days", verified); over 5,000 rows is
+400 `export_too_large` ("this period holds too many movements for one export…", verified).
+Currency is one per file and never converted (EUR export: 0 rows). CSV only — no PDF, no
+email receipt, no pretend download.
+
+## 6. States (23) — verified responses
+
+| Card | Status | Verified body |
 | --- | --- | --- |
-| Live earnings before the payout | 4000 | $40.00 |
-| Approved (reserved) payout | 1000 | $10.00 |
-| Available balance | 3000 | $30.00 |
-| Simulated earnings, excluded | 720 | $7.20 |
-| Minimum request | 1000 | $10.00 |
-| Gross on the live tip | 5000 | $50.00 |
-| Statement rows (live) | 2 | tip + payout |
+| Requested | 201 | `payout.status = requested`; `method` defaults to `manual` when omitted |
+| Insufficient | 409 `insufficient_balance` | "asked for 9000, 3000 is available" |
+| Open request | 409 `payout_conflict` | "a payout request in USD is already open" |
+| Empty period | 200 | `X-Export-Rows: 0`, `X-Export-Net-Minor: 0` |
+| Too many rows | 400 `export_too_large` | "this period holds too many movements for one export; request a narrower period" |
 
-The platform share is the difference between gross and net (20% in the deployment default);
-the UI shows both and never computes one from the other in the client.
+The below-minimum refusal (400 `invalid_payout`, "the smallest payout is 1000 minor units") is
+verified but not drawn as a card: the request sheet already states the minimum before entry.
 
-## 2. What changed in Studio, and why (approval point)
+## 7. Navigation and Android back behaviour
 
-The layout, photography, type, spacing, cards and tab bar are unchanged. Three deltas:
-
-1. **Earnings card** now reads `GET /v1/creator/payouts`:
-   `balance.available_minor` as the figure, `balance.currency`, a line for excluded test
-   money from `net_simulated_minor`, the "No rail" flag replacing "Payouts off", and two
-   actions: **Statement** and **Request payout**.
-   Removed because nothing can back them: "+ $3,240.00 this month", "MRR $115,048",
-   "37 unlocks · 7d" and the 7-day chart (no endpoint returns a daily or monthly series).
-2. **Chart card** is replaced by a one-line "Statement · this year" entry that opens the
-   real statement. Restoring the chart needs a new analytics endpoint; it is not faked here.
-3. **Audience cards** show "—" with the same layout. Member, tier-share and unlock counts
-   have no endpoint today; v3's own rule for tier counts was "show — with not tracked yet
-   rather than inventing". These are non-financial and outside this phase's scope, but they
-   are the same class of fabricated figure, so they are marked rather than kept.
-
-## 3. Screen → API map
-
-### 19 Studio earnings card
-
-| Element | Source | Rule |
+| From | To | Back |
 | --- | --- | --- |
-| Available figure | `GET /v1/creator/payouts` → `balance.available_minor` | Live money only; the server excludes simulated rows (D-070) |
-| Currency label | `balance.currency` | One of USD/EUR/GBP |
-| "Excludes $7.20 test money" | `GET /v1/creator/earnings` → `net_simulated_minor` | Shown so excluded money is reported, not hidden |
-| "No rail" flag | No payout rail exists (D-061/D-065) | Approved means reserved in the ledger; never "paid" |
-| Statement action | `GET /v1/creator/earnings/export` | Opens screen 22 |
-| Request payout action | `POST /v1/creator/payouts` | Opens screen 20 |
-| "2 movements · gross/net" | `GET /v1/creator/earnings/export` headers/rows | Same figures as the CSV it downloads |
+| Studio earnings card | Request payout (sheet) | Closes the sheet; Studio unchanged |
+| Studio earnings card | Statement | Returns to Studio |
+| Statement (header action) | Payout history | Returns to Statement |
+| Payout history | Request detail | Returns to Payout history |
+| Request sheet after 201 | Studio card shows the new pending amount | — |
 
-### 20 Payout request
+No financial screen becomes a fifth tab; they are pushed screens and one sheet, so Android back
+pops in the order above and never leaves the Studio tab.
 
-| Element | Source | Rule / error |
-| --- | --- | --- |
-| Available, minimum | `balance.available_minor`, `balance.minimum_minor` | Minimum is 1000 minor units |
-| Amount input | `POST /v1/creator/payouts` → `amount_minor` | 1000 … 10,000,000 minor units, integer |
-| Presets (Min/Half/All) | client convenience | Values still validated by the server |
-| Method radios | `method` | Closed set: `bank`, `wallet`, `manual` (label only; no destination is stored) |
-| Note | `note` | ≤ 500 characters, trimmed, optional |
-| Submit | `POST /v1/creator/payouts` | 201 `requested`; 400 `invalid_payout`; 403 `forbidden` (no creator profile); 409 `insufficient_balance`; 409 `payout_conflict` (one open request per currency) |
-| Honesty inset | Backend has no rail | Approval reserves; no automatic transfer; "paid" is unreachable |
-| Cancel (states screen) | `POST /v1/creator/payouts/{id}/cancel` | Owner only; only while `requested`; 409 otherwise |
+## 8. Deliberately absent
 
-### 21 Payout history
+Paid/failed/transferred states; connected destinations (bank, wallet, IBAN, KYC); daily or
+monthly charts; MRR; commission percentage in the UI; PDF or email statements; finance queue;
+audience numbers until an endpoint exists.
 
-| Element | Source | Rule |
-| --- | --- | --- |
-| Summary | `GET /v1/creator/payouts` | `available_minor`, `pending_minor`, `minimum_minor` |
-| Row list | `payouts[]` | Fields: `amount_minor`, `currency`, `method`, `status`, `note`, `decision_note`, `decided_by`, `decided_at`, `created_at` |
-| Status chips | `status` | `requested`, `approved`, `rejected`, `cancelled` only. `paid`/`failed` exist in the schema but no endpoint sets them, so the UI has no such chip |
-| Reason on a refusal | `decision_note` | Server refuses a decision without ≥ 3 characters |
-| Event trail | `GET /v1/creator/payouts/{id}` → `events[]` | `action` request/approve/reject/cancel with from→to status |
-| Cancel action | `POST …/{id}/cancel` | Only on `requested` |
-| "Reserved" wording | Ledger posting `payout:<id>` | Debits the creator payable, credits `platform:payout_clearing` |
+## 9. Approval checklist
 
-### 22 Creator statement
-
-| Element | Source | Rule |
-| --- | --- | --- |
-| Period presets and From/To | `from`, `to` (YYYY-MM-DD) | Inclusive UTC days; max 400 days |
-| Currency | `currency` | USD/EUR/GBP; one currency per statement, never converted |
-| Totals: gross / net / entries | CSV rows + `X-Export-Gross-Minor`, `X-Export-Net-Minor`, `X-Export-Rows` | Net includes refunds and payouts as negative lines |
-| "1 test row excluded" | `X-Export-Excluded-Simulated` | Default `include_simulated=false` |
-| Movement rows | CSV columns `occurred_at, kind, purpose, reference, currency, gross_minor, net_minor, data_class` | Gross only where an intent backs the row |
-| Download CSV | `GET /v1/creator/earnings/export` | `text/csv` attachment, no-store, 10 requests/hour |
-| "Include test rows" | `include_simulated=true` | The same request with test money included |
-| Minor units note | CSV format | Integer minor units and RFC 3339 timestamps in the file |
-| No PDF / email | Not implemented | Stated on screen; there is no receipt endpoint |
-
-### 23 States
-
-| State | Trigger | Copy source |
-| --- | --- | --- |
-| Requested | `POST` 201, `status=requested` | Payout object |
-| Not enough | `409 insufficient_balance` | `available_minor` vs requested amount |
-| Already open | `409 payout_conflict` | One undecided request per currency (D-079) |
-| Rejected | `decision_note` on a `rejected` row | Reason is mandatory server-side; shown in `21-payout-history.html` |
-| Empty statement | 200 with zero rows | Period has no movements |
-| Too many rows | `400 export_too_large` | 5,000-row cap; refused, not truncated |
-
-## 4. Deliberately not shown
-
-- **Paid / in transit / failed** states: no endpoint sets them and no rail exists.
-- **Real transfer instructions, IBAN, wallet addresses, KYC**: the backend stores no
-  destination, and a retention/tokenisation story is a prerequisite (see 0014 migration).
-- **MRR, growth, 7-day series, commission percentage in the UI**: no endpoints.
-- **PDF statement, email receipt**: not built.
-- **Finance/admin approval queue**: excluded from this phase by instruction.
-
-## 5. Notes for the reviewer
-
-- A single inline `--onfill` token is set on the new screens only (the v3 light theme never
-  defined it, while dark mode does), so filled buttons have readable label text. Existing
-  screens are not modified.
-- These five drafts were rasterised locally with headless Chromium (one browser process at
-  a time, no build step) into `proposed/png/` so the review can happen without a browser.
-  All five measure 412 x 915 with no overflowing element.
-- A loading state is not drawn as its own screen: the Studio earnings card keeps its height
-  with the existing `.skeleton` while `GET /v1/creator/payouts` is in flight.
-- Promoting these into the rendered inventory later means moving them to `screens/` as
-  `19…23` and running `design-render-v3.yml`. That is a GitHub-hosted render; nothing is
-  built locally and no Android build is involved.
-
-## 6. Approval checklist
-
-1. Studio deltas (card fields, chart replaced by a statement entry, audience figures marked).
-2. Payout request sheet: amount/preset/validation/method-as-label/honesty inset.
-3. Payout history: reserved/rejected/cancelled wording and event trail.
-4. Statement: period fields, currency, ledger columns, CSV-only export and limits.
-5. States copy and error codes.
-6. Where the two entry points live (Studio card → Request payout / Statement, Statement →
-   history) — or a different route through the app.
+1. Studio: live card, statement entry, audience tiles label-only with the endpoint gap above.
+2. Request sheet: informational method, reserve warning placement and copy.
+3. History: reserved/rejected/cancelled wording, note and two-event trail.
+4. Statement: gross/net split, period and currency controls, CSV-only export and limits.
+5. States: the five cards and their exact codes.
+6. Navigation and back behaviour.
+7. Whether to add `GET /v1/creator/stats` with the implementation so the audience tiles can
+   show real counts (recommended), or to ship them label-only.

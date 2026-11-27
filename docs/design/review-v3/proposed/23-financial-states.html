@@ -39,8 +39,8 @@
             <span class="flag flag-red">Not enough</span>
             <span class="meta">409 · insufficient_balance</span>
           </div>
-          <div style="font-size:14px;font-weight:600;margin-top:8px">You asked for $40.00</div>
-          <p class="small muted" style="margin-top:4px">$30.00 is available in USD. Lower the amount to continue.</p>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">$90.00 is more than you have</div>
+          <p class="small muted" style="margin-top:4px">The server answered “asked for 9000, 3000 is available”. Lower the amount to continue.</p>
           <div class="btn sm outline r8" style="margin-top:8px">Change amount</div>
         </div>
       </div>
@@ -53,7 +53,7 @@
             <span class="flag flag-red">Already open</span>
             <span class="meta">409 · payout_conflict</span>
           </div>
-          <div style="font-size:14px;font-weight:600;margin-top:8px">A USD request is already open</div>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">A payout request in USD is already open</div>
           <p class="small muted" style="margin-top:4px">Wait for the decision or cancel it. A reserved payout does not block a new request.</p>
           <div class="btn sm outline r8" style="margin-top:8px">View open request</div>
         </div>
@@ -80,12 +80,11 @@
             <span class="flag flag-red">Too many rows</span>
             <span class="meta">400 · export_too_large</span>
           </div>
-          <div style="font-size:14px;font-weight:600;margin-top:8px">More than 5,000 movements</div>
-          <p class="small muted" style="margin-top:4px">The export refuses rather than cutting the end off a year. Narrow the dates.</p>
+          <div style="font-size:14px;font-weight:600;margin-top:8px">This period holds too many movements</div>
+          <p class="small muted" style="margin-top:4px">The server answered “request a narrower period”. The export refuses rather than cutting the end off a year.</p>
         </div>
       </div>
     </div>
-
   </div>
 </div>
 <script>try{if(location.search.indexOf("dark")>=0)document.body.classList.add("dark")}catch(e){}</script>

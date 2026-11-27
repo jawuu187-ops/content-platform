@@ -59,6 +59,8 @@ import com.contentplatform.app.finance.FinanceApi
 import com.contentplatform.app.finance.FinanceStore
 import com.contentplatform.app.notifications.NotificationsApi
 import com.contentplatform.app.notifications.NotificationsStore
+import com.contentplatform.app.kyc.KycApi
+import com.contentplatform.app.kyc.KycStore
 import com.contentplatform.app.ui.components.Divider
 import com.contentplatform.app.ui.dm.DmInboxScreen
 import com.contentplatform.app.ui.dm.DmThreadScreen
@@ -81,6 +83,7 @@ import com.contentplatform.app.ui.catalog.CreatorToolsScreen
 import com.contentplatform.app.ui.finance.AdminPayoutsScreen
 import com.contentplatform.app.ui.finance.PaymentsScreen
 import com.contentplatform.app.ui.notifications.NotificationsScreen
+import com.contentplatform.app.ui.kyc.CreatorVerificationScreen
 import com.contentplatform.app.ui.catalog.PublicCreatorScreen
 import com.contentplatform.app.ui.screens.StudioScreen
 import com.contentplatform.app.ui.theme.LocalVesperPalette
@@ -130,6 +133,7 @@ fun PlatformApp(themeController: ThemeController) {
     val creatorTools = remember(context) { CreatorStudioStore(context.applicationContext, CatalogApi(sessions)) }
     val securityStore = remember(context) { SecurityStore(sessions, AuthApi(sessions)) }
     val notificationStore = remember(context) { NotificationsStore(NotificationsApi(sessions)) }
+    val kycStore = remember(context) { KycStore(KycApi(sessions)) }
     val signedIn = remember(sessions.revision) { sessions.current().signedIn }
     LaunchedEffect(signedIn) {
         while (signedIn) {
@@ -175,6 +179,7 @@ fun PlatformApp(themeController: ThemeController) {
     var adminPayoutsOpen by rememberSaveable { mutableStateOf(false) }
     var paymentsOpen by rememberSaveable { mutableStateOf(false) }
     var notificationsOpen by rememberSaveable { mutableStateOf(false) }
+    var creatorVerifyOpen by rememberSaveable { mutableStateOf(false) }
     var openThreadId by rememberSaveable { mutableStateOf<String?>(null) }
     // Checkout is a pair of (tier, price) in the demo. A real provider replaces the price
     // with a server-issued intent; the sheet does not compute it.
@@ -238,6 +243,7 @@ fun PlatformApp(themeController: ThemeController) {
                             onOpenPayments = { paymentsOpen = true },
                             onOpenNotifications = { notificationsOpen = true },
                             unreadNotifications = notificationStore.unread,
+                            onOpenCreatorVerify = { creatorVerifyOpen = true },
                             canReviewPayouts = moderationStore.permissions.contains("payouts.approve"),
                             onOpenAdminPayouts = { adminPayoutsOpen = true },
                         )
@@ -360,6 +366,25 @@ fun PlatformApp(themeController: ThemeController) {
         ) {
             Box(Modifier.fillMaxSize().background(palette.ground)) {
                 PaymentsScreen(store = financeStore, onBack = { paymentsOpen = false })
+            }
+        }
+
+        // Creator identity verification, metadata-only.
+        AnimatedVisibility(
+            visible = creatorVerifyOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                CreatorVerificationScreen(
+                    store = kycStore,
+                    owner = moderationStore.permissions.contains("verify.review"),
+                    onBack = { creatorVerifyOpen = false },
+                )
             }
         }
 

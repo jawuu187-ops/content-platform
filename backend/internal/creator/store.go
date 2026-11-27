@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 )
 
 // Service is the creator use-case layer. It holds no HTTP knowledge.
@@ -452,4 +454,76 @@ func (s *Service) cancel(ctx context.Context, sub Subscription) (Subscription, e
 		return Subscription{}, fmt.Errorf("creator: cancel subscription: %w", err)
 	}
 	return out, nil
+}
+
+// SetProfileMedia replaces the avatar or cover with an image the creator owns.
+// The media object is checked here, not trusted from the client.
+func (s *Service) SetProfileMedia(ctx context.Context, p identity.Principal, kind, mediaID, requestID string) (string, error) {
+	column := ""
+	switch kind {
+	case "avatar":
+		column = "avatar_media_id"
+	case "cover":
+		column = "cover_media_id"
+	default:
+		return "", fmt.Errorf("%w: kind must be avatar or cover", ErrInvalidInput)
+	}
+	if mediaID == "" {
+		if _, err := s.pool.Exec(ctx, `UPDATE creator.profiles SET `+column+` = NULL, updated_at = now() WHERE user_id = $1::uuid`, p.UserID); err != nil {
+			return "", fmt.Errorf("creator: clear profile media: %w", err)
+		}
+		return "", nil
+	}
+	var ok bool
+	if err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM media.objects
+		WHERE id = $1::uuid AND owner_id = $2::uuid AND kind = 'image' AND status = 'ready')`,
+		mediaID, p.UserID).Scan(&ok); err != nil {
+		return "", fmt.Errorf("creator: profile media lookup: %w", err)
+	}
+	if !ok {
+		return "", fmt.Errorf("%w: that image is not owned by this creator", ErrForbidden)
+	}
+	tag, err := s.pool.Exec(ctx, `UPDATE creator.profiles SET `+column+` = $2::uuid, updated_at = now() WHERE user_id = $1::uuid`, p.UserID, mediaID)
+	if err != nil {
+		return "", fmt.Errorf("creator: set profile media: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return "", ErrNotFound
+	}
+	s.audit(ctx, p.UserID, "creator.profile_media", "user", p.UserID, requestID)
+	return mediaID, nil
+}
+
+// ProfileMedia returns the media id for a public profile image. A draft profile
+// is visible only to its owner. The caller streams the bytes.
+func (s *Service) ProfileMedia(ctx context.Context, p identity.Principal, handle, kind string) (string, error) {
+	column := ""
+	switch kind {
+	case "avatar":
+		column = "avatar_media_id"
+	case "cover":
+		column = "cover_media_id"
+	default:
+		return "", ErrNotFound
+	}
+	var id string
+	var published bool
+	var owner string
+	err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(`+column+`::text, ''), is_published, user_id::text
+		FROM creator.profiles WHERE handle = $1`, NormalizeHandle(handle)).Scan(&id, &published, &owner)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("creator: profile media: %w", err)
+	}
+	if !published && owner != p.UserID {
+		return "", ErrNotFound
+	}
+	if id == "" {
+		return "", ErrNotFound
+	}
+	return id, nil
 }

@@ -102,6 +102,25 @@ class CreatorStudioStore(
         }
     }
 
+    suspend fun setProfileImage(kind: String, uri: android.net.Uri) {
+        busy = true
+        failure = null
+        try {
+            val resolver = context.contentResolver
+            val mime = resolver.getType(uri) ?: "image/jpeg"
+            if (!mime.startsWith("image/")) throw IllegalArgumentException("Choose an image file")
+            val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: throw IllegalArgumentException("That image could not be opened")
+            val mediaId = api.upload(bytes, mime)
+            api.setProfileMedia(kind, mediaId)
+            load()
+        } catch (t: Throwable) {
+            failure = t.message ?: "The image could not be saved."
+        } finally {
+            busy = false
+        }
+    }
+
     suspend fun deletePost(id: String) {
         action {
             api.deletePost(id)

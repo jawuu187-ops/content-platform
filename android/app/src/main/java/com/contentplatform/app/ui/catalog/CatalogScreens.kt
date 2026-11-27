@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -148,6 +149,35 @@ fun DiscoverScreen(
 }
 
 @Composable
+private fun CreatorProfileImages(store: CatalogStore, handle: String) {
+    var cover by remember(handle) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var avatar by remember(handle) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(handle) {
+        runCatching { store.profileImageBytes(handle, "cover") }
+            .onSuccess { cover = BitmapFactory.decodeByteArray(it, 0, it.size) }
+        runCatching { store.profileImageBytes(handle, "avatar") }
+            .onSuccess { avatar = BitmapFactory.decodeByteArray(it, 0, it.size) }
+    }
+    cover?.let {
+        Image(
+            bitmap = it.asImageBitmap(),
+            contentDescription = "Creator cover",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().height(150.dp),
+        )
+    }
+    avatar?.let {
+        Image(
+            bitmap = it.asImageBitmap(),
+            contentDescription = "Creator avatar",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.padding(start = 20.dp, top = 8.dp)
+                .size(64.dp).clip(androidx.compose.foundation.shape.CircleShape),
+        )
+    }
+}
+
+@Composable
 private fun CreatorRow(creator: CreatorProfile, onClick: () -> Unit) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
@@ -214,6 +244,7 @@ fun PublicCreatorScreen(
             }
             is CreatorState.Ready -> LazyColumn(Modifier.fillMaxSize()) {
                 item {
+                    CreatorProfileImages(store, state.profile.handle)
                     Column(Modifier.padding(20.dp)) {
                         Text(state.profile.displayName, style = MaterialTheme.typography.displaySmall, color = palette.ink)
                         Text("@" + state.profile.handle + " · " + state.profile.category, style = MaterialTheme.typography.bodySmall, color = palette.muted)

@@ -374,4 +374,69 @@ func (h *mediaHandler) registerRoutes(mux *http.ServeMux) {
 		h.auth.requireAuth(h.handleIssueDelivery)))
 	mux.HandleFunc("GET /v1/posts/{postID}/media/{mediaID}/content", rateLimited(h.delivery, "delivery_content",
 		h.auth.requireAuth(h.handleContent)))
+	mux.HandleFunc("POST /v1/creators/me/profile-media/{kind}", rateLimited(h.upload, "profile_media",
+		creatorOnly(h.handleSetProfileMedia)))
+	mux.HandleFunc("DELETE /v1/creators/me/profile-media/{kind}", rateLimited(h.upload, "profile_media",
+		creatorOnly(h.handleClearProfileMedia)))
+	mux.HandleFunc("GET /v1/creators/{handle}/{kind}", rateLimited(h.delivery, "profile_media",
+		h.auth.requireAuth(h.handleProfileMedia)))
+}
+
+type profileMediaBody struct {
+	MediaID string `json:"media_id"`
+}
+
+func (h *mediaHandler) handleSetProfileMedia(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var body profileMediaBody
+	if err := decodeJSON(w, r, &body); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	id, err := h.creators.SetProfileMedia(r.Context(), p, r.PathValue("kind"), body.MediaID,
+		RequestIDFromContext(r.Context()))
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"kind": r.PathValue("kind"), "media_id": id})
+}
+
+func (h *mediaHandler) handleClearProfileMedia(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	if _, err := h.creators.SetProfileMedia(r.Context(), p, r.PathValue("kind"), "",
+		RequestIDFromContext(r.Context())); err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *mediaHandler) handleProfileMedia(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	mediaID, err := h.creators.ProfileMedia(r.Context(), p, r.PathValue("handle"), r.PathValue("kind"))
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	obj, err := h.media.ObjectByID(r.Context(), mediaID)
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	body, _, err := h.media.Open(r.Context(), obj.StorageKey)
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	defer func() { _ = body.Close() }()
+	seeker, ok := body.(io.ReadSeeker)
+	if !ok {
+		internalError(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", obj.ContentType)
+	w.Header().Set("Content-Disposition", `inline; filename="profile-image"`)
+	w.Header().Set("Cache-Control", "private, max-age=60")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	http.ServeContent(w, r, "profile-image", obj.CreatedAt, seeker)
 }

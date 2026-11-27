@@ -201,6 +201,21 @@ class CatalogApi(private val sessions: SessionStore) {
         return (0 until (arr?.length() ?: 0)).mapNotNull { parsePost(arr?.optJSONObject(it)) }
     }
 
+    suspend fun setProfileMedia(kind: String, mediaId: String?) {
+        val s = requireSession()
+        if (mediaId == null) {
+            request("DELETE", s.baseUrl + "/v1/creators/me/profile-media/" + encode(kind), s.accessToken, null)
+            return
+        }
+        val payload = JSONObject().put("media_id", mediaId).toString().toByteArray()
+        request("POST", s.baseUrl + "/v1/creators/me/profile-media/" + encode(kind), s.accessToken, payload)
+    }
+
+    suspend fun profileImage(handle: String, kind: String): ByteArray {
+        val s = requireSession()
+        return requestBytes("GET", s.baseUrl + "/v1/creators/" + encode(handle) + "/" + encode(kind), s.accessToken)
+    }
+
     suspend fun deletePost(id: String) {
         val s = requireSession()
         request("DELETE", s.baseUrl + "/v1/posts/" + encode(id), s.accessToken, null)

@@ -586,6 +586,7 @@ fun AccountScreen(
     onOpenPayments: () -> Unit = {},
     onOpenNotifications: () -> Unit = {},
     unreadNotifications: Int = 0,
+    onOpenCreatorVerify: () -> Unit = {},
     canReviewPayouts: Boolean = false,
     onOpenAdminPayouts: () -> Unit = {},
 ) {
@@ -657,6 +658,21 @@ fun AccountScreen(
                             } else {
                                 LabelMono("\u2192")
                             }
+                        }
+                    }
+                    SpacerH(12)
+                    CardSurface {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .pressScale(motion, onClick = onOpenCreatorVerify)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Creator verification", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                Text("Metadata-only identity review; no ID image is stored", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+                            }
+                            LabelMono("\u2192")
                         }
                     }
                     SpacerH(16)

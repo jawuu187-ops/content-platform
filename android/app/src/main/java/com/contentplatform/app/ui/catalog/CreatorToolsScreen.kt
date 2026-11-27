@@ -140,6 +140,12 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
     var picked by remember { mutableStateOf<Uri?>(null) }
     var editingTier by remember { mutableStateOf<Tier?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { picked = it }
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) scope.launch { store.setProfileImage("avatar", uri) }
+    }
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) scope.launch { store.setProfileImage("cover", uri) }
+    }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
         item {
@@ -153,6 +159,12 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                     ToolsField("Bio", bio, { bio = it }, "")
                     SpacerH(8)
                     ToolsField("Category", category, { category = it }, "")
+                    SpacerH(10)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlineButton("Change avatar", onClick = { avatarPicker.launch("image/*") })
+                        SpacerH(8)
+                        OutlineButton("Change cover", onClick = { coverPicker.launch("image/*") })
+                    }
                     SpacerH(10)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlineButton(if (published) "Unpublish" else "Publish", onClick = { published = !published })

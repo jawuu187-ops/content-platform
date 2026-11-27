@@ -9,6 +9,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/agegate"
 	"github.com/jawuu187-ops/content-platform/backend/internal/agereview"
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
+	"github.com/jawuu187-ops/content-platform/backend/internal/creatorverify"
 	"github.com/jawuu187-ops/content-platform/backend/internal/earnings"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
@@ -60,6 +61,8 @@ type Deps struct {
 	AgeReview *agereview.Service
 	// Notifications serves the in-app centre and preferences. Nil answers 503.
 	Notifications *notifications.Service
+	// CreatorVerify is the metadata-only creator identity review. Nil answers 503.
+	CreatorVerify *creatorverify.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -84,6 +87,7 @@ type Server struct {
 	ownerAct  *owneraccess.Service
 	ageReview *agereview.Service
 	notify    *notifications.Service
+	verify    *creatorverify.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -113,6 +117,7 @@ func New(d Deps) http.Handler {
 		ownerAct:  d.OwnerActivation,
 		ageReview: d.AgeReview,
 		notify:    d.Notifications,
+		verify:    d.CreatorVerify,
 		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
@@ -198,6 +203,9 @@ func New(d Deps) http.Handler {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
 					"the payout queue is not configured on this instance")
 			})
+		}
+		if s.verify != nil {
+			newCreatorVerifyHandler(authHandler, s.verify, d.Logger, s.limits).registerRoutes(mux)
 		}
 		if s.notify != nil {
 			newNotificationHandler(authHandler, s.notify, d.Logger, s.limits).registerRoutes(mux)

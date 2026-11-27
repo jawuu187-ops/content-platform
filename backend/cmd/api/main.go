@@ -20,6 +20,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/agegate"
 	"github.com/jawuu187-ops/content-platform/backend/internal/agereview"
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
+	"github.com/jawuu187-ops/content-platform/backend/internal/creatorverify"
 	"github.com/jawuu187-ops/content-platform/backend/internal/earnings"
 	"github.com/jawuu187-ops/content-platform/backend/internal/httpapi"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
@@ -289,6 +290,7 @@ func run() error {
 		OwnerActivation: owneraccess.New(db.Pool(), cfg.OwnerActivationSecret, cfg.OwnerActivationUserID, cfg.OwnerActivationEmail),
 		AgeReview:       agereview.New(db.Pool(), time.Duration(cfg.AgeValidityDays)*24*time.Hour),
 		Notifications:   notificationService,
+		CreatorVerify:   creatorverify.New(db.Pool()),
 		Limits:          limits,
 		Build:           httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

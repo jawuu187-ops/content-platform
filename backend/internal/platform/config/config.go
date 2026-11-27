@@ -52,14 +52,17 @@ type Config struct {
 
 	ValkeyURL string
 
-	// Mail delivery. Without SMTP the local log sender is used; production
-	// refuses to start without a real provider.
+	// Mail delivery. SMTP is preferred when reachable; Brevo's HTTPS API is the
+	// fallback for hosts that block outbound SMTP ports. Production refuses to
+	// start without one of them.
+	MailProvider    string
 	MailFrom        string
 	SMTPHost        string
 	SMTPPort        string
 	SMTPUsername    string
 	SMTPPassword    string
 	SMTPImplicitTLS bool
+	BrevoAPIKey     string
 
 	// MFAKeyBase64 encrypts TOTP secrets at rest (32 bytes, base64).
 	MFAKeyBase64 string
@@ -142,12 +145,14 @@ func Load(serviceName string) (*Config, error) {
 
 		ValkeyURL: get("VALKEY_URL", ""),
 
+		MailProvider:    strings.ToLower(strings.TrimSpace(get("MAIL_PROVIDER", ""))),
 		MailFrom:        get("MAIL_FROM", "no-reply@localhost"),
 		SMTPHost:        get("SMTP_HOST", ""),
 		SMTPPort:        get("SMTP_PORT", "587"),
 		SMTPUsername:    get("SMTP_USERNAME", ""),
 		SMTPPassword:    get("SMTP_PASSWORD", ""),
 		SMTPImplicitTLS: getBool("SMTP_IMPLICIT_TLS", false),
+		BrevoAPIKey:     get("BREVO_API_KEY", ""),
 
 		MFAKeyBase64:      get("MFA_KEY", ""),
 		WebAuthnRPID:      get("WEBAUTHN_RP_ID", "localhost"),
@@ -232,8 +237,24 @@ func (c *Config) validate() error {
 	}
 
 	if !c.IsLocal() {
-		if c.SMTPHost == "" {
-			problems = append(problems, "SMTP_HOST is required outside local development (email verification cannot be delivered without it)")
+		switch c.MailProvider {
+		case "", "auto":
+			if c.SMTPHost == "" && c.BrevoAPIKey == "" {
+				problems = append(problems, "a mail provider is required outside local development: set SMTP_HOST or BREVO_API_KEY (email verification cannot be delivered without one)")
+			}
+		case "smtp":
+			if c.SMTPHost == "" {
+				problems = append(problems, "SMTP_HOST is required when MAIL_PROVIDER=smtp")
+			}
+		case "brevo":
+			if c.BrevoAPIKey == "" {
+				problems = append(problems, "BREVO_API_KEY is required when MAIL_PROVIDER=brevo")
+			}
+		default:
+			problems = append(problems, "MAIL_PROVIDER must be one of smtp, brevo or auto")
+		}
+		if c.MailFrom == "" || strings.HasSuffix(c.MailFrom, "@localhost") {
+			problems = append(problems, "MAIL_FROM must be a real sender address outside local development")
 		}
 		if c.MFAKeyBase64 == "" {
 			problems = append(problems, "MFA_KEY is required outside local development")
@@ -360,6 +381,7 @@ func (c *Config) Redacted() map[string]any {
 		"valkey_url":               redact(c.ValkeyURL),
 		"webauthn_rp_id":           c.WebAuthnRPID,
 		"webauthn_origins":         strings.Join(c.WebAuthnOrigins, ","),
+		"mail_provider":            c.MailProvider,
 		"smtp_host":                c.SMTPHost,
 		"mail_from":                c.MailFrom,
 	}

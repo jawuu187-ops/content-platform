@@ -249,3 +249,12 @@ storage is mode 700. The activation-slot table grants SELECT plus only the three
 one-way consumption columns. `APP_ENV` remains local because production startup
 requires real SMTP credentials, which are not configured; that is fail-closed and
 must not be faked.
+
+## D-086 — HTTPS transactional email via Brevo
+
+Outbound SMTP is blocked on the current UpCloud trial. The API now supports a
+Brevo HTTPS sender selected by `MAIL_PROVIDER=brevo`; SMTP remains available for
+hosts where it works. Sender verification can use the existing
+`info@remixofficial.online` mailbox without a DNS change. Domain authentication
+is recommended but requires separate DNS approval. No live message has been
+sent or claimed.

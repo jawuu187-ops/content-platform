@@ -97,7 +97,29 @@ func run() error {
 		// development log sender. Production refuses to start without SMTP (the
 		// config validator enforces that), so no verification mail is silently
 		// dropped in a real deployment.
-		if cfg.SMTPHost != "" {
+		provider := cfg.MailProvider
+		if provider == "" || provider == "auto" {
+			if cfg.BrevoAPIKey != "" {
+				provider = "brevo"
+			} else if cfg.SMTPHost != "" {
+				provider = "smtp"
+			} else {
+				provider = "log"
+			}
+		}
+		switch provider {
+		case "brevo":
+			sender, err := mail.NewBrevo(mail.BrevoConfig{
+				APIKey: cfg.BrevoAPIKey, From: cfg.MailFrom,
+				FromName: cfg.ServiceName,
+			})
+			if err != nil {
+				logger.Error("brevo mail configuration rejected", slog.Any("error", err))
+				os.Exit(1)
+			}
+			opts = append(opts, identity.WithMailer(sender))
+			logger.Info("email delivery uses the Brevo HTTPS API")
+		case "smtp":
 			sender, err := mail.NewSMTP(mail.SMTPConfig{
 				Host: cfg.SMTPHost, Port: cfg.SMTPPort,
 				Username: cfg.SMTPUsername, Password: cfg.SMTPPassword,
@@ -108,9 +130,9 @@ func run() error {
 				os.Exit(1)
 			}
 			opts = append(opts, identity.WithMailer(sender))
-		} else {
+		default:
 			opts = append(opts, identity.WithMailer(mail.LogSender{Logger: logger}))
-			logger.Warn("email is delivered to the log, not to a mailbox; set SMTP_HOST for real delivery")
+			logger.Warn("email is delivered to the log, not to a mailbox; set SMTP_HOST or BREVO_API_KEY for real delivery")
 		}
 
 		if cfg.MFAKeyBase64 != "" {

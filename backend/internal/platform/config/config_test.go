@@ -252,3 +252,25 @@ func TestLoadRejectsUnapprovedProvider(t *testing.T) {
 		t.Fatalf("expected provider refusal, got %v", err)
 	}
 }
+
+func TestBrevoAPIKeySatisfiesMailRequirementOutsideLocal(t *testing.T) {
+	base(t)
+	t.Setenv("APP_ENV", "demo")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db")
+	t.Setenv("SESSION_SIGNING_KEY", strings.Repeat("s", 40))
+	t.Setenv("TOKEN_SIGNING_KEY", strings.Repeat("t", 40))
+	t.Setenv("WEBHOOK_SECRET_KEY", strings.Repeat("w", 40))
+	t.Setenv("MAIL_PROVIDER", "brevo")
+	t.Setenv("BREVO_API_KEY", "xkeysib-test")
+	t.Setenv("MAIL_FROM", "info@remixofficial.online")
+	t.Setenv("MFA_KEY", strings.Repeat("m", 32))
+	t.Setenv("WEBAUTHN_ORIGINS", "https://app.example.test")
+	t.Setenv("REQUIRE_AGE_VERIFICATION", "true")
+	cfg, err := Load("api")
+	if err != nil {
+		t.Fatalf("brevo provider should satisfy the deployed mail requirement: %v", err)
+	}
+	if cfg.MailProvider != "brevo" || cfg.BrevoAPIKey == "" {
+		t.Fatalf("unexpected mail config: %+v", cfg.Redacted())
+	}
+}

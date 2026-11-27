@@ -18,6 +18,15 @@ class AuthStore(
         private set
     var mfaRequired by mutableStateOf(false)
         private set
+    /** Non-null after registration until the person verifies or postpones. */
+    var pendingVerificationEmail by mutableStateOf<String?>(null)
+        private set
+    var verificationBusy by mutableStateOf(false)
+        private set
+    var verificationNotice by mutableStateOf<String?>(null)
+        private set
+    var verificationError by mutableStateOf<String?>(null)
+        private set
 
     suspend fun login(baseUrl: String, email: String, password: String, mfaCode: String) {
         if (busy) return
@@ -43,13 +52,58 @@ class AuthStore(
         if (busy) return
         busy = true
         error = null
+        var created = false
         try {
             api.register(baseUrl, email, password)
+            created = true
+            pendingVerificationEmail = email.trim()
         } catch (t: Throwable) {
             error = explain(t)
         } finally {
             busy = false
         }
+        // A created account stays usable when the mail provider is down; the step can retry.
+        if (created) sendVerificationEmail()
+    }
+
+    suspend fun sendVerificationEmail() {
+        val target = pendingVerificationEmail ?: return
+        if (verificationBusy) return
+        verificationBusy = true
+        verificationError = null
+        verificationNotice = null
+        try {
+            api.requestEmailVerification()
+            verificationNotice = "Confirmation code sent to $target. It expires in 30 minutes."
+        } catch (t: Throwable) {
+            verificationError = explain(t)
+        } finally {
+            verificationBusy = false
+        }
+    }
+
+    /** Returns true only when the server accepted the code. */
+    suspend fun confirmVerification(code: String): Boolean {
+        if (verificationBusy) return false
+        verificationBusy = true
+        verificationError = null
+        try {
+            api.confirmEmail(code)
+            pendingVerificationEmail = null
+            verificationNotice = null
+            return true
+        } catch (t: Throwable) {
+            verificationError = explain(t)
+            return false
+        } finally {
+            verificationBusy = false
+        }
+    }
+
+    fun postponeVerification() {
+        pendingVerificationEmail = null
+        verificationNotice = null
+        verificationError = null
     }
 
     suspend fun logout() {

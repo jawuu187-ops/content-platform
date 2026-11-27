@@ -72,6 +72,7 @@ import com.contentplatform.app.ui.screens.CheckoutSheet
 import com.contentplatform.app.ui.screens.SimulatedPaymentCard
 import com.contentplatform.app.ui.auth.AuthScreen
 import com.contentplatform.app.ui.auth.SecurityScreen
+import com.contentplatform.app.ui.auth.VerifyEmailScreen
 import com.contentplatform.app.ui.catalog.DiscoverScreen
 import com.contentplatform.app.ui.catalog.MembershipsScreen
 import com.contentplatform.app.ui.catalog.CreatorToolsScreen
@@ -127,6 +128,12 @@ fun PlatformApp(themeController: ThemeController) {
     if (!signedIn) {
         Box(Modifier.fillMaxSize().background(palette.ground).safeDrawingPadding()) {
             AuthScreen(store = authStore)
+        }
+        return
+    }
+    if (authStore.pendingVerificationEmail != null) {
+        Box(Modifier.fillMaxSize().background(palette.ground).safeDrawingPadding()) {
+            VerifyEmailScreen(store = authStore, onPostpone = authStore::postponeVerification)
         }
         return
     }

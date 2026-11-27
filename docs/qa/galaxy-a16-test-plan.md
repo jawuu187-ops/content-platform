@@ -1,17 +1,17 @@
 # Real-device test plan: Samsung Galaxy A16 5G (Android 16)
 
-Build under test: `com.contentplatform.app`, version `0.2.0-test` (code 2), signed
-testing APK from GitHub Actions run `46033928821`.
+Build under test: `com.contentplatform.app`, version `0.2.1-test` (code 3), signed
+testing APK from GitHub Actions run `46039547209`.
 
 Record each result as PASS / FAIL / BLOCKED with a screenshot where useful. A CI pass is
 not device evidence.
 
 ## 0. Install and environment
 
-- [ ] Download `content-platform-testing-apk` from run `46033928821`.
-- [ ] Verify SHA-256 is `bd29b86466715ce43aae4906c3ac23861790876c2fb2dd3a91710c62c2c5fd81`.
+- [ ] Download `content-platform-testing-apk` from run `46039547209`.
+- [ ] Verify SHA-256 is `147eccbef6ffead928646f3b6684a028d15336d7d7450f684e76835665709a9f`.
 - [ ] Allow install from the browser/file manager, install, and confirm the app label.
-- [ ] Confirm Settings → Apps shows version `0.2.0-test`.
+- [ ] Confirm Settings → Apps shows version `0.2.1-test`.
 - [ ] Confirm the app reaches `https://80.47.235.113.sslip.io` (registration screen,
       no localhost error).
 - [ ] Rotate the device and background/foreground the app; session should survive.

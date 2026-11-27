@@ -93,3 +93,32 @@ failures. The deployment plan is in
 - The APK was not installed on the physical Samsung device by this agent.
 - Real-device results must be recorded from the checklist in
   `docs/qa/galaxy-a16-test-plan.md`.
+
+## Production update executed (owner-authorized)
+
+- Backup: `content_platform_pre30_20261127T170655Z.dump`, SHA-256
+  `d2177e68a84a3feae34ca521362dc78178ee3ea8d788247057569e81e0079478`.
+- Restore rehearsal: restored into `cp_backup_verify`, schema 16 and row counts matched
+  (`identity.users=12`, `creator.posts=4`), then the verification database was dropped.
+- Migrations applied: `[17 18 19 20 21 22 23 24 25 26 27 28 29 30]`.
+- Final schema: max version 30, 30 recorded migrations.
+- Deployed API: `0.2.0-test`, commit `33325a7`, built `2026-11-27T17:07:07Z`.
+- Runtime endpoint remains `https://80.47.235.113.sslip.io`; no port, DNS, firewall,
+  Caddy, provider or environment-policy change.
+- `/readyz`: database ok, version 0.2.0-test.
+- `/v1/meta`: fake/simulated payments still labelled.
+- Route probes now return 401 rather than 404 for notifications, creator posts, DM
+  settings/requests, privacy export/consents, earnings export and comments.
+- `POST /v1/payments/{id}/simulate` returns 401 unauthenticated (route exists).
+
+## Fresh testing APK after the backend update
+
+- GitHub Actions run: **46039547209** (success)
+- Artifact: `content-platform-testing-apk`
+- Version: `0.2.1-test`, versionCode `3`
+- Package: `com.contentplatform.app`
+- APK SHA-256: `147eccbef6ffead928646f3b6684a028d15336d7d7450f684e76835665709a9f`
+- Certificate SHA-256: `50f033894b06497f78adb0d02e97b37d394cc3c2983485342a66bda089fbc95f`
+- Signed with APK Signature Scheme v2.
+- API baked in: `https://80.47.235.113.sslip.io`
+- No AAB produced.

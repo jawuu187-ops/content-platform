@@ -584,6 +584,8 @@ fun AccountScreen(
     onOpenAgeReview: () -> Unit = {},
     onOpenSecurity: () -> Unit = {},
     onOpenPayments: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
+    unreadNotifications: Int = 0,
     canReviewPayouts: Boolean = false,
     onOpenAdminPayouts: () -> Unit = {},
 ) {
@@ -636,6 +638,25 @@ fun AccountScreen(
                                 Text("Memberships, unlocks, tips and simulated receipts", style = MaterialTheme.typography.bodySmall, color = palette.muted)
                             }
                             LabelMono("\u2192")
+                        }
+                    }
+                    SpacerH(12)
+                    CardSurface {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .pressScale(motion, onClick = onOpenNotifications)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Notifications", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                Text("Activity, comments, messages and payment updates", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+                            }
+                            if (unreadNotifications > 0) {
+                                LabelMono(unreadNotifications.toString())
+                            } else {
+                                LabelMono("\u2192")
+                            }
                         }
                     }
                     SpacerH(16)

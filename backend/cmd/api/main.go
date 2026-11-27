@@ -27,6 +27,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/moderation"
+	"github.com/jawuu187-ops/content-platform/backend/internal/notifications"
 	"github.com/jawuu187-ops/content-platform/backend/internal/owneraccess"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payouts"
@@ -267,6 +268,11 @@ func run() error {
 		logger.Warn("VALKEY_URL is not set: rate limits are per instance and multiply with replicas")
 	}
 
+	var notificationService *notifications.Service
+	if db != nil {
+		notificationService = notifications.New(db.Pool())
+		go notifications.RunWorker(ctx, notificationService, logger, 2*time.Second)
+	}
 	handler := httpapi.New(httpapi.Deps{
 		Config:          cfg,
 		Logger:          logger,
@@ -282,6 +288,7 @@ func run() error {
 		Payouts:         payoutService,
 		OwnerActivation: owneraccess.New(db.Pool(), cfg.OwnerActivationSecret, cfg.OwnerActivationUserID, cfg.OwnerActivationEmail),
 		AgeReview:       agereview.New(db.Pool(), time.Duration(cfg.AgeValidityDays)*24*time.Hour),
+		Notifications:   notificationService,
 		Limits:          limits,
 		Build:           httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

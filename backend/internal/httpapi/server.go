@@ -14,6 +14,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/moderation"
+	"github.com/jawuu187-ops/content-platform/backend/internal/notifications"
 	"github.com/jawuu187-ops/content-platform/backend/internal/owneraccess"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payouts"
@@ -57,6 +58,8 @@ type Deps struct {
 	OwnerActivation *owneraccess.Service
 	// AgeReview is the manual age-review workflow. Nil answers 503.
 	AgeReview *agereview.Service
+	// Notifications serves the in-app centre and preferences. Nil answers 503.
+	Notifications *notifications.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -80,6 +83,7 @@ type Server struct {
 	payouts   *payouts.Service
 	ownerAct  *owneraccess.Service
 	ageReview *agereview.Service
+	notify    *notifications.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -108,6 +112,7 @@ func New(d Deps) http.Handler {
 		payouts:   d.Payouts,
 		ownerAct:  d.OwnerActivation,
 		ageReview: d.AgeReview,
+		notify:    d.Notifications,
 		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
@@ -192,6 +197,14 @@ func New(d Deps) http.Handler {
 			mux.HandleFunc("/v1/admin/payouts/", func(w http.ResponseWriter, r *http.Request) {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
 					"the payout queue is not configured on this instance")
+			})
+		}
+		if s.notify != nil {
+			newNotificationHandler(authHandler, s.notify, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("/v1/notifications", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"notifications are not configured on this instance")
 			})
 		}
 		if s.ageGate != nil {

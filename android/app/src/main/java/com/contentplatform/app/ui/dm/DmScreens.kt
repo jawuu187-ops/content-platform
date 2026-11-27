@@ -1,6 +1,9 @@
 package com.contentplatform.app.ui.dm
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -312,6 +315,7 @@ fun DmThreadScreen(
                     ) {
                         items(state.messages, key = { it.id }) { message ->
                             MessageBubble(
+                                store = store,
                                 message = message,
                                 peerName = state.peerName,
                                 now = System.currentTimeMillis(),
@@ -359,8 +363,16 @@ fun DmThreadScreen(
 }
 
 @Composable
-private fun MessageBubble(message: Message, peerName: String, now: Long) {
+private fun MessageBubble(store: DmStore, message: Message, peerName: String, now: Long) {
     val palette = LocalVesperPalette.current
+    var attachment by remember(message.mediaId) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(message.mediaId) {
+        if (message.mediaId.isNotBlank()) {
+            runCatching { store.loadMedia(message.id) }.onSuccess {
+                attachment = android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size)
+            }
+        }
+    }
     val shape = RoundedCornerShape(
         topStart = 14.dp,
         topEnd = 14.dp,
@@ -389,7 +401,18 @@ private fun MessageBubble(message: Message, peerName: String, now: Long) {
                 .semantics(mergeDescendants = true) { contentDescription = spoken }
                 .padding(horizontal = 12.dp, vertical = 9.dp),
         ) {
-            Text(message.body, style = MaterialTheme.typography.bodyMedium, color = textColor)
+            attachment?.let {
+                androidx.compose.foundation.Image(
+                    bitmap = it.asImageBitmap(),
+                    contentDescription = "Message attachment",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SpacerH(4)
+            }
+            if (message.body.isNotBlank()) {
+                Text(message.body, style = MaterialTheme.typography.bodyMedium, color = textColor)
+            }
             SpacerH(4)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LabelMono(DmFormat.threadTime(now, message.sentAtMillis), color = metaColor)
@@ -404,6 +427,20 @@ private fun MessageBubble(message: Message, peerName: String, now: Long) {
 @Composable
 private fun Composer(store: DmStore, canReply: Boolean, scope: CoroutineScope) {
     val palette = LocalVesperPalette.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val picker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val resolver = context.contentResolver
+                val mime = resolver.getType(uri) ?: "image/jpeg"
+                resolver.openInputStream(uri)?.use { input ->
+                    store.sendImage(input.readBytes(), mime)
+                }
+            }
+        }
+    }
     val failure = store.sendFailure
     val check = checkDraft(store.draft)
     val canSubmit = canReply && !store.sending && check == DraftCheck.Ok
@@ -424,6 +461,9 @@ private fun Composer(store: DmStore, canReply: Boolean, scope: CoroutineScope) {
                 SpacerH(8)
             }
             Row(verticalAlignment = Alignment.Bottom) {
+                TextButton(onClick = { picker.launch("image/*") }, enabled = canReply && !store.sending) {
+                    Text("Attach", color = palette.actionText)
+                }
                 Box(Modifier.weight(1f)) {
                     DmField(
                         value = store.draft,

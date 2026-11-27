@@ -249,6 +249,31 @@ class DmStore(
         openFailure = null
     }
 
+    suspend fun sendImage(bytes: ByteArray, contentType: String): DmFailure? {
+        val conversationId = openConversationId ?: return DmFailure.NotFound
+        if (sending) return null
+        sending = true
+        sendFailure = null
+        return try {
+            val mediaId = api.uploadImage(bytes, contentType)
+            val sent = api.sendAttachment(conversationId, draft.trim(), mediaId)
+            draft = ""
+            if (sent != null) {
+                val current = thread
+                if (current is ThreadState.Ready) {
+                    thread = current.copy(messages = current.messages + sent)
+                }
+            }
+            null
+        } catch (t: Throwable) {
+            t.toDmFailure().also { sendFailure = it }
+        } finally {
+            sending = false
+        }
+    }
+
+    suspend fun loadMedia(messageId: String): ByteArray = api.messageMedia(messageId)
+
     suspend fun sendTip(amountMinor: Long, note: String) {
         val conversation = openConversation
         if (conversation == null) {

@@ -28,6 +28,7 @@ data class Conversation(
 data class Message(
     val id: String,
     val body: String,
+    val mediaId: String,
     val sentAtMillis: Long,
     val mine: Boolean,
     val read: Boolean,
@@ -87,6 +88,7 @@ fun parseConversation(json: JSONObject): Conversation = Conversation(
 fun parseMessage(json: JSONObject): Message = Message(
     id = json.optString("id"),
     body = json.optString("body"),
+    mediaId = json.optString("media_id"),
     sentAtMillis = parseInstantOrNull(json.optString("sent_at")) ?: 0L,
     mine = json.optBoolean("mine", false),
     read = parseInstantOrNull(json.optString("read_at")) != null,

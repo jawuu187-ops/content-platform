@@ -54,6 +54,7 @@ type Message struct {
 	ConversationID string     `json:"conversation_id"`
 	SenderID       string     `json:"sender_id"`
 	Body           string     `json:"body"`
+	MediaID        string     `json:"media_id,omitempty"`
 	SentAt         time.Time  `json:"sent_at"`
 	ReadAt         *time.Time `json:"read_at,omitempty"`
 	// Mine saves the client from comparing ids to decide which side of the thread

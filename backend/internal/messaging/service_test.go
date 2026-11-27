@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
@@ -338,5 +339,38 @@ func TestMessagesCannotBeEditedOrDeleted(t *testing.T) {
 	}
 	if _, err := h.pool.Exec(ctx, `DELETE FROM messaging.messages WHERE id = $1::uuid`, m.ID); err == nil {
 		t.Fatal("the database accepted a delete of a message")
+	}
+}
+
+func TestAttachmentAndBroadcast(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	owner := h.creatorAccount(t)
+	fan := h.account(t)
+	h.grantEntitlement(t, fan.UserID, owner.UserID)
+	conv, err := h.svc.Open(ctx, fan, owner.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := strings.Repeat("b", 64)
+	var mediaID string
+	if err := h.pool.(*pgxpool.Pool).QueryRow(ctx, `
+		INSERT INTO media.objects (owner_id, kind, storage_key, content_type, byte_size, sha256)
+		VALUES ($1::uuid, 'image', $2, 'image/png', 12, $2) RETURNING id::text`, fan.UserID, key).Scan(&mediaID); err != nil {
+		t.Fatal(err)
+	}
+	m, err := h.svc.SendWithMedia(ctx, fan, conv.ID, "look", mediaID)
+	if err != nil || m.MediaID != mediaID {
+		t.Fatalf("attachment: %+v err=%v", m, err)
+	}
+	if got, err := h.svc.MessageMedia(ctx, owner, m.ID); err != nil || got != mediaID {
+		t.Fatalf("media read: %q err=%v", got, err)
+	}
+	if _, err := h.svc.MessageMedia(ctx, h.account(t), m.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("stranger media = %v", err)
+	}
+	sent, err := h.svc.Broadcast(ctx, owner, "new set is live")
+	if err != nil || sent != 1 {
+		t.Fatalf("broadcast sent=%d err=%v", sent, err)
 	}
 }

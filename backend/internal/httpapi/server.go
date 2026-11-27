@@ -173,7 +173,7 @@ func New(d Deps) http.Handler {
 			})
 		}
 		if s.dm != nil {
-			newDMHandler(authHandler, s.dm, d.Logger, s.limits).registerRoutes(mux)
+			newDMHandler(authHandler, s.dm, s.media, d.Logger, s.limits).registerRoutes(mux)
 		} else {
 			mux.HandleFunc("/v1/dm/", func(w http.ResponseWriter, r *http.Request) {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",

@@ -171,9 +171,34 @@ func (s *Service) List(ctx context.Context, p identity.Principal) ([]Conversatio
 // here, not only in Open: a fan whose subscription expired an hour ago must not be
 // able to keep writing because their client still holds a conversation id.
 func (s *Service) Send(ctx context.Context, p identity.Principal, conversationID, raw string) (Message, error) {
-	body, err := NormalizeBody(raw)
-	if err != nil {
-		return Message{}, err
+	return s.SendWithMedia(ctx, p, conversationID, raw, "")
+}
+
+// SendWithMedia appends a text message with an optional image attachment. The
+// media object must belong to the sender and be ready.
+func (s *Service) SendWithMedia(ctx context.Context, p identity.Principal, conversationID, raw, mediaID string) (Message, error) {
+	body := ""
+	var err error
+	if strings.TrimSpace(raw) != "" || mediaID == "" {
+		body, err = NormalizeBody(raw)
+		if err != nil {
+			return Message{}, err
+		}
+	}
+	if strings.TrimSpace(raw) == "" && mediaID == "" {
+		return Message{}, errors.New("message body is empty")
+	}
+	if mediaID != "" {
+		var ok bool
+		if err := s.pool.QueryRow(ctx, `
+			SELECT EXISTS (SELECT 1 FROM media.objects
+			WHERE id = $1::uuid AND owner_id = $2::uuid AND kind = 'image' AND status = 'ready')`,
+			mediaID, p.UserID).Scan(&ok); err != nil {
+			return Message{}, fmt.Errorf("messaging: attachment lookup: %w", err)
+		}
+		if !ok {
+			return Message{}, fmt.Errorf("%w: attachment is not an image you own", ErrForbidden)
+		}
 	}
 
 	var creatorID, fanID string
@@ -207,11 +232,12 @@ func (s *Service) Send(ctx context.Context, p identity.Principal, conversationID
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := tx.QueryRow(ctx, `
-		INSERT INTO messaging.messages (conversation_id, sender_id, body)
-		VALUES ($1::uuid, $2::uuid, $3)
-		RETURNING id::text, conversation_id::text, sender_id::text, body, sent_at, read_at`,
-		conversationID, p.UserID, body).
-		Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Body, &m.SentAt, &m.ReadAt); err != nil {
+		INSERT INTO messaging.messages (conversation_id, sender_id, body, media_id)
+		VALUES ($1::uuid, $2::uuid, $3, NULLIF($4, '')::uuid)
+		RETURNING id::text, conversation_id::text, sender_id::text, body,
+		          COALESCE(media_id::text, ''), sent_at, read_at`,
+		conversationID, p.UserID, body, mediaID).
+		Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Body, &m.MediaID, &m.SentAt, &m.ReadAt); err != nil {
 		return Message{}, fmt.Errorf("messaging: insert message: %w", err)
 	}
 	if _, err := tx.Exec(ctx, `
@@ -245,7 +271,8 @@ func (s *Service) Thread(ctx context.Context, p identity.Principal, conversation
 	}
 
 	rows, err := s.pool.Query(ctx, `
-		SELECT id::text, conversation_id::text, sender_id::text, body, sent_at, read_at
+		SELECT id::text, conversation_id::text, sender_id::text, body,
+		       COALESCE(media_id::text, ''), sent_at, read_at
 		FROM messaging.messages
 		WHERE conversation_id = $1::uuid
 		ORDER BY sent_at DESC, id DESC
@@ -258,7 +285,7 @@ func (s *Service) Thread(ctx context.Context, p identity.Principal, conversation
 	desc := make([]Message, 0, MaxThreadSize)
 	for rows.Next() {
 		var m Message
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Body, &m.SentAt, &m.ReadAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Body, &m.MediaID, &m.SentAt, &m.ReadAt); err != nil {
 			return nil, fmt.Errorf("messaging: scan message: %w", err)
 		}
 		m.Mine = m.SenderID == p.UserID
@@ -283,4 +310,99 @@ func (s *Service) Thread(ctx context.Context, p identity.Principal, conversation
 		return nil, fmt.Errorf("messaging: mark read: %w", err)
 	}
 	return out, nil
+}
+
+// MessageMedia returns the sender-owned object attached to a message after the
+// caller proves they are a participant.
+func (s *Service) MessageMedia(ctx context.Context, p identity.Principal, messageID string) (string, error) {
+	var mediaID, creatorID, fanID string
+	err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(m.media_id::text, ''), c.creator_id::text, c.fan_id::text
+		FROM messaging.messages m JOIN messaging.conversations c ON c.id = m.conversation_id
+		WHERE m.id = $1::uuid`, messageID).Scan(&mediaID, &creatorID, &fanID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("messaging: load attachment: %w", err)
+	}
+	if p.UserID != creatorID && p.UserID != fanID {
+		return "", ErrForbidden
+	}
+	if mediaID == "" {
+		return "", ErrNotFound
+	}
+	return mediaID, nil
+}
+
+// Broadcast sends one creator message to every fan with a live entitlement and
+// returns the number of recipients. It is bounded to 1000 recipients per call.
+func (s *Service) Broadcast(ctx context.Context, p identity.Principal, raw string) (int, error) {
+	body, err := NormalizeBody(raw)
+	if err != nil {
+		return 0, err
+	}
+	var isCreator bool
+	if err := s.pool.QueryRow(ctx, `
+		SELECT EXISTS (SELECT 1 FROM creator.profiles WHERE user_id = $1::uuid)`, p.UserID).Scan(&isCreator); err != nil {
+		return 0, err
+	}
+	if !isCreator {
+		return 0, ErrForbidden
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	rows, err := tx.Query(ctx, `
+		SELECT e.fan_id::text FROM creator.entitlements e
+		WHERE e.creator_id = $1::uuid AND e.revoked_at IS NULL
+		  AND (e.expires_at IS NULL OR e.expires_at > now())
+		GROUP BY e.fan_id LIMIT 1000`, p.UserID)
+	if err != nil {
+		return 0, fmt.Errorf("messaging: broadcast recipients: %w", err)
+	}
+	var fans []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		fans = append(fans, id)
+	}
+	rows.Close()
+	if len(fans) == 0 {
+		return 0, errors.New("no entitled recipients")
+	}
+	broadcastID := ""
+	if err := tx.QueryRow(ctx, `SELECT gen_random_uuid()::text`).Scan(&broadcastID); err != nil {
+		return 0, err
+	}
+	sent := 0
+	for _, fanID := range fans {
+		var convID string
+		if err := tx.QueryRow(ctx, `
+			INSERT INTO messaging.conversations (creator_id, fan_id)
+			VALUES ($1::uuid, $2::uuid)
+			ON CONFLICT (creator_id, fan_id) DO UPDATE SET creator_id = EXCLUDED.creator_id
+			RETURNING id::text`, p.UserID, fanID).Scan(&convID); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO messaging.messages (conversation_id, sender_id, body, broadcast_id)
+			VALUES ($1::uuid, $2::uuid, $3, $4::uuid)`, convID, p.UserID, body, broadcastID); err != nil {
+			return 0, err
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE messaging.conversations SET last_message_at = now() WHERE id = $1::uuid`, convID); err != nil {
+			return 0, err
+		}
+		sent++
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return sent, nil
 }

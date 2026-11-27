@@ -183,6 +183,49 @@ class DmApi(private val sessions: SessionStore) {
         return parseSingleConversation(post("/v1/dm/conversations", payload))
     }
 
+    suspend fun sendAttachment(conversationId: String, body: String, mediaId: String): Message? {
+        val payload = JSONObject().put("body", body).put("media_id", mediaId).toString()
+        return parseSingleMessage(
+            post("/v1/dm/conversations/${encode(conversationId)}/attachments", payload),
+        )
+    }
+
+    suspend fun broadcast(body: String): Int {
+        val response = post("/v1/dm/broadcast", JSONObject().put("body", body).toString())
+        return JSONObject(response).optInt("sent")
+    }
+
+    suspend fun messageMedia(messageId: String): ByteArray = withContext(Dispatchers.IO) {
+        val s = requireSession()
+        val c = URL(s.baseUrl + "/v1/dm/messages/${encode(messageId)}/media").openConnection() as HttpURLConnection
+        try {
+            c.requestMethod = "GET"
+            c.setRequestProperty("Authorization", "Bearer " + s.accessToken)
+            val status = c.responseCode
+            if (status !in 200..299) throw ApiException(status, "media_unavailable", "attachment could not be loaded")
+            c.inputStream.use { it.readBytes() }
+        } finally { c.disconnect() }
+    }
+
+    suspend fun uploadImage(bytes: ByteArray, contentType: String): String = withContext(Dispatchers.IO) {
+        val s = requireSession()
+        val c = URL(s.baseUrl + "/v1/media").openConnection() as HttpURLConnection
+        try {
+            c.requestMethod = "POST"
+            c.doOutput = true
+            c.setRequestProperty("Authorization", "Bearer " + s.accessToken)
+            c.setRequestProperty("Content-Type", contentType)
+            c.setRequestProperty("Accept", "application/json")
+            c.outputStream.use { it.write(bytes) }
+            val status = c.responseCode
+            val text = (if (status in 200..299) c.inputStream else c.errorStream)
+                ?.bufferedReader()?.use { it.readText() }.orEmpty()
+            if (status !in 200..299) throw problem(status, text)
+            JSONObject(text).optJSONObject("media")?.optString("id").orEmpty()
+                .ifBlank { throw ApiException(502, "invalid_response", "upload returned no media id") }
+        } finally { c.disconnect() }
+    }
+
     private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")
 
     private fun requireSession(): Session {

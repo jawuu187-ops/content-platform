@@ -2,11 +2,13 @@ package httpapi
 
 import (
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
+	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
 )
@@ -21,18 +23,21 @@ import (
 type dmHandler struct {
 	auth   *authHandler
 	dm     *messaging.Service
+	media  *media.Service
 	logger *slog.Logger
 	write  *limiter
 	read   *limiter
 }
 
-func newDMHandler(auth *authHandler, dm *messaging.Service, logger *slog.Logger, shared *ratelimit.Backend) *dmHandler {
+func newDMHandler(auth *authHandler, dm *messaging.Service, m *media.Service, logger *slog.Logger,
+	shared *ratelimit.Backend) *dmHandler {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &dmHandler{
 		auth:   auth,
 		dm:     dm,
+		media:  m,
 		logger: logger,
 		write:  newLimiter(60, time.Hour, shared),
 		read:   newLimiter(240, time.Minute, shared),
@@ -48,6 +53,12 @@ func (h *dmHandler) registerRoutes(mux *http.ServeMux) {
 		h.auth.requireAuth(h.handleThread)))
 	mux.HandleFunc("POST /v1/dm/conversations/{id}/messages", rateLimited(h.write, "dm_send",
 		h.auth.requireAuth(h.handleSend)))
+	mux.HandleFunc("POST /v1/dm/conversations/{id}/attachments", rateLimited(h.write, "dm_send",
+		h.auth.requireAuth(h.handleAttachment)))
+	mux.HandleFunc("GET /v1/dm/messages/{id}/media", rateLimited(h.read, "dm_media",
+		h.auth.requireAuth(h.handleMessageMedia)))
+	mux.HandleFunc("POST /v1/dm/broadcast", rateLimited(h.write, "dm_broadcast",
+		h.auth.requireAuth(h.handleBroadcast)))
 }
 
 func (h *dmHandler) writeDMError(w http.ResponseWriter, r *http.Request, err error) {
@@ -117,4 +128,61 @@ func (h *dmHandler) handleSend(w http.ResponseWriter, r *http.Request, p identit
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"message": m})
+}
+
+func (h *dmHandler) handleAttachment(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in struct {
+		Body    string `json:"body"`
+		MediaID string `json:"media_id"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	m, err := h.dm.SendWithMedia(r.Context(), p, r.PathValue("id"), in.Body, in.MediaID)
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"message": m})
+}
+
+func (h *dmHandler) handleMessageMedia(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	mediaID, err := h.dm.MessageMedia(r.Context(), p, r.PathValue("id"))
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	obj, err := h.media.ObjectByID(r.Context(), mediaID)
+	if err != nil {
+		h.logger.ErrorContext(r.Context(), "dm attachment object failed", "error", err)
+		writeProblem(w, r, http.StatusNotFound, "not_found", "attachment not found")
+		return
+	}
+	body, _, err := h.media.Open(r.Context(), obj.StorageKey)
+	if err != nil {
+		writeProblem(w, r, http.StatusServiceUnavailable, "media_unavailable", "attachment storage is unavailable")
+		return
+	}
+	defer func() { _ = body.Close() }()
+	w.Header().Set("Content-Type", obj.ContentType)
+	w.Header().Set("Cache-Control", "private, no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = io.Copy(w, body)
+}
+
+func (h *dmHandler) handleBroadcast(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in struct {
+		Body string `json:"body"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	sent, err := h.dm.Broadcast(r.Context(), p, in.Body)
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"sent": sent})
 }

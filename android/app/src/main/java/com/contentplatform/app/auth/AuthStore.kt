@@ -27,6 +27,12 @@ class AuthStore(
         private set
     var verificationError by mutableStateOf<String?>(null)
         private set
+    var resetBusy by mutableStateOf(false)
+        private set
+    var resetNotice by mutableStateOf<String?>(null)
+        private set
+    var resetError by mutableStateOf<String?>(null)
+        private set
 
     suspend fun login(baseUrl: String, email: String, password: String, mfaCode: String) {
         if (busy) return
@@ -115,6 +121,45 @@ class AuthStore(
         } finally {
             busy = false
         }
+    }
+
+    suspend fun requestPasswordReset(baseUrl: String, email: String): Boolean {
+        if (resetBusy) return false
+        resetBusy = true
+        resetError = null
+        resetNotice = null
+        return try {
+            api.requestPasswordReset(baseUrl, email)
+            resetNotice = "If that address has an account, a reset code is waiting in the development mailbox."
+            true
+        } catch (t: Throwable) {
+            resetError = explain(t)
+            false
+        } finally {
+            resetBusy = false
+        }
+    }
+
+    suspend fun confirmPasswordReset(baseUrl: String, token: String, newPassword: String): Boolean {
+        if (resetBusy) return false
+        resetBusy = true
+        resetError = null
+        resetNotice = null
+        return try {
+            api.confirmPasswordReset(baseUrl, token, newPassword)
+            resetNotice = "Password changed. Every device was signed out; sign in again."
+            true
+        } catch (t: Throwable) {
+            resetError = explain(t)
+            false
+        } finally {
+            resetBusy = false
+        }
+    }
+
+    fun clearReset() {
+        resetNotice = null
+        resetError = null
     }
 
     fun clearError() {

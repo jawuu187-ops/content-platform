@@ -20,6 +20,9 @@ type Message struct {
 	To      string
 	Subject string
 	Text    string
+	// Kind labels the event for a simulated mailbox ("verification",
+	// "password_reset", "security", ...). Real providers ignore it.
+	Kind string
 }
 
 // Sender delivers a message. Implementations must be safe for concurrent use.

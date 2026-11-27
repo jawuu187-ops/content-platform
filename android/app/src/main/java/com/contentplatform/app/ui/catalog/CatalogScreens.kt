@@ -8,6 +8,7 @@ import android.view.SurfaceView
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -310,6 +312,62 @@ private fun PostRow(post: CreatorPost, store: CatalogStore, unlocking: Boolean) 
                     onClick = {
                         store.clearUnlockMessage()
                         scope.launch { store.unlock(post) }
+                    },
+                )
+            }
+            SpacerH(6)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (!post.locked) {
+                    TextButton(onClick = { scope.launch { store.toggleLike(post) } }, enabled = !store.engagementBusy) {
+                        Text((if (post.liked) "♥ " else "♡ ") + post.likes, color = if (post.liked) palette.brass else palette.muted)
+                    }
+                }
+                TextButton(onClick = { scope.launch { store.toggleBookmark(post) } }, enabled = !store.engagementBusy) {
+                    Text(if (post.bookmarked) "Saved" else "Save", color = if (post.bookmarked) palette.brass else palette.muted)
+                }
+                if (!post.locked) {
+                    TextButton(onClick = { scope.launch { store.openComments(post) } }) {
+                        Text("Comments " + post.comments, color = palette.muted)
+                    }
+                }
+            }
+            store.engagementError?.let {
+                Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
+            }
+            if (!post.locked && store.engagementPostId == post.id) {
+                SpacerH(8)
+                store.comments.forEach { comment ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(comment.authorName, style = MaterialTheme.typography.labelSmall, color = palette.brass)
+                            Text(comment.body, color = palette.inkSecondary, style = MaterialTheme.typography.bodySmall)
+                        }
+                        if (comment.mine) {
+                            TextButton(onClick = { scope.launch { store.deleteComment(comment) } }) {
+                                Text("Delete", color = palette.danger, style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                    SpacerH(4)
+                }
+                var draft by remember(post.id) { mutableStateOf("") }
+                BasicTextField(
+                    value = draft,
+                    onValueChange = { draft = it.take(500) },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = palette.ink),
+                    cursorBrush = SolidColor(palette.ink),
+                    modifier = Modifier.fillMaxWidth()
+                        .background(palette.surfaceRaised, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                )
+                SpacerH(6)
+                OutlineButton(
+                    label = if (store.engagementBusy) "Posting…" else "Post comment",
+                    onClick = {
+                        scope.launch {
+                            store.addComment(post, draft)
+                            if (draft.isNotBlank()) draft = ""
+                        }
                     },
                 )
             }

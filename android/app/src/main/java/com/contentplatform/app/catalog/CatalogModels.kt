@@ -38,6 +38,18 @@ data class CreatorPost(
     val publishedAt: String?,
     val locked: Boolean,
     val media: List<PostMedia>,
+    val likes: Int = 0,
+    val liked: Boolean = false,
+    val comments: Int = 0,
+    val bookmarked: Boolean = false,
+)
+
+data class PostComment(
+    val id: String,
+    val postId: String,
+    val authorName: String,
+    val body: String,
+    val mine: Boolean,
 )
 
 data class Subscription(

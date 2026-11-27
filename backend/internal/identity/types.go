@@ -95,3 +95,7 @@ type Result struct {
 	AccessTTL    time.Duration
 	RefreshTTL   time.Duration
 }
+
+// ErrInvalidResetToken covers missing, expired, used and unknown reset tokens.
+// All are one error so a caller cannot distinguish them.
+var ErrInvalidResetToken = errors.New("identity: invalid or expired password reset token")

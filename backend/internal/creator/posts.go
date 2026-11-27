@@ -329,6 +329,13 @@ func (s *Service) Posts(ctx context.Context, p *identity.Principal, handle strin
 			}
 			post.Locked = !decision.Allowed
 		}
+		viewerID := ""
+		if p != nil {
+			viewerID = p.UserID
+		}
+		if err := s.decoratePost(ctx, &post, viewerID); err != nil {
+			return nil, err
+		}
 		out = append(out, post)
 	}
 	return out, rows.Err()
@@ -502,6 +509,13 @@ func (s *Service) PostsByID(ctx context.Context, viewer *identity.Principal, pos
 			return Post{}, err
 		}
 		post.Locked = !decision.Allowed
+	}
+	viewerID := ""
+	if viewer != nil {
+		viewerID = viewer.UserID
+	}
+	if err := s.decoratePost(ctx, &post, viewerID); err != nil {
+		return Post{}, err
 	}
 	return post, nil
 }

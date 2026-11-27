@@ -60,6 +60,14 @@ class CatalogStore(
         private set
     var unlockError by mutableStateOf<String?>(null)
         private set
+    var engagementPostId by mutableStateOf<String?>(null)
+        private set
+    var comments by mutableStateOf<List<PostComment>>(emptyList())
+        private set
+    var engagementBusy by mutableStateOf(false)
+        private set
+    var engagementError by mutableStateOf<String?>(null)
+        private set
 
     suspend fun loadCreators(query: String = "") {
         creators = CreatorsState.Loading
@@ -167,6 +175,101 @@ class CatalogStore(
         } finally {
             unlockingPostId = null
         }
+    }
+
+    suspend fun toggleLike(post: CreatorPost) {
+        if (engagementBusy) return
+        engagementBusy = true
+        engagementError = null
+        try {
+            val updated = api.setLike(post.id, !post.liked)
+            replacePost(updated)
+        } catch (t: Throwable) {
+            engagementError = explain(t)
+        } finally {
+            engagementBusy = false
+        }
+    }
+
+    suspend fun toggleBookmark(post: CreatorPost) {
+        if (engagementBusy) return
+        engagementBusy = true
+        engagementError = null
+        try {
+            api.setBookmark(post.id, !post.bookmarked)
+            replacePost(post.copy(bookmarked = !post.bookmarked))
+        } catch (t: Throwable) {
+            engagementError = explain(t)
+        } finally {
+            engagementBusy = false
+        }
+    }
+
+    suspend fun openComments(post: CreatorPost) {
+        if (engagementPostId == post.id) {
+            closeComments()
+            return
+        }
+        engagementPostId = post.id
+        comments = emptyList()
+        engagementError = null
+        engagementBusy = true
+        try {
+            comments = api.comments(post.id)
+        } catch (t: Throwable) {
+            engagementError = explain(t)
+        } finally {
+            engagementBusy = false
+        }
+    }
+
+    suspend fun addComment(post: CreatorPost, body: String) {
+        if (engagementBusy || body.isBlank()) return
+        engagementBusy = true
+        engagementError = null
+        try {
+            val added = api.addComment(post.id, body)
+            comments = comments + added
+            replacePost(post.copy(comments = post.comments + 1))
+        } catch (t: Throwable) {
+            engagementError = explain(t)
+        } finally {
+            engagementBusy = false
+        }
+    }
+
+    suspend fun deleteComment(comment: PostComment) {
+        if (engagementBusy) return
+        engagementBusy = true
+        engagementError = null
+        try {
+            api.deleteComment(comment.id)
+            comments = comments.filterNot { it.id == comment.id }
+        } catch (t: Throwable) {
+            engagementError = explain(t)
+        } finally {
+            engagementBusy = false
+        }
+    }
+
+    fun closeComments() {
+        engagementPostId = null
+        comments = emptyList()
+        engagementError = null
+    }
+
+    suspend fun loadBookmarks(): List<CreatorPost> {
+        return try {
+            api.bookmarks()
+        } catch (t: Throwable) {
+            engagementError = explain(t)
+            emptyList()
+        }
+    }
+
+    private fun replacePost(post: CreatorPost) {
+        val current = creator as? CreatorState.Ready ?: return
+        creator = current.copy(posts = current.posts.map { if (it.id == post.id) post else it })
     }
 
     fun clearUnlockMessage() {

@@ -36,7 +36,7 @@ env:
 
 jobs:
   build:
-    name: lint, unit tests, APK and AAB
+    name: compile, lint and unit tests (no packaging)
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -59,50 +59,14 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: compile, lint and unit test
-        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+        run: gradle --no-daemon --stacktrace :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug
 
-      - name: assemble release bundle (unsigned unless signing secrets exist)
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: assert that no APK or AAB was produced
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-            gradle --no-daemon --stacktrace :app:bundleRelease :app:assembleRelease \
-              -Pandroid.injected.signing.store.file="$RUNNER_TEMP/release.keystore" \
-              -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
-              -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-              -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-            rm -f "$RUNNER_TEMP/release.keystore"
-          else
-            echo "::notice::Signing secrets are not configured; producing an unsigned release bundle."
-            gradle --no-daemon --stacktrace :app:bundleRelease
+          if find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) | grep -q .; then
+            echo "::error::an APK or AAB was produced; packaging is disabled"
+            exit 1
           fi
-
-      - name: summarise build outputs
-        run: |
-          {
-            echo "### Android build outputs"
-            find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -printf '%p  %k KB\n' | sort
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: android/app/build/outputs/apk/**/*.apk
-          retention-days: 14
-          if-no-files-found: error
-
-      - name: upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-aab
-          path: android/app/build/outputs/bundle/**/*.aab
-          retention-days: 14
-          if-no-files-found: error
 
       - name: upload reports (lint, unit tests)
         if: always()

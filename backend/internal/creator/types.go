@@ -146,6 +146,21 @@ type Post struct {
 	CreatedAt   time.Time   `json:"created_at"`
 	Media       []PostMedia `json:"media"`
 	Locked      bool        `json:"locked"`
+	Likes       int         `json:"likes"`
+	Liked       bool        `json:"liked"`
+	Comments    int         `json:"comments"`
+	Bookmarked  bool        `json:"bookmarked"`
+}
+
+// Comment is one fan or creator reply on a post.
+type Comment struct {
+	ID         string    `json:"id"`
+	PostID     string    `json:"post_id"`
+	AuthorID   string    `json:"author_id"`
+	AuthorName string    `json:"author_name"`
+	Body       string    `json:"body"`
+	CreatedAt  time.Time `json:"created_at"`
+	Mine       bool      `json:"mine"`
 }
 
 // Unlock is a one-off grant that opens a single PPV post.

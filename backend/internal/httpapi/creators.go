@@ -311,5 +311,30 @@ func (h *creatorHandler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/subscriptions/{id}/cancel", rateLimited(h.write, "sub_cancel",
 		h.auth.requireAuth(h.handleCancel)))
 
+	mux.HandleFunc("POST /v1/posts/{id}/like", rateLimited(h.write, "post_like",
+		h.auth.requireAuth(func(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+			h.handleLike(w, r, p, true)
+		})))
+	mux.HandleFunc("DELETE /v1/posts/{id}/like", rateLimited(h.write, "post_like",
+		h.auth.requireAuth(func(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+			h.handleLike(w, r, p, false)
+		})))
+	mux.HandleFunc("POST /v1/posts/{id}/bookmark", rateLimited(h.write, "post_bookmark",
+		h.auth.requireAuth(func(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+			h.handleBookmark(w, r, p, true)
+		})))
+	mux.HandleFunc("DELETE /v1/posts/{id}/bookmark", rateLimited(h.write, "post_bookmark",
+		h.auth.requireAuth(func(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+			h.handleBookmark(w, r, p, false)
+		})))
+	mux.HandleFunc("GET /v1/me/bookmarks", rateLimited(h.read, "bookmarks",
+		h.auth.requireAuth(h.handleMyBookmarks)))
+	mux.HandleFunc("GET /v1/posts/{id}/comments", rateLimited(h.read, "comments",
+		h.auth.requireAuth(h.handleComments)))
+	mux.HandleFunc("POST /v1/posts/{id}/comments", rateLimited(h.write, "comments",
+		h.auth.requireAuth(h.handleAddComment)))
+	mux.HandleFunc("DELETE /v1/comments/{id}", rateLimited(h.write, "comments",
+		h.auth.requireAuth(h.handleDeleteComment)))
+
 	h.registerStatsRoutes(mux)
 }

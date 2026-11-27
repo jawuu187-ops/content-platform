@@ -31,6 +31,20 @@ class AuthApi(private val sessions: SessionStore) {
         return auth(baseUrl, "/v1/auth/login", payload)
     }
 
+    suspend fun requestPasswordReset(baseUrl: String, email: String) {
+        val root = SessionStore.normalizeBaseUrl(baseUrl)
+        if (root.isBlank()) throw ApiException(400, "invalid_base_url", "Enter the server address.")
+        request("POST", root + "/v1/auth/password/reset/request", "",
+            JSONObject().put("email", email.trim()).toString())
+    }
+
+    suspend fun confirmPasswordReset(baseUrl: String, token: String, newPassword: String) {
+        val root = SessionStore.normalizeBaseUrl(baseUrl)
+        if (root.isBlank()) throw ApiException(400, "invalid_base_url", "Enter the server address.")
+        request("POST", root + "/v1/auth/password/reset/confirm", "",
+            JSONObject().put("token", token.trim()).put("new_password", newPassword).toString())
+    }
+
     suspend fun requestEmailVerification() {
         postAuthed("/v1/auth/email/verify/request", "{}")
     }

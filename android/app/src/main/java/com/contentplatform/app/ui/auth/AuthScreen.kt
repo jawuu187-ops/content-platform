@@ -52,6 +52,9 @@ fun AuthScreen(store: AuthStore) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var mfa by rememberSaveable { mutableStateOf("") }
+    var resetStage by rememberSaveable { mutableStateOf(0) } // 0 sign-in, 1 request, 2 confirm
+    var resetToken by rememberSaveable { mutableStateOf("") }
+    var newPassword by rememberSaveable { mutableStateOf("") }
 
     Column(
         Modifier.fillMaxSize().background(palette.ground).imePadding().padding(24.dp),
@@ -60,7 +63,12 @@ fun AuthScreen(store: AuthStore) {
         LabelMono("18+ PLATFORM")
         Text("Vesper", style = MaterialTheme.typography.displayMedium, color = palette.ink)
         Text(
-            if (registerMode) "Create an account" else "Sign in to continue",
+            when {
+                resetStage == 1 -> "Reset your password"
+                resetStage == 2 -> "Enter the reset code"
+                registerMode -> "Create an account"
+                else -> "Sign in to continue"
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = palette.muted,
         )
@@ -71,41 +79,113 @@ fun AuthScreen(store: AuthStore) {
                     Field("Server", baseUrl, { baseUrl = it }, keyboardType = KeyboardType.Uri)
                     SpacerH(10)
                 }
-                Field("Email", email, { email = it }, keyboardType = KeyboardType.Email)
-                SpacerH(10)
-                Field("Password", password, { password = it }, password = true)
-                if (!registerMode && store.mfaRequired) {
+                if (resetStage == 0) {
+                    Field("Email", email, { email = it }, keyboardType = KeyboardType.Email)
                     SpacerH(10)
-                    Field("Authenticator code", mfa, { mfa = it.take(6) }, keyboardType = KeyboardType.Number)
-                }
-                store.error?.let {
+                    Field("Password", password, { password = it }, password = true)
+                    if (!registerMode && store.mfaRequired) {
+                        SpacerH(10)
+                        Field("Authenticator code", mfa, { mfa = it.take(6) }, keyboardType = KeyboardType.Number)
+                    }
+                    store.error?.let {
+                        SpacerH(8)
+                        Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
+                    }
+                    SpacerH(14)
+                    ActionButton(
+                        label = when {
+                            store.busy -> "Working…"
+                            registerMode -> "Create account"
+                            else -> "Sign in"
+                        },
+                        price = null,
+                        onClick = {
+                            scope.launch {
+                                if (registerMode) store.register(baseUrl, email, password)
+                                else store.login(baseUrl, email, password, mfa)
+                            }
+                        },
+                        enabled = !store.busy && email.isNotBlank() && password.isNotEmpty() && baseUrl.isNotBlank(),
+                    )
                     SpacerH(8)
-                    Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
+                    OutlineButton(
+                        label = if (registerMode) "I already have an account" else "Create an account",
+                        onClick = {
+                            registerMode = !registerMode
+                            store.clearError()
+                        },
+                    )
+                    if (!registerMode) {
+                        SpacerH(8)
+                        OutlineButton(
+                            label = "Forgot password?",
+                            onClick = {
+                                resetStage = 1
+                                store.clearReset()
+                            },
+                        )
+                    }
+                } else if (resetStage == 1) {
+                    Field("Email", email, { email = it }, keyboardType = KeyboardType.Email)
+                    store.resetNotice?.let {
+                        SpacerH(8)
+                        Text(it, color = palette.accent, style = MaterialTheme.typography.bodySmall)
+                    }
+                    store.resetError?.let {
+                        SpacerH(8)
+                        Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
+                    }
+                    SpacerH(14)
+                    ActionButton(
+                        label = if (store.resetBusy) "Sending…" else "Send reset code",
+                        price = null,
+                        onClick = { scope.launch { store.requestPasswordReset(baseUrl, email) } },
+                        enabled = !store.resetBusy && email.isNotBlank() && baseUrl.isNotBlank(),
+                    )
+                    SpacerH(8)
+                    OutlineButton(
+                        label = "I have a reset code",
+                        onClick = { resetStage = 2; store.clearReset() },
+                    )
+                    SpacerH(8)
+                    OutlineButton(
+                        label = "Back to sign in",
+                        onClick = { resetStage = 0; store.clearReset() },
+                    )
+                } else {
+                    Field("Reset code", resetToken, { resetToken = it }, keyboardType = KeyboardType.Text)
+                    SpacerH(10)
+                    Field("New password", newPassword, { newPassword = it }, password = true)
+                    store.resetNotice?.let {
+                        SpacerH(8)
+                        Text(it, color = palette.accent, style = MaterialTheme.typography.bodySmall)
+                    }
+                    store.resetError?.let {
+                        SpacerH(8)
+                        Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
+                    }
+                    SpacerH(14)
+                    ActionButton(
+                        label = if (store.resetBusy) "Resetting…" else "Reset password",
+                        price = null,
+                        onClick = {
+                            scope.launch {
+                                if (store.confirmPasswordReset(baseUrl, resetToken, newPassword)) {
+                                    password = ""
+                                    resetToken = ""
+                                    newPassword = ""
+                                    resetStage = 0
+                                }
+                            }
+                        },
+                        enabled = !store.resetBusy && resetToken.isNotBlank() && newPassword.isNotEmpty() && baseUrl.isNotBlank(),
+                    )
+                    SpacerH(8)
+                    OutlineButton(
+                        label = "Back to sign in",
+                        onClick = { resetStage = 0; store.clearReset() },
+                    )
                 }
-                SpacerH(14)
-                ActionButton(
-                    label = when {
-                        store.busy -> "Working…"
-                        registerMode -> "Create account"
-                        else -> "Sign in"
-                    },
-                    price = null,
-                    onClick = {
-                        scope.launch {
-                            if (registerMode) store.register(baseUrl, email, password)
-                            else store.login(baseUrl, email, password, mfa)
-                        }
-                    },
-                    enabled = !store.busy && email.isNotBlank() && password.isNotEmpty() && baseUrl.isNotBlank(),
-                )
-                SpacerH(8)
-                OutlineButton(
-                    label = if (registerMode) "I already have an account" else "Create an account",
-                    onClick = {
-                        registerMode = !registerMode
-                        store.clearError()
-                    },
-                )
             }
         }
         SpacerH(14)

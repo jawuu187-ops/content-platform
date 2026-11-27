@@ -34,6 +34,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/logging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/mail"
+	"github.com/jawuu187-ops/content-platform/backend/internal/platform/mailsim"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
 )
 
@@ -108,6 +109,13 @@ func run() error {
 			}
 		}
 		switch provider {
+		case "simulated":
+			if !cfg.IsLocal() && !cfg.IsDemo() {
+				logger.Error("simulated email is allowed only in local/demo")
+				os.Exit(1)
+			}
+			opts = append(opts, identity.WithMailer(mailsim.New(db.Pool())))
+			logger.Info("email is stored in the simulated mailbox; no message leaves this host")
 		case "brevo":
 			sender, err := mail.NewBrevo(mail.BrevoConfig{
 				APIKey: cfg.BrevoAPIKey, From: cfg.MailFrom,

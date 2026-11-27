@@ -355,3 +355,94 @@ func (s *store) clearUserMFA(ctx context.Context, userID string) error {
 	}
 	return nil
 }
+
+// resetTarget returns the account id for an active address without revealing a
+// password hash or any profile data to the caller.
+func (s *store) resetTarget(ctx context.Context, email string) (string, bool, error) {
+	var id string
+	err := s.pool.QueryRow(ctx, `
+		SELECT id::text FROM identity.users
+		WHERE email = $1 AND deleted_at IS NULL AND status = 'active'`, email).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("identity: load reset target: %w", err)
+	}
+	return id, true, nil
+}
+
+// replacePasswordReset marks older live tokens used and inserts the new one.
+func (s *store) replacePasswordReset(ctx context.Context, userID string, tokenHash []byte, expires time.Time) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("identity: begin reset request: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, `
+		UPDATE identity.password_resets SET used_at = now()
+		WHERE user_id = $1::uuid AND used_at IS NULL`, userID); err != nil {
+		return fmt.Errorf("identity: retire reset tokens: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO identity.password_resets (user_id, token_hash, expires_at)
+		VALUES ($1::uuid, $2, $3)`, userID, tokenHash, expires); err != nil {
+		return fmt.Errorf("identity: insert reset token: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("identity: commit reset request: %w", err)
+	}
+	return nil
+}
+
+// consumePasswordReset is the only place a reset changes an account. Session
+// revocation happens in the same transaction so a partial reset cannot leave an
+// old device signed in.
+func (s *store) consumePasswordReset(ctx context.Context, tokenHash []byte, newHash, params string,
+	now time.Time, requestID string) (userID, email string, err error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("identity: begin reset: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var expires time.Time
+	var used *time.Time
+	err = tx.QueryRow(ctx, `
+		SELECT r.user_id::text, u.email::text, r.expires_at, r.used_at
+		FROM identity.password_resets r
+		JOIN identity.users u ON u.id = r.user_id
+		WHERE r.token_hash = $1
+		FOR UPDATE OF r`, tokenHash).Scan(&userID, &email, &expires, &used)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", "", ErrInvalidResetToken
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("identity: load reset token: %w", err)
+	}
+	if used != nil || !expires.After(now) {
+		return "", "", ErrInvalidResetToken
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE identity.users
+		SET password_hash = $2, password_algo = 'argon2id', password_params = $3::jsonb,
+		    updated_at = now()
+		WHERE id = $1::uuid`, userID, newHash, params); err != nil {
+		return "", "", fmt.Errorf("identity: update password: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE identity.password_resets SET used_at = $2 WHERE token_hash = $1`, tokenHash, now); err != nil {
+		return "", "", fmt.Errorf("identity: consume reset token: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE identity.sessions
+		SET revoked_at = COALESCE(revoked_at, $2), revoked_reason = COALESCE(revoked_reason, 'password_reset')
+		WHERE user_id = $1::uuid AND revoked_at IS NULL`, userID, now); err != nil {
+		return "", "", fmt.Errorf("identity: revoke sessions after reset: %w", err)
+	}
+	s.audit(ctx, tx, "user", userID, "password.reset_completed", "user", userID, requestID)
+	if err := tx.Commit(ctx); err != nil {
+		return "", "", fmt.Errorf("identity: commit reset: %w", err)
+	}
+	return userID, email, nil
+}

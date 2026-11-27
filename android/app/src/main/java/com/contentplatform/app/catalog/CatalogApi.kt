@@ -146,6 +146,55 @@ class CatalogApi(private val sessions: SessionStore) {
         request("DELETE", s.baseUrl + "/v1/creators/me/tiers/" + encode(id), s.accessToken, null)
     }
 
+    suspend fun setLike(postId: String, liked: Boolean): CreatorPost {
+        val s = requireSession()
+        val method = if (liked) "POST" else "DELETE"
+        val body = JSONObject(request(method, s.baseUrl + "/v1/posts/" + encode(postId) + "/like", s.accessToken, if (liked) "{}" else null))
+        return parsePost(body.optJSONObject("post")) ?: throw ApiException(502, "invalid_response", "post missing from response")
+    }
+
+    suspend fun setBookmark(postId: String, saved: Boolean) {
+        val s = requireSession()
+        val method = if (saved) "POST" else "DELETE"
+        request(method, s.baseUrl + "/v1/posts/" + encode(postId) + "/bookmark", s.accessToken, if (saved) "{}" else null)
+    }
+
+    suspend fun comments(postId: String): List<PostComment> {
+        val arr = JSONObject(get("/v1/posts/" + encode(postId) + "/comments")).optJSONArray("comments")
+        return (0 until (arr?.length() ?: 0)).mapNotNull { i ->
+            val c = arr?.optJSONObject(i) ?: return@mapNotNull null
+            PostComment(
+                id = c.optString("id"),
+                postId = c.optString("post_id"),
+                authorName = c.optString("author_name").ifBlank { "Fan" },
+                body = c.optString("body"),
+                mine = c.optBoolean("mine"),
+            )
+        }
+    }
+
+    suspend fun addComment(postId: String, body: String): PostComment {
+        val s = requireSession()
+        val response = JSONObject(request("POST", s.baseUrl + "/v1/posts/" + encode(postId) + "/comments",
+            s.accessToken, JSONObject().put("body", body.trim()).toString()))
+        val c = response.optJSONObject("comment") ?: throw ApiException(502, "invalid_response", "comment missing from response")
+        return PostComment(
+            id = c.optString("id"), postId = c.optString("post_id"),
+            authorName = c.optString("author_name").ifBlank { "Fan" },
+            body = c.optString("body"), mine = c.optBoolean("mine"),
+        )
+    }
+
+    suspend fun deleteComment(commentId: String) {
+        val s = requireSession()
+        request("DELETE", s.baseUrl + "/v1/comments/" + encode(commentId), s.accessToken, null)
+    }
+
+    suspend fun bookmarks(): List<CreatorPost> {
+        val arr = JSONObject(get("/v1/me/bookmarks")).optJSONArray("posts")
+        return (0 until (arr?.length() ?: 0)).mapNotNull { parsePost(arr?.optJSONObject(it)) }
+    }
+
     suspend fun deletePost(id: String) {
         val s = requireSession()
         request("DELETE", s.baseUrl + "/v1/posts/" + encode(id), s.accessToken, null)
@@ -307,6 +356,10 @@ class CatalogApi(private val sessions: SessionStore) {
             publishedAt = json.optString("published_at").takeIf { it.isNotBlank() },
             locked = json.optBoolean("locked"),
             media = media,
+            likes = json.optInt("likes"),
+            liked = json.optBoolean("liked"),
+            comments = json.optInt("comments"),
+            bookmarked = json.optBoolean("bookmarked"),
         )
     }
 

@@ -321,6 +321,10 @@ func (h *authHandler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/auth/register", rateLimited(h.login, "register", h.handleRegister))
 	mux.HandleFunc("POST /v1/auth/login", rateLimited(h.login, "login", h.handleLogin))
 	mux.HandleFunc("POST /v1/auth/refresh", rateLimited(h.refresh, "refresh", h.handleRefresh))
+	mux.HandleFunc("POST /v1/auth/password/reset/request",
+		rateLimited(h.login, "password_reset_request", h.handlePasswordResetRequest))
+	mux.HandleFunc("POST /v1/auth/password/reset/confirm",
+		rateLimited(h.login, "password_reset_confirm", h.handlePasswordResetConfirm))
 	mux.HandleFunc("POST /v1/auth/logout", rateLimited(h.read, "logout", h.requireAuth(
 		func(w http.ResponseWriter, r *http.Request, p identity.Principal) { h.handleLogout(w, r, p) })))
 	mux.HandleFunc("GET /v1/auth/sessions", rateLimited(h.read, "sessions", h.requireAuth(

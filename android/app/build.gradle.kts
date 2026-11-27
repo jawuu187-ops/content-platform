@@ -16,8 +16,8 @@ android {
         applicationId = "com.contentplatform.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0-test"
+        versionCode = 3
+        versionName = "0.2.1-test"
 
         // Device tests drive the installed app against a real API; see
         // .github/workflows/android-e2e.yml for the runner that owns that API.

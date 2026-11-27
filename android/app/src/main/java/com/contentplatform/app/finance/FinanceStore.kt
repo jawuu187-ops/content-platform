@@ -66,6 +66,12 @@ class FinanceStore(
     var statementCurrency by mutableStateOf("USD")
         private set
     var notice by mutableStateOf<String?>(null)
+    var adminQueue by mutableStateOf<AdminQueueState>(AdminQueueState.Idle)
+        private set
+    var adminBusy by mutableStateOf(false)
+        private set
+    var adminNotice by mutableStateOf<String?>(null)
+        private set
         private set
     var saving by mutableStateOf(false)
         private set
@@ -172,6 +178,45 @@ class FinanceStore(
     suspend fun loadStatementForStudio() {
         statementCurrency = (studio as? StudioState.Ready)?.snapshot?.balance?.currency ?: "USD"
         loadStatement(statementCurrency)
+    }
+
+    suspend fun loadAdminQueue() {
+        adminQueue = AdminQueueState.Loading
+        adminQueue = try {
+            AdminQueueState.Ready(api.adminQueue())
+        } catch (t: Throwable) {
+            AdminQueueState.Failed(adminExplain(t))
+        }
+    }
+
+    suspend fun adminDecision(id: String, action: String, note: String, reference: String) {
+        if (adminBusy) return
+        adminBusy = true
+        adminNotice = null
+        try {
+            api.adminDecision(id, action, note, reference)
+            adminNotice = when (action) {
+                "approve" -> "Payout approved; the amount is reserved in the ledger."
+                "reject" -> "Payout rejected."
+                "settle" -> "Settlement recorded. A recorded settlement is not proof that money moved."
+                else -> "Payout updated."
+            }
+            loadAdminQueue()
+        } catch (t: Throwable) {
+            adminNotice = adminExplain(t)
+        } finally {
+            adminBusy = false
+        }
+    }
+
+    private fun adminExplain(t: Throwable): String = when (t) {
+        is ApiException -> when (t.status) {
+            401 -> "Your session has expired."
+            403 -> "This account does not hold the finance review permission."
+            409 -> t.detail.ifBlank { "That payout has already changed." }
+            else -> t.detail.ifBlank { "The payout action failed." }
+        }
+        else -> t.message ?: "The payout action failed."
     }
 
     suspend fun loadStatement(currency: String) {

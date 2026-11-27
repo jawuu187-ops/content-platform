@@ -75,6 +75,7 @@ import com.contentplatform.app.ui.auth.SecurityScreen
 import com.contentplatform.app.ui.catalog.DiscoverScreen
 import com.contentplatform.app.ui.catalog.MembershipsScreen
 import com.contentplatform.app.ui.catalog.CreatorToolsScreen
+import com.contentplatform.app.ui.finance.AdminPayoutsScreen
 import com.contentplatform.app.ui.catalog.PublicCreatorScreen
 import com.contentplatform.app.ui.screens.StudioScreen
 import com.contentplatform.app.ui.theme.LocalVesperPalette
@@ -152,6 +153,7 @@ fun PlatformApp(themeController: ThemeController) {
     var ageReviewOpen by rememberSaveable { mutableStateOf(false) }
     var creatorToolsOpen by rememberSaveable { mutableStateOf(false) }
     var securityOpen by rememberSaveable { mutableStateOf(false) }
+    var adminPayoutsOpen by rememberSaveable { mutableStateOf(false) }
     var openThreadId by rememberSaveable { mutableStateOf<String?>(null) }
     // Checkout is a pair of (tier, price) in the demo. A real provider replaces the price
     // with a server-issued intent; the sheet does not compute it.
@@ -211,6 +213,8 @@ fun PlatformApp(themeController: ThemeController) {
                                 moderationStore.permissions.contains("verify.review"),
                             onOpenAgeReview = { ageReviewOpen = true },
                             onOpenSecurity = { securityOpen = true },
+                            canReviewPayouts = moderationStore.permissions.contains("payouts.approve"),
+                            onOpenAdminPayouts = { adminPayoutsOpen = true },
                         )
                     }
                 }
@@ -289,6 +293,21 @@ fun PlatformApp(themeController: ThemeController) {
         ) {
             Box(Modifier.fillMaxSize().background(palette.ground)) {
                 ModerationScreen(store = moderationStore, onBack = { moderationOpen = false })
+            }
+        }
+
+        // Finance queue for accounts holding payouts.approve.
+        AnimatedVisibility(
+            visible = adminPayoutsOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                AdminPayoutsScreen(store = financeStore, onBack = { adminPayoutsOpen = false })
             }
         }
 

@@ -53,6 +53,26 @@ object PayoutStatus {
     const val Cancelled = "cancelled"
 }
 
+data class AdminPayout(
+    val id: String,
+    val creatorId: String,
+    val amountMinor: Long,
+    val currency: String,
+    val method: String,
+    val status: String,
+    val note: String,
+    val decisionNote: String,
+    val createdAt: String,
+    val paidAt: String?,
+)
+
+sealed interface AdminQueueState {
+    data object Idle : AdminQueueState
+    data object Loading : AdminQueueState
+    data class Ready(val items: List<AdminPayout>) : AdminQueueState
+    data class Failed(val message: String) : AdminQueueState
+}
+
 /** What Studio needs in one pass: audience, balance and the latest requests. */
 data class StudioSnapshot(
     val stats: AudienceStats?,

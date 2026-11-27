@@ -571,6 +571,8 @@ fun AccountScreen(
     canReviewAge: Boolean = false,
     onOpenAgeReview: () -> Unit = {},
     onOpenSecurity: () -> Unit = {},
+    canReviewPayouts: Boolean = false,
+    onOpenAdminPayouts: () -> Unit = {},
 ) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
@@ -614,6 +616,25 @@ fun AccountScreen(
                         error = ageError,
                         onRequest = onRequestAgeReview,
                     )
+                    if (canReviewPayouts) {
+                        SpacerH(16)
+                        SectionTitle("Finance tools", "restricted")
+                        SpacerH(8)
+                        CardSurface {
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .pressScale(motion, onClick = onOpenAdminPayouts)
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Payout review", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                    Text("Approve, reject and record external settlements", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+                                }
+                                LabelMono("\u2192")
+                            }
+                        }
+                    }
                     if (canReviewAge) {
                         SpacerH(16)
                         SectionTitle("Owner tools", "private")

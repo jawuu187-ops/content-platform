@@ -103,6 +103,39 @@ class FinanceApi(private val sessions: SessionStore) {
      * The CSV export. Totals come from the `X-Export-*` headers, which the server computes
      * from the same rows, so a screen and the file can never disagree.
      */
+    suspend fun adminQueue(): List<AdminPayout> {
+        val body = JSONObject(get("/v1/admin/payouts?status=all"))
+        val arr = body.optJSONArray("payouts") ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { i -> parseAdminPayout(arr.optJSONObject(i)) }
+    }
+
+    suspend fun adminDecision(id: String, action: String, note: String, reference: String): AdminPayout {
+        val payload = if (action == "settle") {
+            JSONObject().put("reference", reference.trim()).toString()
+        } else {
+            JSONObject().put("note", note.trim()).toString()
+        }
+        val body = JSONObject(post("/v1/admin/payouts/" + encode(id) + "/" + action, payload))
+        return parseAdminPayout(body.optJSONObject("payout"))
+            ?: throw ApiException(502, "invalid_response", "payout missing from response")
+    }
+
+    private fun parseAdminPayout(json: JSONObject?): AdminPayout? {
+        if (json == null || json.optString("id").isBlank()) return null
+        return AdminPayout(
+            id = json.optString("id"),
+            creatorId = json.optString("creator_id"),
+            amountMinor = json.optLong("amount_minor"),
+            currency = json.optString("currency"),
+            method = json.optString("method"),
+            status = json.optString("status"),
+            note = json.optString("note"),
+            decisionNote = json.optString("decision_note"),
+            createdAt = json.optString("created_at"),
+            paidAt = json.optString("paid_at").takeIf { it.isNotBlank() },
+        )
+    }
+
     suspend fun statement(
         from: String,
         to: String,

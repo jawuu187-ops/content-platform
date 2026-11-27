@@ -374,3 +374,100 @@ func TestAttachmentAndBroadcast(t *testing.T) {
 		t.Fatalf("broadcast sent=%d err=%v", sent, err)
 	}
 }
+
+func TestPaidMessageRedactionAndRequestLifecycle(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	owner := h.creatorAccount(t)
+	fan := h.account(t)
+	h.grantEntitlement(t, fan.UserID, owner.UserID)
+	conv, err := h.svc.Open(ctx, fan, owner.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	price := int64(750)
+	paid, err := h.svc.SendPaid(ctx, owner, conv.ID, "secret paid body", "", &price)
+	if err != nil || paid.PriceMinor == nil || *paid.PriceMinor != price {
+		t.Fatalf("paid send: %+v %v", paid, err)
+	}
+	thread, err := h.svc.Thread(ctx, fan, conv.ID)
+	if err != nil || len(thread) == 0 {
+		t.Fatalf("fan thread: %+v %v", thread, err)
+	}
+	last := thread[len(thread)-1]
+	if !last.Locked || last.Body != "" || last.MediaID != "" || last.PriceMinor == nil {
+		t.Fatalf("locked payload leaked: %+v", last)
+	}
+	creatorThread, err := h.svc.Thread(ctx, owner, conv.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if creatorThread[len(creatorThread)-1].Body == "" {
+		t.Fatal("creator cannot read own paid message")
+	}
+
+	// A non-entitled fan may request only when policy is everyone.
+	other := h.account(t)
+	if _, _, err := h.svc.Request(ctx, other, owner.UserID, "hello", ""); !errors.Is(err, ErrRequestPolicy) {
+		t.Fatalf("default policy request = %v", err)
+	}
+	if _, err := h.pool.Exec(ctx, `UPDATE creator.profiles SET dm_request_policy='everyone' WHERE user_id=$1::uuid`, owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	reqConv, reqMsg, err := h.svc.Request(ctx, other, owner.UserID, "request body", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reqConv.Status != "requested" || reqMsg.ID == "" {
+		t.Fatalf("request = %+v %+v", reqConv, reqMsg)
+	}
+	if _, _, err := h.svc.Request(ctx, other, owner.UserID, "second", ""); !errors.Is(err, ErrRequestPending) {
+		t.Fatalf("second request = %v", err)
+	}
+	accepted, err := h.svc.AcceptRequest(ctx, owner, reqConv.ID)
+	if err != nil || accepted.Status != "accepted" {
+		t.Fatalf("accept = %+v %v", accepted, err)
+	}
+	// Accepted request grants messaging without a subscription.
+	if _, err := h.svc.Send(ctx, other, reqConv.ID, "thanks"); err != nil {
+		t.Fatalf("accepted request send: %v", err)
+	}
+}
+
+func TestRejectedRequestAttachmentPurgeMarker(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	owner := h.creatorAccount(t)
+	fan := h.account(t)
+	if _, err := h.pool.Exec(ctx, `UPDATE creator.profiles SET dm_request_policy='everyone' WHERE user_id=$1::uuid`, owner.UserID); err != nil {
+		t.Fatal(err)
+	}
+	key := strings.Repeat("d", 64)
+	var mediaID string
+	if err := h.pool.(*pgxpool.Pool).QueryRow(ctx, `
+		INSERT INTO media.objects (owner_id, kind, storage_key, content_type, byte_size, sha256)
+		VALUES ($1::uuid, 'image', $2, 'image/png', 5, $2) RETURNING id::text`, fan.UserID, key).Scan(&mediaID); err != nil {
+		t.Fatal(err)
+	}
+	conv, msg, err := h.svc.Request(ctx, fan, owner.UserID, "look", mediaID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.MediaID != "" {
+		t.Fatal("attachment leaked before acceptance")
+	}
+	if _, err := h.svc.MessageMedia(ctx, owner, msg.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("pre-accept media = %v", err)
+	}
+	if _, err := h.svc.RejectRequest(ctx, owner, conv.ID); err != nil {
+		t.Fatal(err)
+	}
+	var purge *string
+	if err := h.pool.(*pgxpool.Pool).QueryRow(ctx, `
+		SELECT purge_after::text FROM messaging.request_attachments WHERE message_id=$1::uuid`, msg.ID).Scan(&purge); err != nil {
+		t.Fatal(err)
+	}
+	if purge == nil {
+		t.Fatal("rejected attachment has no purge deadline")
+	}
+}

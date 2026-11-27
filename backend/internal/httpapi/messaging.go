@@ -10,6 +10,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
+	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
 )
 
@@ -24,13 +25,14 @@ type dmHandler struct {
 	auth   *authHandler
 	dm     *messaging.Service
 	media  *media.Service
+	pay    *payments.Service
 	logger *slog.Logger
 	write  *limiter
 	read   *limiter
 }
 
-func newDMHandler(auth *authHandler, dm *messaging.Service, m *media.Service, logger *slog.Logger,
-	shared *ratelimit.Backend) *dmHandler {
+func newDMHandler(auth *authHandler, dm *messaging.Service, m *media.Service, pay *payments.Service,
+	logger *slog.Logger, shared *ratelimit.Backend) *dmHandler {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -38,6 +40,7 @@ func newDMHandler(auth *authHandler, dm *messaging.Service, m *media.Service, lo
 		auth:   auth,
 		dm:     dm,
 		media:  m,
+		pay:    pay,
 		logger: logger,
 		write:  newLimiter(60, time.Hour, shared),
 		read:   newLimiter(240, time.Minute, shared),
@@ -59,6 +62,22 @@ func (h *dmHandler) registerRoutes(mux *http.ServeMux) {
 		h.auth.requireAuth(h.handleMessageMedia)))
 	mux.HandleFunc("POST /v1/dm/broadcast", rateLimited(h.write, "dm_broadcast",
 		h.auth.requireAuth(h.handleBroadcast)))
+	mux.HandleFunc("POST /v1/dm/requests", rateLimited(h.write, "dm_request",
+		h.auth.requireAuth(h.handleRequest)))
+	mux.HandleFunc("GET /v1/dm/requests", rateLimited(h.read, "dm_requests",
+		h.auth.requireAuth(h.handleRequests)))
+	mux.HandleFunc("POST /v1/dm/conversations/{id}/accept", rateLimited(h.write, "dm_request_decide",
+		h.auth.requireAuth(h.handleAcceptRequest)))
+	mux.HandleFunc("POST /v1/dm/conversations/{id}/reject", rateLimited(h.write, "dm_request_decide",
+		h.auth.requireAuth(h.handleRejectRequest)))
+	mux.HandleFunc("POST /v1/dm/conversations/{id}/block", rateLimited(h.write, "dm_request_decide",
+		h.auth.requireAuth(h.handleBlockRequest)))
+	mux.HandleFunc("POST /v1/dm/messages/{id}/unlock", rateLimited(h.write, "dm_unlock",
+		h.auth.requireAuth(h.handleUnlockMessage)))
+	mux.HandleFunc("GET /v1/dm/settings", rateLimited(h.read, "dm_settings",
+		h.auth.requireAuth(h.handleGetMessagingSettings)))
+	mux.HandleFunc("PATCH /v1/dm/settings", rateLimited(h.write, "dm_settings",
+		h.auth.requireAuth(h.handleSetMessagingSettings)))
 }
 
 func (h *dmHandler) writeDMError(w http.ResponseWriter, r *http.Request, err error) {
@@ -72,6 +91,16 @@ func (h *dmHandler) writeDMError(w http.ResponseWriter, r *http.Request, err err
 		// simply not entitled to write until they subscribe or unlock.
 		writeProblem(w, r, http.StatusForbidden, "subscription_required",
 			"a live subscription or unlock is required to message this creator")
+	case errors.Is(err, messaging.ErrRequestPolicy):
+		writeProblem(w, r, http.StatusForbidden, "request_not_allowed",
+			"this creator is not accepting message requests")
+	case errors.Is(err, messaging.ErrRequestPending):
+		writeProblem(w, r, http.StatusConflict, "request_pending",
+			"this message request is waiting for the creator")
+	case errors.Is(err, messaging.ErrAlreadyUnlocked):
+		writeProblem(w, r, http.StatusConflict, "already_unlocked",
+			"this message is already unlocked")
+		writeProblem(w, r, http.StatusBadRequest, "invalid_message", err.Error())
 	case errors.Is(err, messaging.ErrForbidden):
 		writeProblem(w, r, http.StatusForbidden, "not_a_participant", "this conversation is not yours")
 	case errors.Is(err, messaging.ErrNotFound):
@@ -185,4 +214,119 @@ func (h *dmHandler) handleBroadcast(w http.ResponseWriter, r *http.Request, p id
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"sent": sent})
+}
+
+func (h *dmHandler) handleRequest(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in struct {
+		CreatorID string `json:"creator_id"`
+		Body      string `json:"body"`
+		MediaID   string `json:"media_id"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	conv, msg, err := h.dm.Request(r.Context(), p, in.CreatorID, in.Body, in.MediaID)
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"conversation": conv, "message": msg})
+}
+
+func (h *dmHandler) handleRequests(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	all, err := h.dm.List(r.Context(), p)
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	out := make([]messaging.Conversation, 0)
+	for _, c := range all {
+		if c.Status == "requested" && c.CreatorID == p.UserID {
+			out = append(out, c)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"requests": out})
+}
+
+func (h *dmHandler) handleAcceptRequest(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	conv, err := h.dm.AcceptRequest(r.Context(), p, r.PathValue("id"))
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conversation": conv})
+}
+
+func (h *dmHandler) handleRejectRequest(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	conv, err := h.dm.RejectRequest(r.Context(), p, r.PathValue("id"))
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conversation": conv})
+}
+
+func (h *dmHandler) handleBlockRequest(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	conv, err := h.dm.BlockRequest(r.Context(), p, r.PathValue("id"))
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"conversation": conv})
+}
+
+func (h *dmHandler) handleUnlockMessage(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in struct {
+		IdempotencyKey string `json:"idempotency_key"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	if h.pay == nil {
+		writeProblem(w, r, http.StatusServiceUnavailable, "payment_unavailable", "payments are not configured")
+		return
+	}
+	intent, err := h.pay.CreateIntent(r.Context(), p, payments.CreateInput{
+		Purpose: payments.PurposeMessage, MessageID: r.PathValue("id"),
+		IdempotencyKey: in.IdempotencyKey,
+	}, RequestIDFromContext(r.Context()))
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	if err := h.pay.SimulateSettle(r.Context(), intent.ID); err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	msg, err := h.dm.MessageByID(r.Context(), p, r.PathValue("id"))
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"message": msg, "payment": intent})
+}
+
+func (h *dmHandler) handleGetMessagingSettings(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	s, err := h.dm.Settings(r.Context(), p)
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"settings": s})
+}
+
+func (h *dmHandler) handleSetMessagingSettings(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in messaging.Settings
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	s, err := h.dm.UpdateSettings(r.Context(), p, in, RequestIDFromContext(r.Context()))
+	if err != nil {
+		h.writeDMError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"settings": s})
 }

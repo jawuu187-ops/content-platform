@@ -190,6 +190,44 @@ class DmApi(private val sessions: SessionStore) {
         )
     }
 
+    suspend fun sendPaid(conversationId: String, body: String, priceMinor: Long): Message? {
+        val payload = JSONObject().put("body", body).put("price_minor", priceMinor).toString()
+        return parseSingleMessage(post("/v1/dm/conversations/${encode(conversationId)}/messages", payload))
+    }
+
+    suspend fun request(creatorId: String, body: String, mediaId: String = ""): Conversation? {
+        val payload = JSONObject().put("creator_id", creatorId).put("body", body).put("media_id", mediaId).toString()
+        return parseSingleConversation(post("/v1/dm/requests", payload))
+    }
+
+    suspend fun requests(): List<Conversation> {
+        val arr = JSONObject(get("/v1/dm/requests")).optJSONArray("requests") ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { arr.optJSONObject(it)?.let(::parseConversation) }
+    }
+
+    suspend fun acceptRequest(id: String): Conversation? =
+        parseSingleConversation(post("/v1/dm/conversations/${encode(id)}/accept", "{}"))
+
+    suspend fun rejectRequest(id: String): Conversation? =
+        parseSingleConversation(post("/v1/dm/conversations/${encode(id)}/reject", "{}"))
+
+    suspend fun blockRequest(id: String): Conversation? =
+        parseSingleConversation(post("/v1/dm/conversations/${encode(id)}/block", "{}"))
+
+    suspend fun unlockMessage(messageId: String, key: String): Message? {
+        val payload = JSONObject().put("idempotency_key", key).toString()
+        return parseSingleMessage(post("/v1/dm/messages/${encode(messageId)}/unlock", payload))
+    }
+
+    suspend fun messagingSettings(): JSONObject = JSONObject(get("/v1/dm/settings")).optJSONObject("settings") ?: JSONObject()
+
+    suspend fun saveMessagingSettings(policy: String, paid: Boolean, defaultPrice: Long?, currency: String): JSONObject {
+        val payload = JSONObject().put("dm_request_policy", policy)
+            .put("paid_messages_enabled", paid).put("message_currency", currency)
+        if (defaultPrice != null) payload.put("default_message_price_minor", defaultPrice)
+        return JSONObject(patch("/v1/dm/settings", payload.toString())).optJSONObject("settings") ?: JSONObject()
+    }
+
     suspend fun broadcast(body: String): Int {
         val response = post("/v1/dm/broadcast", JSONObject().put("body", body).toString())
         return JSONObject(response).optInt("sent")
@@ -242,6 +280,11 @@ class DmApi(private val sessions: SessionStore) {
     private suspend fun post(path: String, payload: String): String {
         val session = requireSession()
         return request("POST", session.baseUrl + path, session.accessToken, payload)
+    }
+
+    private suspend fun patch(path: String, payload: String): String {
+        val session = requireSession()
+        return request("PATCH", session.baseUrl + path, session.accessToken, payload)
     }
 
     private suspend fun request(

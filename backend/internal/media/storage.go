@@ -141,6 +141,23 @@ func (s *LocalStore) Stat(_ context.Context, key string) (Stat, error) {
 	return Stat{Key: key, Size: info.Size()}, nil
 }
 
+// Delete removes one stored object. A missing object is not an error: deletion
+// is idempotent and may be retried by the retention worker.
+func (s *LocalStore) Delete(_ context.Context, key string) error {
+	path, err := s.pathOf(key)
+	if err != nil {
+		return err
+	}
+	err = os.Remove(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("media: delete object: %w", err)
+	}
+	return nil
+}
+
 func (s *LocalStore) pathOf(key string) (string, error) {
 	if !keyPattern.MatchString(key) {
 		return "", fmt.Errorf("%w: malformed storage key", ErrInvalidInput)
@@ -167,3 +184,6 @@ func (Unavailable) Open(context.Context, string) (io.ReadCloser, int64, error) {
 
 // Stat always fails.
 func (Unavailable) Stat(context.Context, string) (Stat, error) { return Stat{}, ErrUnavailable }
+
+// Delete always fails while storage is unconfigured.
+func (Unavailable) Delete(context.Context, string) error { return ErrUnavailable }

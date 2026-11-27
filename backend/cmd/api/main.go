@@ -179,6 +179,7 @@ func run() error {
 	// in production, because failing closed at request time is an outage nobody
 	// asked for.
 	var mediaService *media.Service
+	var messagingService *messaging.Service
 	var paymentService *payments.Service
 	var payoutService *payouts.Service
 	var ageGate *agegate.Service
@@ -242,12 +243,14 @@ func run() error {
 			provider = fake
 			logger.Warn("payment provider is the development fake: no money can move; intents and ledger postings are stamped simulated=true")
 		}
+		messagingService = messaging.New(db.Pool())
 		ledgerStore := ledger.New(db.Pool(), ledger.WithLogger(logger))
 		payoutService = payouts.New(db.Pool(), ledgerStore, payouts.WithLogger(logger))
 		paymentService = payments.New(db.Pool(),
 			payments.WithProvider(provider),
 			payments.WithLedger(ledgerStore),
 			payments.WithCreators(creatorService),
+			payments.WithMessages(messagingService),
 			payments.WithCommission(cfg.PayCommissionBPS),
 			payments.WithLogger(logger),
 		)
@@ -294,6 +297,24 @@ func run() error {
 			}()
 		}
 	}
+	if messagingService != nil && mediaService != nil {
+		go func() {
+			ticker := time.NewTicker(6 * time.Hour)
+			defer ticker.Stop()
+			for {
+				if n, err := messagingService.PurgeRejectedAttachments(ctx, mediaService.PurgeObject); err != nil {
+					logger.Error("request attachment retention pass failed", "error", err)
+				} else if n > 0 {
+					logger.Info("rejected request attachments purged", "count", n)
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+				}
+			}
+		}()
+	}
 	privacyService := privacy.New(db.Pool(), identityService)
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
@@ -320,7 +341,7 @@ func run() error {
 		AgeGate:         ageGate,
 		Media:           mediaService,
 		Payments:        paymentService,
-		DirectMessages:  messaging.New(db.Pool()),
+		DirectMessages:  messagingService,
 		Earnings:        earnings.New(db.Pool()),
 		Moderation:      moderation.New(db.Pool(), moderation.WithLogger(logger)),
 		Payouts:         payoutService,

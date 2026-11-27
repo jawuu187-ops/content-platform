@@ -22,6 +22,8 @@ const (
 	// the other purposes it has no price record, so the amount is part of the request
 	// and is bounded by the service.
 	PurposeTip = "tip"
+	// PurposeMessage unlocks one paid direct message.
+	PurposeMessage = "message"
 )
 
 // Intent states. A terminal state is never left again: refunds move a succeeded
@@ -64,6 +66,7 @@ type Intent struct {
 	CreatorID   string `json:"creator_id,omitempty"`
 	TierID      string `json:"tier_id,omitempty"`
 	PostID      string `json:"post_id,omitempty"`
+	MessageID   string `json:"message_id,omitempty"`
 	AmountMinor int64  `json:"amount_minor"`
 	Currency    string `json:"currency"`
 	Provider    string `json:"provider"`
@@ -85,6 +88,7 @@ type CreateInput struct {
 	Purpose        string `json:"purpose"`
 	TierID         string `json:"tier_id"`
 	PostID         string `json:"post_id"`
+	MessageID      string `json:"message_id"`
 	IdempotencyKey string `json:"idempotency_key"`
 	// The three fields below are read only for PurposeTip. For a subscription or an
 	// unlock the recipient and the amount come from the records, never the request.

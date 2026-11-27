@@ -228,3 +228,34 @@ func newUUID() string {
 	b[8] = (b[8] & 0x3f) | 0x80
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }
+
+// PurgeObject removes a media object and its bytes when no other live object
+// shares the same content hash. It is used by the request-attachment retention
+// worker. The database row is marked deleted rather than removed so references
+// remain auditable.
+func (s *Service) PurgeObject(ctx context.Context, id string) error {
+	var key string
+	if err := s.pool.QueryRow(ctx, `
+		SELECT storage_key FROM media.objects WHERE id = $1::uuid`, id).Scan(&key); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		return fmt.Errorf("media: purge lookup: %w", err)
+	}
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE media.objects SET status = 'deleted' WHERE id = $1::uuid`, id); err != nil {
+		return fmt.Errorf("media: mark object deleted: %w", err)
+	}
+	var shared int
+	if err := s.pool.QueryRow(ctx, `
+		SELECT count(*) FROM media.objects
+		WHERE storage_key = $1 AND status = 'ready'`, key).Scan(&shared); err != nil {
+		return err
+	}
+	if shared == 0 {
+		if err := s.storage.Delete(ctx, key); err != nil {
+			return fmt.Errorf("media: delete bytes: %w", err)
+		}
+	}
+	return nil
+}

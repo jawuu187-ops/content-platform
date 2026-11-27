@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.contentplatform.app.dm.Conversation
 import com.contentplatform.app.dm.DmFailure
 import com.contentplatform.app.dm.DmFormat
+import com.contentplatform.app.dm.MessagingSettings
 import com.contentplatform.app.dm.DmStore
 import com.contentplatform.app.dm.DraftCheck
 import com.contentplatform.app.dm.InboxState
@@ -103,9 +104,13 @@ fun DmInboxScreen(
     val palette = LocalVesperPalette.current
     val scope = rememberCoroutineScope()
     BackHandler(onBack = onBack)
+    var settingsOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(store.signedIn) {
-        if (store.signedIn) store.refreshInbox()
+        if (store.signedIn) {
+            store.refreshInbox()
+            store.loadRequests()
+        }
     }
 
     Column(Modifier.fillMaxSize().background(palette.ground)) {
@@ -119,6 +124,24 @@ fun DmInboxScreen(
                 null
             },
         )
+
+        store.messagingSettings?.let { settings ->
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = { settingsOpen = !settingsOpen }) {
+                    Text(if (settingsOpen) "Hide message settings" else "Message settings", color = palette.actionText)
+                }
+            }
+            if (settingsOpen) {
+                MessagingSettingsPanel(store = store, settings = settings, scope = scope)
+            }
+        }
+
+        if (store.requests.isNotEmpty()) {
+            RequestShelf(store = store, scope = scope)
+        }
 
         when (val state = store.inbox) {
             InboxState.SignedOut -> SignInPanel(store = store, scope = scope)
@@ -139,6 +162,91 @@ fun DmInboxScreen(
                 onOpenThread = onOpenThread,
                 onRefresh = { scope.launch { store.refreshInbox() } },
             )
+        }
+    }
+}
+
+@Composable
+private fun MessagingSettingsPanel(
+    store: DmStore,
+    settings: MessagingSettings,
+    scope: CoroutineScope,
+) {
+    val palette = LocalVesperPalette.current
+    var policy by remember(settings.requestPolicy) { mutableStateOf(settings.requestPolicy) }
+    var paid by remember(settings.paidMessages) { mutableStateOf(settings.paidMessages) }
+    var price by remember(settings.defaultPriceMinor) {
+        mutableStateOf(if (settings.defaultPriceMinor > 0) (settings.defaultPriceMinor / 100.0).toString() else "5.00")
+    }
+    Column(
+        Modifier.fillMaxWidth().background(palette.chrome).padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Who may send a message request", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("subscribers", "everyone", "none").forEach { option ->
+                TextButton(onClick = { policy = option }) {
+                    Text(option, color = if (policy == option) palette.actionText else palette.muted)
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { paid = !paid }) {
+                Text(if (paid) "Paid messages: on" else "Paid messages: off", color = palette.actionText)
+            }
+            Box(Modifier.width(120.dp)) {
+                DmField(
+                    value = price,
+                    onValueChange = { price = it.take(10) },
+                    placeholder = "5.00",
+                    enabled = paid,
+                    singleLine = true,
+                    imeAction = ImeAction.Done,
+                )
+            }
+        }
+        Text(
+            "Simulated checkout only. Price must be between 1.00 and 1000.00.",
+            style = MaterialTheme.typography.bodySmall,
+            color = palette.muted,
+        )
+        ActionButton("Save message settings", null, onClick = {
+            val minor = (price.toDoubleOrNull()?.times(100))?.toLong()
+            scope.launch { store.saveMessagingSettings(policy, paid, minor, settings.currency) }
+        }, enabled = !store.sending)
+    }
+}
+
+@Composable
+private fun RequestShelf(store: DmStore, scope: CoroutineScope) {
+    val palette = LocalVesperPalette.current
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(palette.chrome)
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            "Message requests",
+            style = MaterialTheme.typography.titleSmall,
+            color = palette.ink,
+        )
+        store.requests.forEach { request ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    request.peerName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.ink,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { scope.launch { store.decideRequest(request.id, "reject") } }) {
+                    Text("Reject", color = palette.muted)
+                }
+                TextButton(onClick = { scope.launch { store.decideRequest(request.id, "accept") } }) {
+                    Text("Accept", color = palette.actionText)
+                }
+            }
         }
     }
 }
@@ -320,6 +428,7 @@ fun DmThreadScreen(
                                 message = message,
                                 peerName = state.peerName,
                                 now = System.currentTimeMillis(),
+                                scope = scope,
                             )
                         }
                         item {
@@ -332,7 +441,12 @@ fun DmThreadScreen(
                         }
                     }
                 }
-                Composer(store = store, canReply = state.canReply, scope = scope)
+                Composer(
+                    store = store,
+                    canReply = state.canReply,
+                    scope = scope,
+                    isCreator = store.currentUserId.isNotBlank() && store.currentUserId == state.creatorId,
+                )
             }
         }
         }
@@ -364,7 +478,13 @@ fun DmThreadScreen(
 }
 
 @Composable
-private fun MessageBubble(store: DmStore, message: Message, peerName: String, now: Long) {
+private fun MessageBubble(
+    store: DmStore,
+    message: Message,
+    peerName: String,
+    now: Long,
+    scope: CoroutineScope,
+) {
     val palette = LocalVesperPalette.current
     var attachment by remember(message.mediaId) { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(message.mediaId) {
@@ -411,7 +531,22 @@ private fun MessageBubble(store: DmStore, message: Message, peerName: String, no
                 )
                 SpacerH(4)
             }
-            if (message.body.isNotBlank()) {
+            if (message.locked) {
+                Text(
+                    "Paid message · " + message.priceMinor?.let { formatMinor(it) }.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = textColor,
+                )
+                TextButton(
+                    onClick = { scope.launch { store.unlock(message) } },
+                    enabled = store.unlockBusyId == null,
+                ) {
+                    Text(if (store.unlockBusyId == message.id) "Unlocking…" else "Unlock")
+                }
+                store.unlockError?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = palette.danger)
+                }
+            } else if (message.body.isNotBlank()) {
                 Text(message.body, style = MaterialTheme.typography.bodyMedium, color = textColor)
             }
             SpacerH(4)
@@ -426,8 +561,21 @@ private fun MessageBubble(store: DmStore, message: Message, peerName: String, no
 }
 
 @Composable
-private fun Composer(store: DmStore, canReply: Boolean, scope: CoroutineScope) {
+private fun formatMinor(minor: Long): String =
+    java.text.NumberFormat.getCurrencyInstance(java.util.Locale.US).format(minor / 100.0)
+
+private fun Composer(store: DmStore, canReply: Boolean, scope: CoroutineScope, isCreator: Boolean) {
     val palette = LocalVesperPalette.current
+    var paidPrice by remember { mutableStateOf<Long?>(null) }
+    var paidMode by remember { mutableStateOf(false) }
+    LaunchedEffect(isCreator) {
+        if (isCreator) {
+            paidPrice = runCatching {
+                val settings = store.loadMessagingSettings()
+                if (settings.paidMessages && settings.defaultPriceMinor >= 100) settings.defaultPriceMinor else null
+            }.getOrNull()
+        }
+    }
     val context = androidx.compose.ui.platform.LocalContext.current
     val picker = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.GetContent(),
@@ -464,6 +612,14 @@ private fun Composer(store: DmStore, canReply: Boolean, scope: CoroutineScope) {
             Row(verticalAlignment = Alignment.Bottom) {
                 TextButton(onClick = { picker.launch("image/*") }, enabled = canReply && !store.sending) {
                     Text("Attach", color = palette.actionText)
+                }
+                if (isCreator && paidPrice != null) {
+                    TextButton(onClick = { paidMode = !paidMode }, enabled = canReply && !store.sending) {
+                        Text(
+                            if (paidMode) "Paid: on" else "Paid: off",
+                            color = if (paidMode) palette.danger else palette.actionText,
+                        )
+                    }
                 }
                 Box(Modifier.weight(1f)) {
                     DmField(
@@ -666,7 +822,16 @@ private fun DmField(
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = { onDone?.invoke() },
-                    onSend = { onDone?.invoke() },
+                    onSend = {
+                    if (paidMode && paidPrice != null) {
+                        scope.launch {
+                            val failure = store.sendPaid(store.draft, paidPrice!!)
+                            if (failure == null) store.draft = ""
+                        }
+                    } else {
+                        onDone?.invoke()
+                    }
+                },
                 ),
                 modifier = Modifier.fillMaxWidth().semantics {
                     contentDescription = label ?: placeholder

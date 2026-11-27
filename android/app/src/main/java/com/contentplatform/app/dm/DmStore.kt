@@ -28,6 +28,9 @@ sealed interface ThreadState {
         val peerName: String,
         val messages: List<Message>,
         val canReply: Boolean,
+        val conversationId: String = "",
+        val creatorId: String = "",
+        val status: String = "accepted",
     ) : ThreadState
     data class Failed(val failure: DmFailure) : ThreadState
 }
@@ -61,6 +64,13 @@ class DmStore(
         private set
 
     var sendFailure by mutableStateOf<DmFailure?>(null)
+    var unlockBusyId by mutableStateOf<String?>(null)
+    var unlockError by mutableStateOf<String?>(null)
+    var requests by mutableStateOf<List<Conversation>>(emptyList())
+        private set
+    var currentUserId by mutableStateOf("")
+        private set
+    var messagingSettings by mutableStateOf<MessagingSettings?>(null)
         private set
 
     var signingIn by mutableStateOf(false)
@@ -93,6 +103,10 @@ class DmStore(
             return
         }
         inbox = InboxState.Loading
+        if (currentUserId.isBlank()) {
+            currentUserId = runCatching { api.me().optString("user_id") }.getOrDefault("")
+        }
+        messagingSettings = runCatching { loadMessagingSettings() }.getOrNull()
         inbox = try {
             val items = api.conversations()
             if (items.isEmpty()) InboxState.Empty else InboxState.Ready(items)
@@ -114,10 +128,14 @@ class DmStore(
         thread = ThreadState.Loading
         thread = try {
             val messages = api.thread(conversationId)
+            val conv = (inbox as? InboxState.Ready)?.items?.firstOrNull { it.id == conversationId }
             ThreadState.Ready(
                 peerName = known.name,
                 messages = messages,
                 canReply = known.canReply && !expired,
+                conversationId = conversationId,
+                creatorId = conv?.creatorId.orEmpty(),
+                status = conv?.status ?: "accepted",
             )
         } catch (t: Throwable) {
             ThreadState.Failed(t.toDmFailure())
@@ -245,8 +263,104 @@ class DmStore(
         }
     }
 
+    suspend fun requestWith(creatorId: String, body: String): Conversation? {
+        if (openingConversation) return null
+        openingConversation = true
+        openFailure = null
+        return try {
+            val conversation = api.request(creatorId, body.trim())
+            if (conversation == null) {
+                openFailure = "The request could not be sent."
+                null
+            } else {
+                openConversation = conversation
+                openConversationId = conversation.id
+                conversation
+            }
+        } catch (t: Throwable) {
+            openFailure = t.toDmFailure().explain()
+            null
+        } finally {
+            openingConversation = false
+        }
+    }
+
     fun clearOpenFailure() {
         openFailure = null
+    }
+
+    suspend fun saveMessagingSettings(policy: String, paid: Boolean, priceMinor: Long?, currency: String): Boolean =
+        runCatching {
+            val json = api.saveMessagingSettings(policy, paid, priceMinor, currency)
+            messagingSettings = MessagingSettings(
+                requestPolicy = json.optString("dm_request_policy", policy),
+                paidMessages = json.optBoolean("paid_messages_enabled", paid),
+                defaultPriceMinor = json.optLong("default_message_price_minor", priceMinor ?: 0L),
+                currency = json.optString("message_currency", currency),
+            )
+            true
+        }.getOrDefault(false)
+
+    suspend fun loadMessagingSettings(): MessagingSettings {
+        val json = api.messagingSettings()
+        return MessagingSettings(
+            requestPolicy = json.optString("dm_request_policy", "subscribers"),
+            paidMessages = json.optBoolean("paid_messages_enabled"),
+            defaultPriceMinor = json.optLong("default_message_price_minor", 0L),
+            currency = json.optString("message_currency", "USD"),
+        )
+    }
+
+    suspend fun sendPaid(body: String, priceMinor: Long): DmFailure? {
+        val id = (thread as? ThreadState.Ready)?.conversationId ?: return null
+        sending = true
+        return try {
+            val sent = api.sendPaid(id, body.trim(), priceMinor)
+            if (sent != null) {
+                val current = thread
+                if (current is ThreadState.Ready) thread = current.copy(messages = current.messages + sent)
+            }
+            null
+        } catch (t: Throwable) {
+            t.toDmFailure().also { sendFailure = it }
+        } finally {
+            sending = false
+        }
+    }
+
+    suspend fun unlock(message: Message): Boolean {
+        if (unlockBusyId != null || message.priceMinor == null) return false
+        unlockBusyId = message.id
+        unlockError = null
+        return try {
+            val updated = api.unlockMessage(message.id, java.util.UUID.randomUUID().toString())
+            val current = thread
+            if (updated != null && current is ThreadState.Ready) {
+                thread = current.copy(messages = current.messages.map { if (it.id == updated.id) updated else it })
+            }
+            true
+        } catch (t: Throwable) {
+            unlockError = t.toDmFailure().explain()
+            false
+        } finally {
+            unlockBusyId = null
+        }
+    }
+
+    suspend fun loadRequests() {
+        requests = runCatching { api.requests() }.getOrDefault(emptyList())
+    }
+
+    suspend fun decideRequest(id: String, action: String) {
+        runCatching {
+            when (action) {
+                "accept" -> api.acceptRequest(id)
+                "reject" -> api.rejectRequest(id)
+                else -> api.blockRequest(id)
+            }
+        }
+        loadRequests()
+        refreshInbox()
     }
 
     suspend fun sendImage(bytes: ByteArray, contentType: String): DmFailure? {

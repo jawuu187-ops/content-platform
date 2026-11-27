@@ -243,11 +243,13 @@ fun PublicCreatorScreen(
     messageBusy: Boolean = false,
     messageError: String? = null,
     onClearMessageError: () -> Unit = {},
+    onRequestMessage: (String, String) -> Unit = { _, _ -> },
 ) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
     val scope = rememberCoroutineScope()
     var subscribeTier by remember { mutableStateOf<Tier?>(null) }
+    var requestText by remember { mutableStateOf("") }
     BackHandler(onBack = onBack)
 
     Column(Modifier.fillMaxSize().background(palette.ground)) {
@@ -307,6 +309,15 @@ fun PublicCreatorScreen(
                         messageError?.let {
                             SpacerH(6)
                             Text(it, style = MaterialTheme.typography.bodySmall, color = palette.danger)
+                            if (it.contains("membership", ignoreCase = true) || it.contains("subscribe", ignoreCase = true)) {
+                                SpacerH(8)
+                                Text("Send a message request", style = MaterialTheme.typography.titleSmall, color = palette.ink)
+                                RequestField(requestText, { requestText = it })
+                                SpacerH(6)
+                                ActionButton("Send request", null, onClick = {
+                                    onRequestMessage(state.profile.userId, requestText)
+                                }, enabled = requestText.isNotBlank() && !messageBusy)
+                            }
                         }
                         SpacerH(16)
                         Text("Membership", style = MaterialTheme.typography.titleMedium, color = palette.ink)
@@ -719,6 +730,21 @@ private fun TierSheet(
             }
         }
     }
+}
+
+@Composable
+@Composable
+private fun RequestField(value: String, onChange: (String) -> Unit) {
+    val palette = LocalVesperPalette.current
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = { onChange(it.take(500)) },
+        textStyle = MaterialTheme.typography.bodyMedium.copy(color = palette.ink),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(palette.ink),
+        modifier = Modifier.fillMaxWidth()
+            .background(palette.surfaceRaised, androidx.compose.foundation.shape.RoundedCornerShape(8.dp))
+            .padding(12.dp),
+    )
 }
 
 @Composable

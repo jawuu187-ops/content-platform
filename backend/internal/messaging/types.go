@@ -15,12 +15,15 @@ import (
 
 // Domain errors mapped to HTTP codes by the transport layer.
 var (
-	ErrInvalidInput = errors.New("invalid message request")
-	ErrNotFound     = errors.New("conversation not found")
-	ErrForbidden    = errors.New("not a participant")
-	ErrNotEntitled  = errors.New("a live subscription or unlock is required to message this creator")
-	ErrSelf         = errors.New("you cannot open a conversation with yourself")
-	ErrBodyTooLong  = errors.New("message body is too long")
+	ErrInvalidInput    = errors.New("invalid message request")
+	ErrNotFound        = errors.New("conversation not found")
+	ErrForbidden       = errors.New("not a participant")
+	ErrNotEntitled     = errors.New("a live subscription or unlock is required to message this creator")
+	ErrSelf            = errors.New("you cannot open a conversation with yourself")
+	ErrBodyTooLong     = errors.New("message body is too long")
+	ErrRequestPolicy   = errors.New("this creator is not accepting message requests")
+	ErrRequestPending  = errors.New("the message request is waiting for the creator")
+	ErrAlreadyAccepted = errors.New("the conversation is already accepted")
 )
 
 // Limits are exported so the client can show the same numbers.
@@ -45,7 +48,12 @@ type Conversation struct {
 	// readable without opening every thread, so the list carries one line.
 	LastMessageBody string `json:"last_message_body,omitempty"`
 	// UnreadCount counts messages from the other side the reader has not opened.
-	UnreadCount int `json:"unread_count"`
+	UnreadCount    int        `json:"unread_count"`
+	Status         string     `json:"status"`
+	InitiatedBy    string     `json:"initiated_by,omitempty"`
+	RequestedAt    *time.Time `json:"requested_at,omitempty"`
+	RespondedAt    *time.Time `json:"responded_at,omitempty"`
+	RequestPending bool       `json:"request_pending"`
 }
 
 // Message is one immutable line in a thread.
@@ -59,7 +67,10 @@ type Message struct {
 	ReadAt         *time.Time `json:"read_at,omitempty"`
 	// Mine saves the client from comparing ids to decide which side of the thread
 	// a message belongs on.
-	Mine bool `json:"mine"`
+	Mine       bool   `json:"mine"`
+	Locked     bool   `json:"locked"`
+	PriceMinor *int64 `json:"price_minor,omitempty"`
+	Currency   string `json:"currency,omitempty"`
 }
 
 // NormalizeBody trims a body and rejects empty or oversized messages. Control

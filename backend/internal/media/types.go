@@ -90,6 +90,7 @@ type Storage interface {
 	Put(ctx context.Context, r io.Reader, limit int64) (key, sha string, size int64, err error)
 	Open(ctx context.Context, key string) (io.ReadCloser, int64, error)
 	Stat(ctx context.Context, key string) (Stat, error)
+	Delete(ctx context.Context, key string) error
 }
 
 // Delivery is an issued, single-use download reference.

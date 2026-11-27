@@ -295,6 +295,15 @@ fun PlatformApp(themeController: ThemeController) {
                     messageBusy = dmStore.openingConversation,
                     messageError = dmStore.openFailure,
                     onClearMessageError = dmStore::clearOpenFailure,
+                    onRequestMessage = { creatorId, body ->
+                        appScope.launch {
+                            val conversation = dmStore.requestWith(creatorId, body)
+                            if (conversation != null) {
+                                openThreadId = conversation.id
+                                messagesOpen = true
+                            }
+                        }
+                    },
                 )
             }
         }

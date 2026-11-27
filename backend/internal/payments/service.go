@@ -17,7 +17,15 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
 	"github.com/jawuu187-ops/content-platform/backend/internal/identity"
 	"github.com/jawuu187-ops/content-platform/backend/internal/ledger"
+	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 )
+
+// MessageAccess is the narrow seam for paid direct messages.
+type MessageAccess interface {
+	MessageForPurchase(ctx context.Context, messageID, fanID string) (messaging.MessagePurchase, error)
+	UnlockMessagePaid(ctx context.Context, fanID, messageID, intentID string) error
+	RevokeMessagePaid(ctx context.Context, intentID string) error
+}
 
 // Service creates intents, applies provider events and posts the ledger.
 type Service struct {
@@ -25,6 +33,7 @@ type Service struct {
 	provider      Provider
 	ledger        *ledger.Store
 	creators      *creator.Service
+	messages      MessageAccess
 	commissionBPS int64
 	now           func() time.Time
 	logger        *slog.Logger
@@ -38,6 +47,9 @@ func WithProvider(p Provider) Option { return func(s *Service) { s.provider = p 
 
 // WithLedger installs the ledger store.
 func WithLedger(l *ledger.Store) Option { return func(s *Service) { s.ledger = l } }
+
+// WithMessages installs the paid-message access seam.
+func WithMessages(m MessageAccess) Option { return func(s *Service) { s.messages = m } }
 
 // WithCreators installs the creator service used to grant what was bought.
 func WithCreators(c *creator.Service) Option { return func(s *Service) { s.creators = c } }
@@ -97,6 +109,11 @@ func (s *Service) CreateIntent(ctx context.Context, p identity.Principal, in Cre
 	key := strings.TrimSpace(in.IdempotencyKey)
 	if len(key) < 8 || len(key) > 128 {
 		return Intent{}, fmt.Errorf("%w: idempotency_key must be 8-128 characters", ErrInvalidInput)
+	}
+	if existing, err := s.intentByIdempotency(ctx, p.UserID, key); err == nil {
+		return existing, nil
+	} else if !errors.Is(err, ErrNotFound) {
+		return Intent{}, err
 	}
 
 	// A subscription or an unlock reads its price from a record, so an amount in the
@@ -170,8 +187,28 @@ func (s *Service) CreateIntent(ctx context.Context, p identity.Principal, in Cre
 		intent.CreatorID = recipient.UserID
 		intent.AmountMinor, intent.Currency = in.AmountMinor, "USD"
 		intent.Note = note
+	case PurposeMessage:
+		if in.MessageID == "" {
+			return Intent{}, fmt.Errorf("%w: message_id is required", ErrInvalidInput)
+		}
+		if s.messages == nil {
+			return Intent{}, ErrUnavailable
+		}
+		purchase, err := s.messages.MessageForPurchase(ctx, in.MessageID, p.UserID)
+		if err != nil {
+			if errors.Is(err, messaging.ErrAlreadyUnlocked) {
+				return Intent{}, err
+			}
+			return Intent{}, err
+		}
+		if purchase.CreatorID == p.UserID {
+			return Intent{}, fmt.Errorf("%w: this message is yours", ErrForbidden)
+		}
+		intent.Purpose = PurposeMessage
+		intent.CreatorID, intent.MessageID = purchase.CreatorID, purchase.MessageID
+		intent.AmountMinor, intent.Currency = purchase.PriceMinor, purchase.Currency
 	default:
-		return Intent{}, fmt.Errorf("%w: purpose must be subscription, ppv or tip", ErrInvalidInput)
+		return Intent{}, fmt.Errorf("%w: purpose must be subscription, ppv, tip or message", ErrInvalidInput)
 	}
 
 	row, created, err := s.insertIntent(ctx, intent)
@@ -226,19 +263,20 @@ func (s *Service) insertIntent(ctx context.Context, in Intent) (Intent, bool, er
 	var settled *time.Time
 	err := s.pool.QueryRow(ctx, `
 		INSERT INTO payments.intents
-		    (user_id, purpose, creator_id, tier_id, post_id, amount_minor, currency, provider,
+		    (user_id, purpose, creator_id, tier_id, post_id, message_id, amount_minor, currency, provider,
 		     idempotency_key, simulated, note)
-		VALUES ($1::uuid, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid, $6, $7, $8,
-		        $9, $10, NULLIF($11, ''))
+		VALUES ($1::uuid, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid,
+		        NULLIF($6, '')::uuid, $7, $8, $9, $10, $11, NULLIF($12, ''))
 		ON CONFLICT (user_id, idempotency_key) DO NOTHING
 		RETURNING id::text, user_id::text, purpose, COALESCE(creator_id::text, ''), COALESCE(tier_id::text, ''),
-		          COALESCE(post_id::text, ''), amount_minor, currency, provider, COALESCE(provider_ref, ''),
-		          status, checkout_url, failure_reason, created_at, settled_at, simulated, COALESCE(note, '')`,
-		in.UserID, in.Purpose, in.CreatorID, in.TierID, in.PostID, in.AmountMinor, in.Currency,
-		in.Provider, in.IdempotencyKey, in.Simulated, in.Note).
-		Scan(&out.ID, &out.UserID, &out.Purpose, &out.CreatorID, &out.TierID, &out.PostID, &out.AmountMinor,
-			&out.Currency, &out.Provider, &out.ProviderRef, &out.Status, &out.CheckoutURL, &out.FailureReason,
-			&out.CreatedAt, &settled, &out.Simulated, &out.Note)
+		          COALESCE(post_id::text, ''), COALESCE(message_id::text, ''), amount_minor, currency, provider,
+		          COALESCE(provider_ref, ''), status, checkout_url, failure_reason, created_at, settled_at,
+		          simulated, COALESCE(note, '')`,
+		in.UserID, in.Purpose, in.CreatorID, in.TierID, in.PostID, in.MessageID,
+		in.AmountMinor, in.Currency, in.Provider, in.IdempotencyKey, in.Simulated, in.Note).
+		Scan(&out.ID, &out.UserID, &out.Purpose, &out.CreatorID, &out.TierID, &out.PostID, &out.MessageID,
+			&out.AmountMinor, &out.Currency, &out.Provider, &out.ProviderRef, &out.Status, &out.CheckoutURL,
+			&out.FailureReason, &out.CreatedAt, &settled, &out.Simulated, &out.Note)
 	if errors.Is(err, pgx.ErrNoRows) {
 		existing, err := s.intentByIdempotency(ctx, in.UserID, in.IdempotencyKey)
 		return existing, false, err
@@ -254,8 +292,8 @@ func (s *Service) scanIntent(row pgx.Row) (Intent, error) {
 	var out Intent
 	var settled *time.Time
 	err := row.Scan(&out.ID, &out.UserID, &out.Purpose, &out.CreatorID, &out.TierID, &out.PostID,
-		&out.AmountMinor, &out.Currency, &out.Provider, &out.ProviderRef, &out.Status, &out.CheckoutURL,
-		&out.FailureReason, &out.CreatedAt, &settled, &out.Simulated, &out.Note)
+		&out.MessageID, &out.AmountMinor, &out.Currency, &out.Provider, &out.ProviderRef, &out.Status,
+		&out.CheckoutURL, &out.FailureReason, &out.CreatedAt, &settled, &out.Simulated, &out.Note)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Intent{}, ErrNotFound
 	}
@@ -267,8 +305,9 @@ func (s *Service) scanIntent(row pgx.Row) (Intent, error) {
 }
 
 const intentColumns = `id::text, user_id::text, purpose, COALESCE(creator_id::text, ''), COALESCE(tier_id::text, ''),
-	COALESCE(post_id::text, ''), amount_minor, currency, provider, COALESCE(provider_ref, ''),
-	status, checkout_url, failure_reason, created_at, settled_at, simulated, COALESCE(note, '')`
+	COALESCE(post_id::text, ''), COALESCE(message_id::text, ''), amount_minor, currency, provider,
+	COALESCE(provider_ref, ''), status, checkout_url, failure_reason, created_at, settled_at,
+	simulated, COALESCE(note, '')`
 
 func (s *Service) intentByIdempotency(ctx context.Context, userID, key string) (Intent, error) {
 	return s.scanIntent(s.pool.QueryRow(ctx,
@@ -393,6 +432,17 @@ func (s *Service) settle(ctx context.Context, intent Intent) error {
 		// A settlement that arrives after a refund must not re-grant anything.
 		return fmt.Errorf("%w: intent is already refunded", ErrInvalidState)
 	}
+	// For a paid message the unlock row is the concurrency guard. Whichever
+	// settlement inserts it first proceeds; a second intent is refused before any
+	// ledger posting, so two different idempotency keys cannot double-charge.
+	if intent.Purpose == PurposeMessage {
+		if s.messages == nil {
+			return ErrUnavailable
+		}
+		if err := s.messages.UnlockMessagePaid(ctx, intent.UserID, intent.MessageID, intent.ID); err != nil {
+			return err
+		}
+	}
 	if _, err := s.pool.Exec(ctx, `
 		UPDATE payments.intents SET status = 'succeeded', settled_at = COALESCE(settled_at, now()),
 		       updated_at = now()
@@ -458,13 +508,18 @@ func (s *Service) applyRefund(ctx context.Context, intent Intent) error {
 	if _, err := s.ledger.Post(ctx, posting); err != nil && !errors.Is(err, ledger.ErrDuplicate) {
 		return err
 	}
-	if err := s.creators.RevokePaidAccess(ctx, intent.ID); err != nil {
-		return err
-	}
 	if _, err := s.pool.Exec(ctx, `
 		UPDATE payments.intents SET status = 'refunded', updated_at = now()
 		WHERE id = $1::uuid AND status <> 'refunded'`, intent.ID); err != nil {
 		return fmt.Errorf("payments: mark refunded: %w", err)
+	}
+	if err := s.creators.RevokePaidAccess(ctx, intent.ID); err != nil {
+		return err
+	}
+	if intent.Purpose == PurposeMessage && s.messages != nil {
+		if err := s.messages.RevokeMessagePaid(ctx, intent.ID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -553,4 +608,22 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n]
+}
+
+// SimulateSettle completes a fake-provider intent. It exists only so the
+// development interface can unlock a paid message without a webhook; real
+// providers can never pass the simulated check.
+func (s *Service) SimulateSettle(ctx context.Context, intentID string) error {
+	intent, err := s.scanIntent(s.pool.QueryRow(ctx,
+		`SELECT `+intentColumns+` FROM payments.intents WHERE id = $1::uuid`, intentID))
+	if err != nil {
+		return err
+	}
+	if !intent.Simulated {
+		return ErrForbidden
+	}
+	if intent.Status == StatusSucceeded {
+		return nil
+	}
+	return s.settle(ctx, intent)
 }

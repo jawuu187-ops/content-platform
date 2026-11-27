@@ -23,6 +23,8 @@ data class Conversation(
     val lastMessageAtMillis: Long?,
     val unreadCount: Int,
     val canReply: Boolean,
+    val status: String = "accepted",
+    val requestPending: Boolean = false,
 )
 
 data class Message(
@@ -32,6 +34,9 @@ data class Message(
     val sentAtMillis: Long,
     val mine: Boolean,
     val read: Boolean,
+    val locked: Boolean = false,
+    val priceMinor: Long? = null,
+    val currency: String = "",
 )
 
 internal fun parseInstantOrNull(value: String?): Long? {
@@ -92,6 +97,9 @@ fun parseMessage(json: JSONObject): Message = Message(
     sentAtMillis = parseInstantOrNull(json.optString("sent_at")) ?: 0L,
     mine = json.optBoolean("mine", false),
     read = parseInstantOrNull(json.optString("read_at")) != null,
+    locked = json.optBoolean("locked", false),
+    priceMinor = if (json.has("price_minor")) json.optLong("price_minor") else null,
+    currency = json.optString("currency"),
 )
 
 fun parseConversations(body: String): List<Conversation> {
@@ -115,3 +123,10 @@ fun parseSingleMessage(body: String): Message? =
 
 fun parseSingleConversation(body: String): Conversation? =
     JSONObject(body).optJSONObject("conversation")?.let(::parseConversation)
+
+data class MessagingSettings(
+    val requestPolicy: String,
+    val paidMessages: Boolean,
+    val defaultPriceMinor: Long,
+    val currency: String,
+)

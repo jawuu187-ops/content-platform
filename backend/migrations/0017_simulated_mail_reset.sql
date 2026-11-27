@@ -37,6 +37,11 @@ CREATE INDEX IF NOT EXISTS password_resets_user_idx
 CREATE UNIQUE INDEX IF NOT EXISTS password_resets_one_live_idx
     ON identity.password_resets (user_id) WHERE used_at IS NULL;
 
-GRANT USAGE ON SCHEMA mail TO content_api;
-GRANT SELECT, INSERT, UPDATE ON mail.simulated_messages TO content_api;
-GRANT SELECT, INSERT, UPDATE ON identity.password_resets TO content_api;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'content_api') THEN
+        EXECUTE 'GRANT USAGE ON SCHEMA mail TO content_api';
+        EXECUTE 'GRANT SELECT, INSERT, UPDATE ON mail.simulated_messages TO content_api';
+        EXECUTE 'GRANT SELECT, INSERT, UPDATE ON identity.password_resets TO content_api';
+    END IF;
+END $$;

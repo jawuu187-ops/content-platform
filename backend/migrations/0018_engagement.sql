@@ -36,6 +36,11 @@ CREATE INDEX IF NOT EXISTS post_comments_post_idx
     ON creator.post_comments (post_id, created_at) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS post_comments_user_idx ON creator.post_comments (user_id, created_at DESC);
 
-GRANT SELECT, INSERT, DELETE ON creator.post_likes TO content_api;
-GRANT SELECT, INSERT, DELETE ON creator.post_bookmarks TO content_api;
-GRANT SELECT, INSERT, UPDATE ON creator.post_comments TO content_api;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'content_api') THEN
+        EXECUTE 'GRANT SELECT, INSERT, DELETE ON creator.post_likes TO content_api';
+        EXECUTE 'GRANT SELECT, INSERT, DELETE ON creator.post_bookmarks TO content_api';
+        EXECUTE 'GRANT SELECT, INSERT, UPDATE ON creator.post_comments TO content_api';
+    END IF;
+END $$;

@@ -471,3 +471,23 @@ func TestRejectedRequestAttachmentPurgeMarker(t *testing.T) {
 		t.Fatal("rejected attachment has no purge deadline")
 	}
 }
+
+func TestMessagingSettingsValidationAndAudit(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	owner := h.creatorAccount(t)
+	if _, err := h.svc.UpdateSettings(ctx, owner, Settings{RequestPolicy: "everyone", PaidMessages: true, DefaultPriceMinor: func() *int64 { v := int64(500); return &v }(), Currency: "usd"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	got, err := h.svc.Settings(ctx, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RequestPolicy != "everyone" || !got.PaidMessages || got.Currency != "USD" || got.DefaultPriceMinor == nil || *got.DefaultPriceMinor != 500 {
+		t.Fatalf("settings = %+v", got)
+	}
+	bad := int64(50)
+	if _, err := h.svc.UpdateSettings(ctx, owner, Settings{RequestPolicy: "everyone", DefaultPriceMinor: &bad, Currency: "USD"}, ""); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("low price = %v", err)
+	}
+}

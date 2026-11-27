@@ -13,6 +13,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/moderation"
+	"github.com/jawuu187-ops/content-platform/backend/internal/owneraccess"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payouts"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
@@ -51,6 +52,8 @@ type Deps struct {
 	Moderation *moderation.Service
 	// Payouts is the creator withdrawal service. Nil answers 503 on its routes.
 	Payouts *payouts.Service
+	// OwnerActivation consumes the one-time owner secret. Nil answers 503.
+	OwnerActivation *owneraccess.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -72,6 +75,7 @@ type Server struct {
 	dm        *messaging.Service
 	reports   *moderation.Service
 	payouts   *payouts.Service
+	ownerAct  *owneraccess.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -98,6 +102,7 @@ func New(d Deps) http.Handler {
 		earnings:  d.Earnings,
 		reports:   d.Moderation,
 		payouts:   d.Payouts,
+		ownerAct:  d.OwnerActivation,
 		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
@@ -118,6 +123,9 @@ func New(d Deps) http.Handler {
 	if s.identity != nil {
 		authHandler := newAuthHandler(s.identity, d.Logger, s.limits)
 		authHandler.registerRoutes(mux)
+		if s.ownerAct != nil {
+			newOwnerHandler(authHandler, s.ownerAct, d.Logger).registerRoutes(mux)
+		}
 		if s.payments != nil && s.creators != nil {
 			newPaymentHandler(authHandler, s.payments, d.Logger, s.limits).registerRoutes(mux)
 		} else {

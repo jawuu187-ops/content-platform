@@ -89,6 +89,9 @@ func (s *Service) ConfirmTOTP(ctx context.Context, p Principal, code, requestID 
 	if err := s.store.insertRecoveryCodes(ctx, p.UserID, hashes); err != nil {
 		return nil, err
 	}
+	if err := s.store.clearUserMFA(ctx, p.UserID); err != nil {
+		return nil, err
+	}
 	s.store.auditPool(ctx, p.UserID, "mfa.totp_confirmed", factorID, requestID)
 	return codes, nil
 }
@@ -117,6 +120,9 @@ func (s *Service) DisableTOTP(ctx context.Context, p Principal, code, requestID 
 		return err
 	}
 	if err := s.store.deleteRecoveryCodes(ctx, p.UserID); err != nil {
+		return err
+	}
+	if err := s.store.clearUserMFA(ctx, p.UserID); err != nil {
 		return err
 	}
 	s.store.auditPool(ctx, p.UserID, "mfa.totp_disabled", factorID, requestID)
@@ -215,4 +221,33 @@ func truncateString(s string, max int) string {
 		return s
 	}
 	return s[:max]
+}
+
+// StepUpMFA proves a second factor for the current session and records the time.
+// Reviewer endpoints require this to be recent; a session that never stepped up
+// cannot act.
+func (s *Service) StepUpMFA(ctx context.Context, p Principal, code, requestID string) (time.Time, error) {
+	if s.box == nil {
+		return time.Time{}, ErrMFAUnavailable
+	}
+	factorID, sealed, err := s.store.confirmedTOTP(ctx, p.UserID)
+	if errors.Is(err, ErrNotFound) {
+		return time.Time{}, ErrNotFound
+	}
+	if err != nil {
+		return time.Time{}, err
+	}
+	ok, err := s.checkMFACode(ctx, p.UserID, factorID, sealed, code)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if !ok {
+		return time.Time{}, ErrInvalidMFACode
+	}
+	at := s.now().UTC()
+	if err := s.store.setSessionMFA(ctx, p.SessionID, at); err != nil {
+		return time.Time{}, err
+	}
+	s.store.auditPool(ctx, p.UserID, "mfa.step_up", p.SessionID, requestID)
+	return at, nil
 }

@@ -339,7 +339,8 @@ func (s *Service) FinishLogin(ctx context.Context, challengeID string, in Assert
 		return nil, ErrAccountDisabled
 	}
 	s.auditEvent(ctx, "user", user.ID, "passkey.login", "webauthn_credential", cred.ID, requestID)
-	return s.issue(ctx, user, d, "", requestID)
+	verified := s.now().UTC()
+	return s.issue(ctx, user, d, "", requestID, &verified)
 }
 
 // Credentials lists the active passkeys of the authenticated account.

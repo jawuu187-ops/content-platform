@@ -141,6 +141,21 @@ func (h *authHandler) handleTOTPDisable(w http.ResponseWriter, r *http.Request, 
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *authHandler) handleMFAStepUp(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var body mfaCodeBody
+	if err := decodeJSON(w, r, &body); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	at, err := h.svc.StepUpMFA(r.Context(), p, body.Code, RequestIDFromContext(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"mfa_at": at.UTC()})
+}
+
 func (h *authHandler) handleGrantRole(w http.ResponseWriter, r *http.Request, p identity.Principal) {
 	var body grantRoleBody
 	if err := decodeJSON(w, r, &body); err != nil {
@@ -191,6 +206,7 @@ func (h *authHandler) registerMFARoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/auth/mfa/totp/start", rateLimited(h.login, "mfa_start", h.requireAuth(h.handleTOTPStart)))
 	mux.HandleFunc("POST /v1/auth/mfa/totp/confirm", rateLimited(h.login, "mfa_confirm", h.requireAuth(h.handleTOTPConfirm)))
 	mux.HandleFunc("POST /v1/auth/mfa/totp/disable", rateLimited(h.login, "mfa_disable", h.requireAuth(h.handleTOTPDisable)))
+	mux.HandleFunc("POST /v1/auth/mfa/step-up", rateLimited(h.login, "mfa_step_up", h.requireAuth(h.handleMFAStepUp)))
 
 	mux.HandleFunc("POST /v1/admin/roles/grant",
 		rateLimited(h.read, "roles_grant",

@@ -174,3 +174,23 @@ minors stay integers, and a missing figure renders as "—" rather than a plausi
 number. Rationale: an audience tile is a claim about real subscriptions; a fixture
 string on a production screen is a fabricated claim, and a client-side sum is a
 second implementation of the ledger that can disagree with the first.
+
+## D-081 — Owner is granted once, by one database path, and exactly one owner is a schema invariant
+
+Given, the age-review queue is reachable only to an owner, and the repository had no
+owner at all. Decision: `POST /v1/owner/activate` consumes deployment secret
+`OWNER_ACTIVATION_SECRET` bound to one pre-designated account via
+`OWNER_ACTIVATION_USER_ID` or `OWNER_ACTIVATION_EMAIL`, and requires an
+email-verified session with a second-factor proof no older than five minutes.
+Migration `0015` seeds slots 1 and 2, lets a slot go from unused to consumed exactly
+once via a trigger, and adds a partial unique index `role_grants_one_owner` on
+`identity.role_grants (role) WHERE role = 'owner'`. The service locks the selected
+slot with `SELECT … FOR UPDATE`, checks for an existing owner, updates the slot,
+then performs a plain `INSERT` of the grant. A unique violation rolls the whole
+transaction back, including the slot, and records `owner.activation_denied` with
+reason `existing_grant` in a separate transaction; `owner.activated` is written only
+inside the committed transaction. Only slot 1 is configured; slot 2 stays dormant
+and is exercised solely by the cross-slot race test. Rationale: a `count(*)` check
+alone is not safe when two activations lock different slots, so the guarantee must
+be enforced by the database. PostgreSQL superusers and privileged table owners can
+still disable triggers; that access is restricted rather than claimed impossible.

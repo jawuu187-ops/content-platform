@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -99,6 +100,12 @@ type Config struct {
 	// for local development and CI; production refuses to start with it on.
 	FakePayments bool
 
+	// Owner activation. The secret is deployment-provided and bound to exactly
+	// one pre-designated account; it is consumed once and never re-usable.
+	OwnerActivationSecret string
+	OwnerActivationUserID string
+	OwnerActivationEmail  string
+
 	// Feature gates that must be explicit in every environment.
 	RequireAgeVerification bool
 	EnableCryptoRails      bool
@@ -163,6 +170,9 @@ func Load(serviceName string) (*Config, error) {
 		AgeMinAge:              int(getInt64("AGE_MIN_AGE", 18)),
 		AgeValidityDays:        int(getInt64("AGE_VALIDITY_DAYS", 365)),
 		FakePayments:           getBool("ENABLE_FAKE_PAYMENTS", false),
+		OwnerActivationSecret:  get("OWNER_ACTIVATION_SECRET", ""),
+		OwnerActivationUserID:  strings.TrimSpace(get("OWNER_ACTIVATION_USER_ID", "")),
+		OwnerActivationEmail:   strings.ToLower(strings.TrimSpace(get("OWNER_ACTIVATION_EMAIL", ""))),
 		RequireAgeVerification: getBool("REQUIRE_AGE_VERIFICATION", true),
 		EnableCryptoRails:      getBool("ENABLE_CRYPTO_RAILS", false),
 		MediaDeliveryBaseURL:   strings.TrimRight(get("MEDIA_DELIVERY_BASE_URL", ""), "/"),
@@ -304,11 +314,28 @@ func (c *Config) validate() error {
 		problems = append(problems, "REQUIRE_AGE_VERIFICATION cannot be disabled in production")
 	}
 
+	if c.OwnerActivationSecret != "" {
+		if len(c.OwnerActivationSecret) < 32 {
+			problems = append(problems, "OWNER_ACTIVATION_SECRET must be at least 32 characters")
+		}
+		byID := c.OwnerActivationUserID != ""
+		byEmail := c.OwnerActivationEmail != ""
+		if byID == byEmail {
+			problems = append(problems, "OWNER_ACTIVATION_SECRET requires exactly one of OWNER_ACTIVATION_USER_ID or OWNER_ACTIVATION_EMAIL")
+		}
+		if byID && !uuidPattern.MatchString(c.OwnerActivationUserID) {
+			problems = append(problems, "OWNER_ACTIVATION_USER_ID must be a UUID")
+		}
+	}
+
 	if len(problems) > 0 {
 		return fmt.Errorf("%w: %s", errInvalid, strings.Join(problems, "; "))
 	}
 	return nil
 }
+
+// uuidPattern accepts the canonical UUID shape used by identity user ids.
+var uuidPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 // Redacted returns a copy of the configuration safe for logging.
 func (c *Config) Redacted() map[string]any {

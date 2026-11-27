@@ -36,6 +36,9 @@ type Principal struct {
 	SessionID     string
 	EmailVerified bool
 	Roles         []string
+	// MFAAt is when this session last proved a second factor. Nil means the
+	// session never did; reviewers require a recent value.
+	MFAAt *time.Time
 }
 
 // HasRole reports whether the principal holds a role.

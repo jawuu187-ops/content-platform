@@ -112,16 +112,16 @@ func (s *store) upsertDevice(ctx context.Context, tx pgx.Tx, userID string, d De
 }
 
 func (s *store) insertSession(ctx context.Context, tx pgx.Tx, userID, familyID string, deviceID *string,
-	accessHash, refreshHash []byte, accessExp, refreshExp time.Time, d DeviceInfo) (string, error) {
+	accessHash, refreshHash []byte, accessExp, refreshExp time.Time, d DeviceInfo, mfaAt *time.Time) (string, error) {
 	var id string
 	err := tx.QueryRow(ctx, `
 		INSERT INTO identity.sessions (
 			user_id, family_id, device_id, access_hash, access_expires_at,
-			refresh_hash, refresh_expires_at, user_agent, ip
+			refresh_hash, refresh_expires_at, user_agent, ip, mfa_at
 		) VALUES (
-			$1::uuid, $2::uuid, NULLIF($3, '')::uuid, $4, $5, $6, $7, NULLIF($8, ''), NULLIF($9, '')::inet
+			$1::uuid, $2::uuid, NULLIF($3, '')::uuid, $4, $5, $6, $7, NULLIF($8, ''), NULLIF($9, '')::inet, $10
 		) RETURNING id::text`,
-		userID, familyID, deref(deviceID), accessHash, accessExp, refreshHash, refreshExp, d.UserAgent, d.IP,
+		userID, familyID, deref(deviceID), accessHash, accessExp, refreshHash, refreshExp, d.UserAgent, d.IP, mfaAt,
 	).Scan(&id)
 	if err != nil {
 		return "", fmt.Errorf("identity: insert session: %w", err)
@@ -141,11 +141,11 @@ func (s *store) sessionByAccess(ctx context.Context, accessHash []byte) (Princip
 	var expires time.Time
 	var revokedAt, verifiedAt *time.Time
 	err := s.pool.QueryRow(ctx, `
-		SELECT s.id::text, s.user_id::text, s.access_expires_at, s.revoked_at, u.email_verified_at
+		SELECT s.id::text, s.user_id::text, s.access_expires_at, s.revoked_at, u.email_verified_at, s.mfa_at
 		FROM identity.sessions s
 		JOIN identity.users u ON u.id = s.user_id
 		WHERE s.access_hash = $1`, accessHash,
-	).Scan(&p.SessionID, &p.UserID, &expires, &revokedAt, &verifiedAt)
+	).Scan(&p.SessionID, &p.UserID, &expires, &revokedAt, &verifiedAt, &p.MFAAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Principal{}, time.Time{}, ErrInvalidCredentials
 	}
@@ -167,12 +167,12 @@ func (s *store) refreshRow(ctx context.Context, tx pgx.Tx, refreshHash []byte) (
 	var revokedAt *time.Time
 	err = tx.QueryRow(ctx, `
 		SELECT id::text, user_id::text, family_id::text,
-		       refresh_expires_at, revoked_at, replaced_by::text, user_agent, ip::text
+		       refresh_expires_at, revoked_at, replaced_by::text, user_agent, ip::text, mfa_at
 		FROM identity.sessions
 		WHERE refresh_hash = $1
 		FOR UPDATE`, refreshHash,
 	).Scan(&row.ID, &row.UserID, &row.FamilyID, &row.RefreshExpiresAt, &revokedAt, &row.ReplacedBy,
-		&row.UserAgent, &row.IP)
+		&row.UserAgent, &row.IP, &row.MFAAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return sessionRow{}, ErrInvalidCredentials
 	}
@@ -192,6 +192,7 @@ type sessionRow struct {
 	ReplacedBy       *string
 	UserAgent        *string
 	IP               *string
+	MFAAt            *time.Time
 }
 
 func (s *store) revokeSession(ctx context.Context, tx pgx.Tx, sessionID, reason string) error {
@@ -334,4 +335,23 @@ func (s *store) audit(ctx context.Context, tx pgx.Tx, actorType, actorID, action
 	_, _ = tx.Exec(ctx, `
 		SELECT ops.append_audit($1, $2, $3, $4, $5, NULL, '{}'::jsonb, NULLIF($6, ''))`,
 		actorType, actorID, action, targetType, targetID, requestID)
+}
+
+// setSessionMFA records a successful second-factor step-up for one session.
+func (s *store) setSessionMFA(ctx context.Context, sessionID string, at time.Time) error {
+	_, err := s.pool.Exec(ctx, `UPDATE identity.sessions SET mfa_at = $2 WHERE id = $1::uuid`, sessionID, at)
+	if err != nil {
+		return fmt.Errorf("identity: record session mfa: %w", err)
+	}
+	return nil
+}
+
+// clearUserMFA invalidates step-up state for every session of a user, used when
+// the second factor itself changes.
+func (s *store) clearUserMFA(ctx context.Context, userID string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE identity.sessions SET mfa_at = NULL WHERE user_id = $1::uuid`, userID)
+	if err != nil {
+		return fmt.Errorf("identity: clear session mfa: %w", err)
+	}
+	return nil
 }

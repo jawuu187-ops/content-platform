@@ -26,6 +26,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/media"
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/moderation"
+	"github.com/jawuu187-ops/content-platform/backend/internal/owneraccess"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payouts"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
@@ -236,20 +237,21 @@ func run() error {
 	}
 
 	handler := httpapi.New(httpapi.Deps{
-		Config:         cfg,
-		Logger:         logger,
-		Database:       db,
-		Identity:       identityService,
-		Creators:       creatorService,
-		AgeGate:        ageGate,
-		Media:          mediaService,
-		Payments:       paymentService,
-		DirectMessages: messaging.New(db.Pool()),
-		Earnings:       earnings.New(db.Pool()),
-		Moderation:     moderation.New(db.Pool(), moderation.WithLogger(logger)),
-		Payouts:        payoutService,
-		Limits:         limits,
-		Build:          httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
+		Config:          cfg,
+		Logger:          logger,
+		Database:        db,
+		Identity:        identityService,
+		Creators:        creatorService,
+		AgeGate:         ageGate,
+		Media:           mediaService,
+		Payments:        paymentService,
+		DirectMessages:  messaging.New(db.Pool()),
+		Earnings:        earnings.New(db.Pool()),
+		Moderation:      moderation.New(db.Pool(), moderation.WithLogger(logger)),
+		Payouts:         payoutService,
+		OwnerActivation: owneraccess.New(db.Pool(), cfg.OwnerActivationSecret, cfg.OwnerActivationUserID, cfg.OwnerActivationEmail),
+		Limits:          limits,
+		Build:           httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})
 
 	srv := &http.Server{

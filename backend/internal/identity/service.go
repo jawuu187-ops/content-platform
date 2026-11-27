@@ -117,7 +117,7 @@ func (s *Service) Register(ctx context.Context, email, password string, d Device
 		return nil, fmt.Errorf("identity: commit register: %w", err)
 	}
 
-	return s.issue(ctx, user, d, "", requestID)
+	return s.issue(ctx, user, d, "", requestID, nil)
 }
 
 // Login verifies credentials and opens a new session family. When the account has
@@ -154,6 +154,7 @@ func (s *Service) Login(ctx context.Context, email, password, mfaCode string, d 
 		}
 	}
 
+	var mfaAt *time.Time
 	factorID, sealed, err := s.store.confirmedTOTP(ctx, user.ID)
 	switch {
 	case errors.Is(err, ErrNotFound):
@@ -172,13 +173,15 @@ func (s *Service) Login(ctx context.Context, email, password, mfaCode string, d 
 			s.auditPasswordFailure(ctx, user.ID, requestID)
 			return nil, ErrInvalidMFACode
 		}
+		verified := s.now().UTC()
+		mfaAt = &verified
 	}
 
-	return s.issue(ctx, user, d, "", requestID)
+	return s.issue(ctx, user, d, "", requestID, mfaAt)
 }
 
 // issue creates a session (new family when familyID is empty) and returns tokens.
-func (s *Service) issue(ctx context.Context, user User, d DeviceInfo, familyID, requestID string) (*Result, error) {
+func (s *Service) issue(ctx context.Context, user User, d DeviceInfo, familyID, requestID string, mfaAt *time.Time) (*Result, error) {
 	access, accessHash, err := newToken()
 	if err != nil {
 		return nil, err
@@ -207,7 +210,7 @@ func (s *Service) issue(ctx context.Context, user User, d DeviceInfo, familyID, 
 		family = newUUID()
 	}
 	sessionID, err := s.store.insertSession(ctx, tx, user.ID, family, &deviceID,
-		accessHash, refreshHash, accessExp, refreshExp, d)
+		accessHash, refreshHash, accessExp, refreshExp, d, mfaAt)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +226,7 @@ func (s *Service) issue(ctx context.Context, user User, d DeviceInfo, familyID, 
 
 	return &Result{
 		User:         user,
-		Principal:    Principal{UserID: user.ID, SessionID: sessionID, EmailVerified: user.EmailVerified, Roles: roles},
+		Principal:    Principal{UserID: user.ID, SessionID: sessionID, EmailVerified: user.EmailVerified, Roles: roles, MFAAt: mfaAt},
 		AccessToken:  access,
 		RefreshToken: refresh,
 		AccessTTL:    AccessTokenTTL,
@@ -306,7 +309,7 @@ func (s *Service) Refresh(ctx context.Context, refreshToken string, d DeviceInfo
 		return nil, err
 	}
 	newID, err := s.store.insertSession(ctx, tx, user.ID, row.FamilyID, &deviceID,
-		accessHash, refreshHash, accessExp, refreshExp, carried)
+		accessHash, refreshHash, accessExp, refreshExp, carried, row.MFAAt)
 	if err != nil {
 		return nil, err
 	}

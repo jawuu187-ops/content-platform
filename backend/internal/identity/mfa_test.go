@@ -337,3 +337,41 @@ func TestGrantRoleValidatesAndAudits(t *testing.T) {
 		t.Fatalf("want 2 role.granted audit entries, got %d", entries)
 	}
 }
+
+func TestStepUpMFABindsTheProofToTheSession(t *testing.T) {
+	svc, _, _ := newTestService(t)
+	ctx := context.Background()
+	res, err := svc.Register(ctx, uniqueEmail("stepup"), goodPassword, DeviceInfo{Fingerprint: "d1"}, "")
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	secret, _, err := svc.StartTOTP(ctx, res.Principal, "", "")
+	if err != nil {
+		t.Fatalf("start totp: %v", err)
+	}
+	code, err := TOTPCodeAt(secret, time.Now())
+	if err != nil {
+		t.Fatalf("totp code: %v", err)
+	}
+	if _, err := svc.ConfirmTOTP(ctx, res.Principal, code, ""); err != nil {
+		t.Fatalf("confirm totp: %v", err)
+	}
+
+	if at, err := svc.StepUpMFA(ctx, res.Principal, "000000", ""); !errors.Is(err, ErrInvalidMFACode) || !at.IsZero() {
+		t.Fatalf("wrong code: want ErrInvalidMFACode and zero time, got %v / %v", err, at)
+	}
+	at, err := svc.StepUpMFA(ctx, res.Principal, code, "")
+	if err != nil {
+		t.Fatalf("step up: %v", err)
+	}
+	if at.IsZero() {
+		t.Fatal("step-up returned zero time")
+	}
+	principal, err := svc.Authenticate(ctx, res.AccessToken)
+	if err != nil {
+		t.Fatalf("authenticate: %v", err)
+	}
+	if principal.MFAAt == nil {
+		t.Fatal("session has no mfa_at after step-up")
+	}
+}

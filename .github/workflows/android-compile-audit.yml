@@ -1,0 +1,64 @@
+name: Android compile audit
+
+# Audit-only: compiles, tests and lints the app without assembling or uploading an APK.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-compile-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: compile, unit test and lint (no APK)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: validate Gradle wrapper checksum (if a wrapper is committed)
+        if: ${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') != '' }}
+        uses: gradle/actions/wrapper-validation@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: provision Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+      - name: compile Kotlin, run unit tests and lint
+        working-directory: android
+        run: |
+          set -o pipefail
+          gradle --no-daemon --stacktrace \
+            :app:compileDebugKotlin \
+            :app:testDebugUnitTest \
+            :app:lintDebug 2>&1 | tee /tmp/android-audit.log
+      - name: assert that no APK or AAB was produced
+        working-directory: android
+        run: |
+          if find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) | grep -q .; then
+            echo "::error::an APK or AAB was produced; this audit forbids packaging"
+            find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \)
+            exit 1
+          fi
+      - name: summarise result
+        if: always()
+        run: |
+          echo "### Android compile audit" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f /tmp/android-audit.log ]; then
+            tail -40 /tmp/android-audit.log >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: upload test and lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-audit-reports
+          path: |
+            android/app/build/reports/**
+            android/app/build/test-results/**
+          if-no-files-found: ignore
+          retention-days: 7

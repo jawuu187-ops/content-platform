@@ -46,9 +46,14 @@ import com.contentplatform.app.dm.DmApi
 import com.contentplatform.app.dm.DmStore
 import com.contentplatform.app.dm.ModerationStore
 import com.contentplatform.app.dm.SessionStore
+import com.contentplatform.app.finance.FinanceApi
+import com.contentplatform.app.finance.FinanceStore
 import com.contentplatform.app.ui.components.Divider
 import com.contentplatform.app.ui.dm.DmInboxScreen
 import com.contentplatform.app.ui.dm.DmThreadScreen
+import com.contentplatform.app.ui.finance.PayoutHistoryScreen
+import com.contentplatform.app.ui.finance.PayoutRequestSheet
+import com.contentplatform.app.ui.finance.StatementScreen
 import com.contentplatform.app.ui.moderation.ModerationScreen
 import com.contentplatform.app.ui.motion.LocalVesperMotion
 import com.contentplatform.app.ui.motion.pressScale
@@ -92,9 +97,20 @@ fun PlatformApp(themeController: ThemeController) {
     // The same session and HTTP client serve safety reports; kept separate so a failed
     // report never disturbs a message thread.
     val moderationStore = remember(context) { ModerationStore(sessions, DmApi(sessions)) }
+    // Money surfaces share one store: the studio card, the request sheet, the history and the
+    // statement all read the same last server answer instead of three divergent copies.
+    val financeStore = remember(context) { FinanceStore(sessions, FinanceApi(sessions)) }
+    var requestOpen by rememberSaveable { mutableStateOf(false) }
+    var statementOpen by rememberSaveable { mutableStateOf(false) }
+    var payoutsOpen by rememberSaveable { mutableStateOf(false) }
     // Permissions are re-read whenever the stored session changes, not only at launch.
     LaunchedEffect(sessions.revision) { moderationStore.loadMe() }
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
+    // The studio refreshes on every entry and whenever the session changes; a fan sees the
+    // refusal, not a screen of zeros.
+    LaunchedEffect(destination, sessions.revision) {
+        if (destination == Destination.Studio) financeStore.loadStudio()
+    }
     var creatorOpen by rememberSaveable { mutableStateOf(false) }
     var messagesOpen by rememberSaveable { mutableStateOf(false) }
     var moderationOpen by rememberSaveable { mutableStateOf(false) }
@@ -133,7 +149,11 @@ fun PlatformApp(themeController: ThemeController) {
                         Destination.Membership -> MembershipScreen(
                             onJoin = { tier, price -> checkout = tier to price },
                         )
-                        Destination.Studio -> StudioScreen()
+                        Destination.Studio -> StudioScreen(
+                            studio = financeStore.studio,
+                            onRequestPayout = { requestOpen = true },
+                            onOpenStatement = { statementOpen = true },
+                        )
                         Destination.Account -> AccountScreen(
                             mode = themeController.mode,
                             onModeChange = themeController::choose,
@@ -218,6 +238,49 @@ fun PlatformApp(themeController: ThemeController) {
             Box(Modifier.fillMaxSize().background(palette.ground)) {
                 ModerationScreen(store = moderationStore, onBack = { moderationOpen = false })
             }
+        }
+
+        // The creator statement, pushed over Studio. It never becomes a fifth tab.
+        AnimatedVisibility(
+            visible = statementOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                StatementScreen(
+                    store = financeStore,
+                    onBack = { statementOpen = false },
+                    onOpenPayouts = { payoutsOpen = true },
+                )
+            }
+        }
+
+        // Payout history is a second level of the same push: Back returns to the statement.
+        AnimatedVisibility(
+            visible = payoutsOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                PayoutHistoryScreen(
+                    store = financeStore,
+                    onBack = { payoutsOpen = false },
+                    onRequestPayout = { requestOpen = true },
+                )
+            }
+        }
+
+        // Request payout is a sheet over whichever money surface opened it.
+        if (requestOpen) {
+            PayoutRequestSheet(store = financeStore, onDismiss = { requestOpen = false })
         }
 
         // Checkout: scrim and sheet animate independently, so the scrim never slides.

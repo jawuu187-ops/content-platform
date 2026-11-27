@@ -32,6 +32,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.contentplatform.app.BuildConfig
+import com.contentplatform.app.dm.money
+import com.contentplatform.app.finance.PayoutBalance
+import com.contentplatform.app.finance.StudioState
+import com.contentplatform.app.finance.sharePercent
 import com.contentplatform.app.ui.components.ActionButton
 import com.contentplatform.app.ui.components.CardSurface
 import com.contentplatform.app.ui.components.Chip
@@ -402,8 +406,16 @@ fun MembershipScreen(
     }
 }
 
+/**
+ * Studio. The money card and the audience tiles are the server's numbers: this screen never
+ * invents a balance, a trend or a member count. Absent data renders as "—".
+ */
 @Composable
-fun StudioScreen() {
+fun StudioScreen(
+    studio: StudioState,
+    onRequestPayout: () -> Unit,
+    onOpenStatement: () -> Unit,
+) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
     Column(Modifier.fillMaxSize().background(palette.ground)) {
@@ -428,37 +440,113 @@ fun StudioScreen() {
                             }
                         }
                         SpacerH(16)
-                        DemoBanner("Simulated payments only: every balance, member count and unlock below is test data.")
-                        SpacerH(12)
-                        CardSurface {
-                            Column(Modifier.padding(14.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    LabelMono("Earnings · available")
-                                    Box(Modifier.weight(1f))
-                                    Chip("Demo", ChipTone.Pending)
+                        when (studio) {
+                            StudioState.Idle, StudioState.Loading -> CardSurface {
+                                Column(Modifier.padding(14.dp)) {
+                                    LabelMono("Loading your ledger")
                                 }
-                                SpacerH(4)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Money("$1,284.40", color = palette.ink)
-                                    Box(Modifier.weight(1f))
+                            }
+
+                            is StudioState.Failed -> CardSurface {
+                                Column(Modifier.padding(14.dp)) {
+                                    LabelMono("Earnings")
+                                    SpacerH(4)
                                     Text(
-                                        "+ $3,240.00 this month",
+                                        studio.failure.explain(),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = palette.sage,
+                                        color = palette.danger,
                                     )
                                 }
-                                SpacerH(4)
-                                LabelMono("MRR $115,048 · 37 unlocks · 7d · payout not connected")
                             }
+
+                            is StudioState.Ready -> StudioEarnings(
+                                balance = studio.snapshot.balance,
+                                testMoneyMinor = studio.snapshot.testMoneyMinor,
+                                onRequestPayout = onRequestPayout,
+                                onOpenStatement = onOpenStatement,
+                            )
                         }
                         SpacerH(12)
+                        val stats = (studio as? StudioState.Ready)?.snapshot?.stats
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StudioStat(Data.value("12,412"), "Members", Modifier.weight(1f))
-                            StudioStat(Data.value("50.8%"), "On Studio", Modifier.weight(1f))
-                            StudioStat(Data.value("37"), "Unlocks · 7d", Modifier.weight(1f))
+                            StudioStat(stats?.members?.toString() ?: "—", "Members", Modifier.weight(1f))
+                            StudioStat(
+                                sharePercent(stats?.topTierShareBps),
+                                "On " + (stats?.topTierName ?: "tier"),
+                                Modifier.weight(1f),
+                            )
+                            StudioStat(stats?.unlocks7d?.toString() ?: "—", "Unlocks · 7d", Modifier.weight(1f))
+                        }
+                        SpacerH(12)
+                        val year = (studio as? StudioState.Ready)?.year
+                        CardSurface(Modifier.clickable { onOpenStatement() }) {
+                            Column(Modifier.padding(14.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    LabelMono("Statement · " + (year?.currency ?: "this year"))
+                                    Box(Modifier.weight(1f))
+                                    LabelMono("Open")
+                                }
+                                SpacerH(4)
+                                Text(
+                                    if (year == null) {
+                                        "The statement could not be loaded. It is still available."
+                                    } else {
+                                        year.rows.size.toString() + " movements · gross " +
+                                            money(year.grossMinor, year.currency) + " · net " +
+                                            money(year.netMinor, year.currency)
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = palette.muted,
+                                )
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** The available balance is the payout service's figure, not a sum computed here. */
+@Composable
+private fun StudioEarnings(
+    balance: PayoutBalance,
+    testMoneyMinor: Long,
+    onRequestPayout: () -> Unit,
+    onOpenStatement: () -> Unit,
+) {
+    val palette = LocalVesperPalette.current
+    CardSurface {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LabelMono("Earnings · available")
+                Box(Modifier.weight(1f))
+                Chip("No rail", ChipTone.Neutral)
+            }
+            SpacerH(4)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Money(money(balance.availableMinor, balance.currency), color = palette.ink)
+                Box(Modifier.weight(1f))
+                Text(
+                    if (testMoneyMinor > 0) {
+                        "Excludes " + money(testMoneyMinor, balance.currency) + " test money"
+                    } else {
+                        "Live money only"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.muted,
+                )
+            }
+            SpacerH(4)
+            LabelMono(
+                "Pending " + money(balance.pendingMinor, balance.currency) +
+                    " · minimum " + money(balance.minimumMinor, balance.currency) +
+                    " · " + balance.currency,
+            )
+            SpacerH(12)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(Modifier.weight(1f)) { OutlineButton("Statement", onOpenStatement) }
+                Box(Modifier.weight(1f)) { OutlineButton("Request payout", onRequestPayout) }
             }
         }
     }

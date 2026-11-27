@@ -280,4 +280,6 @@ func (h *creatorHandler) registerRoutes(mux *http.ServeMux) {
 		h.auth.requireAuth(h.handleMySubscriptions)))
 	mux.HandleFunc("POST /v1/subscriptions/{id}/cancel", rateLimited(h.write, "sub_cancel",
 		h.auth.requireAuth(h.handleCancel)))
+
+	h.registerStatsRoutes(mux)
 }

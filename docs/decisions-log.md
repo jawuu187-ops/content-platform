@@ -157,3 +157,20 @@ cannot be spent twice, so it must not block the creator's next request while a r
 pays it out. Rationale: evidence that a balance, a reservation and a statement work
 has to come from the same paths the product uses, and a fixture whose numbers are
 typed by hand proves nothing except that the author can subtract.
+
+## D-080 — Studio audience numbers come from one creator-scoped query, and every money screen renders the API answer unmodified
+
+Given, the approved studio mockup shows members, the share on the top tier and
+7-day unlocks, and the previous Android studio drew them as fixed strings. Decision:
+`GET /v1/creator/stats` answers from `creator` tables only — members are distinct
+fans whose `active` subscription has not ended, per tier and summed once; the share
+is basis points of that total and absent (nil) when there is no member; unlocks are
+`source='purchase'`, unrevoked, granted in the last seven days on the creator's own
+posts. The creator id comes from the authenticated principal, so the endpoint has no
+parameter for reading another creator's audience, and admin/grant entitlements are
+never counted. The Android `finance` layer parses the balance, the requests and the
+CSV statement without arithmetic of its own: totals come from `X-Export-*` headers,
+minors stay integers, and a missing figure renders as "—" rather than a plausible
+number. Rationale: an audience tile is a claim about real subscriptions; a fixture
+string on a production screen is a fabricated claim, and a client-side sum is a
+second implementation of the ledger that can disagree with the first.

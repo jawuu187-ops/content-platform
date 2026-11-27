@@ -1,0 +1,14 @@
+# Public edge for the API. Apply only after the domain's A record points at this
+# host and inbound TCP 80/443 are confirmed open. Caddy obtains and renews the
+# TLS certificate automatically; no certificate files belong in the repository.
+remixofficial.online {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+}

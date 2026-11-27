@@ -22,6 +22,13 @@ android {
         // Device tests drive the installed app against a real API; see
         // .github/workflows/android-e2e.yml for the runner that owns that API.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Production endpoint baked into the release APK. It must be a public HTTPS
+        // address; the app has no localhost fallback in a release build.
+        val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
+            .orElse("https://remixofficial.online")
+            .get()
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {

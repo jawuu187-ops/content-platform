@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.contentplatform.app.BuildConfig
 import com.contentplatform.app.auth.AuthStore
 import com.contentplatform.app.dm.SessionStore
 import com.contentplatform.app.ui.components.ActionButton
@@ -47,7 +48,7 @@ fun AuthScreen(store: AuthStore) {
     val palette = LocalVesperPalette.current
     val scope = rememberCoroutineScope()
     var registerMode by rememberSaveable { mutableStateOf(false) }
-    var baseUrl by rememberSaveable { mutableStateOf("http://10.0.2.2:8080") }
+    var baseUrl by rememberSaveable { mutableStateOf(BuildConfig.API_BASE_URL) }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var mfa by rememberSaveable { mutableStateOf("") }
@@ -66,8 +67,10 @@ fun AuthScreen(store: AuthStore) {
         SpacerH(18)
         CardSurface {
             Column(Modifier.padding(16.dp)) {
-                Field("Server", baseUrl, { baseUrl = it }, keyboardType = KeyboardType.Uri)
-                SpacerH(10)
+                if (BuildConfig.DEBUG) {
+                    Field("Server", baseUrl, { baseUrl = it }, keyboardType = KeyboardType.Uri)
+                    SpacerH(10)
+                }
                 Field("Email", email, { email = it }, keyboardType = KeyboardType.Email)
                 SpacerH(10)
                 Field("Password", password, { password = it }, password = true)

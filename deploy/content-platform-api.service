@@ -1,0 +1,21 @@
+[Unit]
+Description=Content Platform API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kali
+Group=kali
+WorkingDirectory=/data/downloads/content-platform-runtime
+EnvironmentFile=/data/downloads/content-platform-runtime/api.env
+ExecStart=/data/downloads/content-platform-runtime/bin/api
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/data/downloads/content-platform-runtime
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,6 @@
 package com.contentplatform.app.age
 
+import com.contentplatform.app.core.SessionRefresh
 import com.contentplatform.app.dm.ApiException
 import com.contentplatform.app.dm.SessionStore
 import kotlinx.coroutines.Dispatchers
@@ -102,7 +103,19 @@ class AgeApi(private val sessions: SessionStore) {
         return request("POST", session.baseUrl + path, session.accessToken, payload)
     }
 
-    private suspend fun request(method: String, url: String, token: String, body: String?): String =
+    private suspend fun request(method: String, url: String, token: String, body: String?): String {
+        return try {
+            execute(method, url, token, body)
+        } catch (e: ApiException) {
+            if (token.isNotBlank() && e.status == 401 && SessionRefresh.refresh(sessions)) {
+                execute(method, url, requireSession().accessToken, body)
+            } else {
+                throw e
+            }
+        }
+    }
+
+    private suspend fun execute(method: String, url: String, token: String, body: String?): String =
         withContext(Dispatchers.IO) {
             val connection = URL(url).openConnection() as HttpURLConnection
             try {

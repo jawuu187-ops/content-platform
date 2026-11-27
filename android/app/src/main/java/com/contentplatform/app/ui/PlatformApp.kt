@@ -47,6 +47,12 @@ import com.contentplatform.app.dm.DmApi
 import com.contentplatform.app.dm.DmStore
 import com.contentplatform.app.age.AgeApi
 import com.contentplatform.app.age.AgeStore
+import com.contentplatform.app.auth.AuthApi
+import com.contentplatform.app.auth.AuthStore
+import com.contentplatform.app.auth.SecurityStore
+import com.contentplatform.app.catalog.CatalogApi
+import com.contentplatform.app.catalog.CatalogStore
+import com.contentplatform.app.catalog.CreatorStudioStore
 import com.contentplatform.app.dm.ModerationStore
 import com.contentplatform.app.dm.SessionStore
 import com.contentplatform.app.finance.FinanceApi
@@ -64,9 +70,12 @@ import com.contentplatform.app.ui.motion.pressScale
 import com.contentplatform.app.ui.screens.AccountScreen
 import com.contentplatform.app.ui.screens.CheckoutSheet
 import com.contentplatform.app.ui.screens.SimulatedPaymentCard
-import com.contentplatform.app.ui.screens.CreatorScreen
-import com.contentplatform.app.ui.screens.HomeScreen
-import com.contentplatform.app.ui.screens.MembershipScreen
+import com.contentplatform.app.ui.auth.AuthScreen
+import com.contentplatform.app.ui.auth.SecurityScreen
+import com.contentplatform.app.ui.catalog.DiscoverScreen
+import com.contentplatform.app.ui.catalog.MembershipsScreen
+import com.contentplatform.app.ui.catalog.CreatorToolsScreen
+import com.contentplatform.app.ui.catalog.PublicCreatorScreen
 import com.contentplatform.app.ui.screens.StudioScreen
 import com.contentplatform.app.ui.theme.LocalVesperPalette
 import com.contentplatform.app.ui.theme.ThemeController
@@ -109,22 +118,40 @@ fun PlatformApp(themeController: ThemeController) {
     // Age verification and the owner review queue share one store, so the status card and
     // the queue never disagree about a decision the server just applied.
     val ageStore = remember(context) { AgeStore(sessions, AgeApi(sessions)) }
+    val catalogStore = remember(context) { CatalogStore(sessions, CatalogApi(sessions)) }
+    val authStore = remember(context) { AuthStore(sessions, AuthApi(sessions)) }
+    val creatorTools = remember(context) { CreatorStudioStore(context.applicationContext, CatalogApi(sessions)) }
+    val securityStore = remember(context) { SecurityStore(sessions, AuthApi(sessions)) }
+    val signedIn = remember(sessions.revision) { sessions.current().signedIn }
+    if (!signedIn) {
+        Box(Modifier.fillMaxSize().background(palette.ground).safeDrawingPadding()) {
+            AuthScreen(store = authStore)
+        }
+        return
+    }
     var requestOpen by rememberSaveable { mutableStateOf(false) }
     var statementOpen by rememberSaveable { mutableStateOf(false) }
     var payoutsOpen by rememberSaveable { mutableStateOf(false) }
     // Permissions are re-read whenever the stored session changes, not only at launch.
-    LaunchedEffect(sessions.revision) { moderationStore.loadMe() }
+    LaunchedEffect(sessions.revision) {
+        dmStore.syncSession()
+        moderationStore.loadMe()
+    }
     var destination by rememberSaveable { mutableStateOf(Destination.Home) }
     // The studio refreshes on every entry and whenever the session changes; a fan sees the
     // refusal, not a screen of zeros.
     LaunchedEffect(destination, sessions.revision) {
         if (destination == Destination.Studio) financeStore.loadStudio()
         if (destination == Destination.Account) ageStore.loadAccount()
+        if (destination == Destination.Home) catalogStore.loadCreators()
+        if (destination == Destination.Membership) catalogStore.loadMemberships()
     }
-    var creatorOpen by rememberSaveable { mutableStateOf(false) }
+    var creatorHandle by rememberSaveable { mutableStateOf<String?>(null) }
     var messagesOpen by rememberSaveable { mutableStateOf(false) }
     var moderationOpen by rememberSaveable { mutableStateOf(false) }
     var ageReviewOpen by rememberSaveable { mutableStateOf(false) }
+    var creatorToolsOpen by rememberSaveable { mutableStateOf(false) }
+    var securityOpen by rememberSaveable { mutableStateOf(false) }
     var openThreadId by rememberSaveable { mutableStateOf<String?>(null) }
     // Checkout is a pair of (tier, price) in the demo. A real provider replaces the price
     // with a server-issued intent; the sheet does not compute it.
@@ -153,17 +180,19 @@ fun PlatformApp(themeController: ThemeController) {
                     label = "destination",
                 ) { dest ->
                     when (dest) {
-                        Destination.Home -> HomeScreen(
-                            onOpenCreator = { creatorOpen = true },
-                            onOpenMembership = { destination = Destination.Membership },
+                        Destination.Home -> DiscoverScreen(
+                            store = catalogStore,
+                            onOpenCreator = { handle ->
+                                creatorHandle = handle
+                                appScope.launch { catalogStore.open(handle) }
+                            },
                         )
-                        Destination.Membership -> MembershipScreen(
-                            onJoin = { tier, price -> checkout = tier to price },
-                        )
+                        Destination.Membership -> MembershipsScreen(store = catalogStore)
                         Destination.Studio -> StudioScreen(
                             studio = financeStore.studio,
                             onRequestPayout = { requestOpen = true },
                             onOpenStatement = { statementOpen = true },
+                            onOpenCreatorTools = { creatorToolsOpen = true },
                         )
                         Destination.Account -> AccountScreen(
                             mode = themeController.mode,
@@ -181,6 +210,7 @@ fun PlatformApp(themeController: ThemeController) {
                             canReviewAge = moderationStore.roles.contains("owner") &&
                                 moderationStore.permissions.contains("verify.review"),
                             onOpenAgeReview = { ageReviewOpen = true },
+                            onOpenSecurity = { securityOpen = true },
                         )
                     }
                 }
@@ -188,7 +218,8 @@ fun PlatformApp(themeController: ThemeController) {
             VesperBottomBar(
                 selected = destination,
                 onSelect = { dest ->
-                    creatorOpen = false
+                    creatorHandle = null
+                    catalogStore.close()
                     destination = dest
                 },
             )
@@ -196,7 +227,7 @@ fun PlatformApp(themeController: ThemeController) {
 
         // Pushed creator profile.
         AnimatedVisibility(
-            visible = creatorOpen,
+            visible = creatorHandle != null,
             enter = slideInVertically(
                 animationSpec = tween(motion.transition, easing = motion.easing),
             ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
@@ -205,11 +236,11 @@ fun PlatformApp(themeController: ThemeController) {
             ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
         ) {
             Box(Modifier.fillMaxSize().background(palette.ground)) {
-                CreatorScreen(
-                    onBack = { creatorOpen = false },
-                    onOpenMembership = {
-                        creatorOpen = false
-                        destination = Destination.Membership
+                PublicCreatorScreen(
+                    store = catalogStore,
+                    onBack = {
+                        creatorHandle = null
+                        catalogStore.close()
                     },
                 )
             }
@@ -258,6 +289,36 @@ fun PlatformApp(themeController: ThemeController) {
         ) {
             Box(Modifier.fillMaxSize().background(palette.ground)) {
                 ModerationScreen(store = moderationStore, onBack = { moderationOpen = false })
+            }
+        }
+
+        // Account security: verification, authenticator enrolment and sign-out.
+        AnimatedVisibility(
+            visible = securityOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                SecurityScreen(store = securityStore, onBack = { securityOpen = false })
+            }
+        }
+
+        // Creator onboarding, tiers and publishing, pushed over Studio.
+        AnimatedVisibility(
+            visible = creatorToolsOpen,
+            enter = slideInVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeIn(tween(motion.transition, easing = motion.easing)),
+            exit = slideOutVertically(
+                animationSpec = tween(motion.transition, easing = motion.easing),
+            ) { height -> height / 10 } + fadeOut(tween(motion.feedback, easing = motion.easing)),
+        ) {
+            Box(Modifier.fillMaxSize().background(palette.ground)) {
+                CreatorToolsScreen(store = creatorTools, onBack = { creatorToolsOpen = false })
             }
         }
 

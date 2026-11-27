@@ -1,5 +1,6 @@
 package com.contentplatform.app.dm
 
+import com.contentplatform.app.core.SessionRefresh
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -91,10 +92,17 @@ class DmApi(private val sessions: SessionStore) {
         val tokens = JSONObject(body).optJSONObject("tokens")
             ?: throw ApiException(502, "invalid_response", "the sign-in response carried no tokens")
         val token = tokens.optString("access_token")
-        if (token.isBlank()) {
-            throw ApiException(502, "invalid_response", "the sign-in response carried no access token")
+        val refresh = tokens.optString("refresh_token")
+        if (token.isBlank() || refresh.isBlank()) {
+            throw ApiException(502, "invalid_response", "the sign-in response carried no usable tokens")
         }
-        val session = Session(baseUrl = root, accessToken = token, email = email.trim())
+        val session = Session(
+            baseUrl = root,
+            accessToken = token,
+            email = email.trim(),
+            refreshToken = refresh,
+            accessExpiresAt = tokens.optString("access_expires_at"),
+        )
         sessions.save(session)
         return session
     }
@@ -194,6 +202,23 @@ class DmApi(private val sessions: SessionStore) {
     }
 
     private suspend fun request(
+        method: String,
+        url: String,
+        token: String,
+        body: String?,
+    ): String {
+        return try {
+            execute(method, url, token, body)
+        } catch (e: ApiException) {
+            if (token.isNotBlank() && e.status == 401 && SessionRefresh.refresh(sessions)) {
+                execute(method, url, requireSession().accessToken, body)
+            } else {
+                throw e
+            }
+        }
+    }
+
+    private suspend fun execute(
         method: String,
         url: String,
         token: String,

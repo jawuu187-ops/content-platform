@@ -1,5 +1,6 @@
 package com.contentplatform.app.finance
 
+import com.contentplatform.app.core.SessionRefresh
 import com.contentplatform.app.dm.ApiException
 import com.contentplatform.app.dm.Session
 import com.contentplatform.app.dm.SessionStore
@@ -159,6 +160,23 @@ class FinanceApi(private val sessions: SessionStore) {
         request("POST", path, "application/json", payload).body
 
     private suspend fun request(
+        method: String,
+        path: String,
+        accept: String,
+        body: String? = null,
+    ): FinanceResponse {
+        return try {
+            execute(method, path, accept, body)
+        } catch (e: ApiException) {
+            if (e.status == 401 && SessionRefresh.refresh(sessions)) {
+                execute(method, path, accept, body)
+            } else {
+                throw e
+            }
+        }
+    }
+
+    private suspend fun execute(
         method: String,
         path: String,
         accept: String,

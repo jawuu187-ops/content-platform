@@ -420,6 +420,7 @@ fun StudioScreen(
     studio: StudioState,
     onRequestPayout: () -> Unit,
     onOpenStatement: () -> Unit,
+    onOpenCreatorTools: () -> Unit = {},
 ) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
@@ -429,21 +430,7 @@ fun StudioScreen(
             item {
                 Reveal(0, motion) { alpha, _ ->
                     Column(Modifier.graphicsLayer { this.alpha = alpha }.padding(20.dp)) {
-                        ActionButton("New post", "publishing stays off", onClick = {})
-                        SpacerH(16)
-                        SectionTitle("Recent posts", Data.value("48 published"))
-                        SpacerH(8)
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            repeat(3) { i ->
-                                Box(Modifier.weight(1f)) {
-                                    MediaPanel(
-                                        height = 104,
-                                        corner = 4,
-                                        price = if (i == 1) "$14" else null,
-                                    )
-                                }
-                            }
-                        }
+                        ActionButton("Creator tools", "profile · tiers · publish", onClick = onOpenCreatorTools)
                         SpacerH(16)
                         when (studio) {
                             StudioState.Idle, StudioState.Loading -> CardSurface {
@@ -583,6 +570,7 @@ fun AccountScreen(
     onRequestAgeReview: () -> Unit = {},
     canReviewAge: Boolean = false,
     onOpenAgeReview: () -> Unit = {},
+    onOpenSecurity: () -> Unit = {},
 ) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
@@ -597,6 +585,23 @@ fun AccountScreen(
                         Column(Modifier.padding(start = 12.dp)) {
                             Text("Fan account", style = MaterialTheme.typography.titleMedium, color = palette.ink)
                             LabelMono(ageVerification?.let { statusLabel(it.status) } ?: "Age check")
+                        }
+                    }
+                    SpacerH(16)
+                    SectionTitle("Account", "security")
+                    SpacerH(8)
+                    CardSurface {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .pressScale(motion, onClick = onOpenSecurity)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Security & sessions", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                Text("Email verification, two-factor authentication, sign out", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+                            }
+                            LabelMono("\u2192")
                         }
                     }
                     SpacerH(16)

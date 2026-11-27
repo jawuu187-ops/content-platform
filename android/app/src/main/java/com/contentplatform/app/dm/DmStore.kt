@@ -182,6 +182,17 @@ class DmStore(
         }
     }
 
+    /** Re-reads the shared session after the global auth gate signs in or out. */
+    fun syncSession() {
+        val next = sessions.current()
+        if (next.accessToken == session.accessToken && next.baseUrl == session.baseUrl) return
+        session = next
+        openConversationId = null
+        openConversation = null
+        thread = ThreadState.Loading
+        inbox = if (next.signedIn) InboxState.Loading else InboxState.SignedOut
+    }
+
     fun signOut() {
         sessions.signOut()
         session = sessions.current()

@@ -301,6 +301,57 @@ func (s *Service) Approve(ctx context.Context, p identity.Principal, id, note, r
 	return req, nil
 }
 
+// Settle marks an approved payout as paid after the money has left the platform
+// through the configured external rail. It deliberately cannot create money: the
+// reservation already exists, so this records the settlement and its reference.
+func (s *Service) Settle(ctx context.Context, p identity.Principal, id, reference, requestID string) (Request, error) {
+	reference = strings.TrimSpace(reference)
+	if reference == "" || len([]rune(reference)) > 200 {
+		return Request{}, fmt.Errorf("%w: a settlement reference of 1-200 characters is required", ErrInvalidInput)
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Request{}, fmt.Errorf("payouts: begin settle: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	req, err := lockRequest(ctx, tx, id)
+	if err != nil {
+		return Request{}, err
+	}
+	if req.CreatorID == p.UserID {
+		return Request{}, fmt.Errorf("%w: a creator cannot settle their own payout", ErrForbidden)
+	}
+	if req.Status != StatusApproved {
+		return Request{}, fmt.Errorf("%w: only an approved payout can be settled", ErrConflict)
+	}
+	now := s.now().UTC()
+	var settled Request
+	err = tx.QueryRow(ctx, `
+		UPDATE payouts.requests
+		SET status = 'paid', paid_at = $2, updated_at = $2
+		WHERE id = $1::uuid
+		RETURNING `+requestColumns, req.ID, now).Scan(requestScan(&settled)...)
+	if err != nil {
+		return Request{}, fmt.Errorf("payouts: settle: %w", err)
+	}
+	if err := insertEvent(ctx, tx, req.ID, p.UserID, ActionSettle, StatusApproved, StatusPaid, reference, now); err != nil {
+		return Request{}, err
+	}
+	if _, err := tx.Exec(ctx, `
+		SELECT ops.append_audit('user', $1, 'payout.settle', 'payout_request', $2, NULL,
+			jsonb_build_object('reference', $3::text), NULLIF($4, ''))`,
+		p.UserID, req.ID, reference, requestID); err != nil {
+		return Request{}, fmt.Errorf("payouts: append audit: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Request{}, fmt.Errorf("payouts: commit settle: %w", err)
+	}
+	s.logger.InfoContext(ctx, "payout settled",
+		slog.String("request_id", req.ID), slog.String("settled_by", p.UserID))
+	return settled, nil
+}
+
 // Reject refuses a request. A request that was never approved is closed outright;
 // one whose money is already reserved is reversed with a compensating ledger
 // transaction, because history is corrected by adding an entry, never by editing

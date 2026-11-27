@@ -247,3 +247,55 @@ func TestReadinessFailsWhenTheSharedLimiterIsDown(t *testing.T) {
 		t.Fatalf("unexpected readiness body: %s", rec.Body.String())
 	}
 }
+
+func TestCreatorDiscoveryAndOwnProfile(t *testing.T) {
+	h, _ := creatorServer(t)
+	owner := registerAndGetToken(t, h, "discover-owner@example.test")
+	rec := doJSON(t, h, http.MethodPost, "/v1/creators", owner.Tokens.AccessToken, encodeBody(t, map[string]any{
+		"handle": "discover_me", "display_name": "Discover Me", "bio": "Visible", "category": "art",
+		"published": true,
+	}))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create profile: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = doJSON(t, h, http.MethodGet, "/v1/creators", "", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list creators: %d %s", rec.Code, rec.Body.String())
+	}
+	var listed struct {
+		Creators []struct {
+			Handle string `json:"handle"`
+		} `json:"creators"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &listed); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, c := range listed.Creators {
+		if c.Handle == "discover_me" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("published creator missing from discovery: %s", rec.Body.String())
+	}
+
+	if rec := doJSON(t, h, http.MethodGet, "/v1/creators/me", "", ""); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous own profile: want 401, got %d", rec.Code)
+	}
+	rec = doJSON(t, h, http.MethodGet, "/v1/creators/me", owner.Tokens.AccessToken, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("own profile: %d %s", rec.Code, rec.Body.String())
+	}
+	var mine struct {
+		Profile struct {
+			Handle string `json:"handle"`
+		} `json:"profile"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &mine); err != nil {
+		t.Fatal(err)
+	}
+	if mine.Profile.Handle != "discover_me" {
+		t.Fatalf("own profile handle = %q", mine.Profile.Handle)
+	}
+}

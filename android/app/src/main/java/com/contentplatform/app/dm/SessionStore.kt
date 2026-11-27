@@ -19,6 +19,8 @@ data class Session(
     val baseUrl: String,
     val accessToken: String,
     val email: String,
+    val refreshToken: String = "",
+    val accessExpiresAt: String = "",
 ) {
     val signedIn: Boolean get() = baseUrl.isNotBlank() && accessToken.isNotBlank()
 }
@@ -40,6 +42,8 @@ class SessionStore(context: Context) {
         baseUrl = prefs.getString(KEY_BASE_URL, "").orEmpty(),
         accessToken = prefs.getString(KEY_ACCESS_TOKEN, "").orEmpty(),
         email = prefs.getString(KEY_EMAIL, "").orEmpty(),
+        refreshToken = prefs.getString(KEY_REFRESH, "").orEmpty(),
+        accessExpiresAt = prefs.getString(KEY_ACCESS_EXP, "").orEmpty(),
     )
 
     fun save(session: Session) {
@@ -47,6 +51,18 @@ class SessionStore(context: Context) {
             .putString(KEY_BASE_URL, normalizeBaseUrl(session.baseUrl))
             .putString(KEY_ACCESS_TOKEN, session.accessToken)
             .putString(KEY_EMAIL, session.email)
+            .putString(KEY_REFRESH, session.refreshToken)
+            .putString(KEY_ACCESS_EXP, session.accessExpiresAt)
+            .apply()
+        revision++
+    }
+
+    /** Replaces tokens after a refresh, keeping the same server and email. */
+    fun updateTokens(accessToken: String, refreshToken: String, accessExpiresAt: String) {
+        prefs.edit()
+            .putString(KEY_ACCESS_TOKEN, accessToken)
+            .putString(KEY_REFRESH, refreshToken)
+            .putString(KEY_ACCESS_EXP, accessExpiresAt)
             .apply()
         revision++
     }
@@ -54,6 +70,8 @@ class SessionStore(context: Context) {
     fun signOut() {
         prefs.edit()
             .remove(KEY_ACCESS_TOKEN)
+            .remove(KEY_REFRESH)
+            .remove(KEY_ACCESS_EXP)
             .apply()
         revision++
     }
@@ -71,6 +89,8 @@ class SessionStore(context: Context) {
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_ACCESS_TOKEN = "access_token"
         private const val KEY_EMAIL = "email"
+        private const val KEY_REFRESH = "refresh_token"
+        private const val KEY_ACCESS_EXP = "access_expires_at"
         private const val KEY_FINGERPRINT = "device_fingerprint"
 
         /**

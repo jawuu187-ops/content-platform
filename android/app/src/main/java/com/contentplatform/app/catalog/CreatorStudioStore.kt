@@ -1,0 +1,110 @@
+package com.contentplatform.app.catalog
+
+import android.content.Context
+import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.contentplatform.app.dm.ApiException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+sealed interface CreatorToolsState {
+    data object Loading : CreatorToolsState
+    data object NoProfile : CreatorToolsState
+    data class Ready(val profile: CreatorProfile, val tiers: List<Tier>) : CreatorToolsState
+    data class Failed(val message: String) : CreatorToolsState
+}
+
+/** Creator onboarding, profile/tier management and publishing. */
+class CreatorStudioStore(
+    private val context: Context,
+    private val api: CatalogApi,
+) {
+    var state by mutableStateOf<CreatorToolsState>(CreatorToolsState.Loading)
+        private set
+    var busy by mutableStateOf(false)
+        private set
+    var message by mutableStateOf<String?>(null)
+        private set
+
+    suspend fun load() {
+        state = CreatorToolsState.Loading
+        state = try {
+            val mine = api.myProfile()
+            if (mine == null) CreatorToolsState.NoProfile
+            else CreatorToolsState.Ready(mine.first, mine.second)
+        } catch (t: Throwable) {
+            CreatorToolsState.Failed(explain(t))
+        }
+    }
+
+    suspend fun createProfile(handle: String, name: String, bio: String, category: String, published: Boolean) {
+        action {
+            api.createProfile(handle, name, bio, category, published)
+            load()
+        }
+    }
+
+    suspend fun saveProfile(name: String, bio: String, category: String, published: Boolean) {
+        action {
+            api.updateProfile(name, bio, category, published)
+            load()
+        }
+    }
+
+    suspend fun addTier(name: String, description: String, priceMinor: Long, currency: String, periodDays: Int) {
+        action {
+            api.createTier(name, description, priceMinor, currency, periodDays, emptyList())
+            load()
+        }
+    }
+
+    suspend fun publish(uri: Uri?, body: String, visibility: String, priceMinor: Long?, currency: String) {
+        action {
+            val mediaId = uri?.let {
+                val (bytes, mime) = readUri(it)
+                api.upload(bytes, mime)
+            }
+            api.createPost(body, visibility, priceMinor, currency, listOfNotNull(mediaId))
+            message = "Post published."
+        }
+    }
+
+    private suspend fun readUri(uri: Uri): Pair<ByteArray, String> = withContext(Dispatchers.IO) {
+        val mime = context.contentResolver.getType(uri) ?: "application/octet-stream"
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: throw ApiException(400, "file_unreadable", "the selected file could not be read")
+        bytes to mime
+    }
+
+    private suspend fun action(block: suspend () -> Unit) {
+        if (busy) return
+        busy = true
+        message = null
+        try {
+            block()
+        } catch (t: Throwable) {
+            message = explain(t)
+        } finally {
+            busy = false
+        }
+    }
+
+    fun clearMessage() {
+        message = null
+    }
+
+    private fun explain(t: Throwable): String = when (t) {
+        is ApiException -> when (t.status) {
+            401 -> "Your session has expired. Sign in again."
+            403 -> t.detail.ifBlank { "This account cannot use creator tools." }
+            404 -> "Creator profile not found."
+            409 -> t.detail.ifBlank { "That handle or tier already exists." }
+            413 -> "That file is too large."
+            415 -> "Only JPEG, PNG and MP4 are accepted."
+            else -> t.detail.ifBlank { "The request failed." }
+        }
+        else -> t.message ?: "The request failed."
+    }
+}

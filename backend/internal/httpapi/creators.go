@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/jawuu187-ops/content-platform/backend/internal/creator"
@@ -39,6 +40,34 @@ func newCreatorHandler(auth *authHandler, svc *creator.Service, logger *slog.Log
 
 type subscribeBody struct {
 	TierID string `json:"tier_id"`
+}
+
+type listCreatorsBody struct{}
+
+func (h *creatorHandler) handleListCreators(w http.ResponseWriter, r *http.Request) {
+	limit := 24
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			limit = n
+		}
+	}
+	profiles, err := h.creators.ListPublished(r.Context(), r.URL.Query().Get("q"), limit)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"creators": profiles})
+}
+
+func (h *creatorHandler) handleMyProfile(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	profile, tiers, err := h.creators.MyProfile(r.Context(), p.UserID)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"profile": profile, "tiers": tiers})
 }
 
 type grantEntitlementBody struct {
@@ -257,6 +286,9 @@ func (h *creatorHandler) requireCreator(perm identity.Permission,
 }
 
 func (h *creatorHandler) registerRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /v1/creators", rateLimited(h.read, "creator_list", h.handleListCreators))
+	mux.HandleFunc("GET /v1/creators/me", rateLimited(h.read, "creator_me",
+		h.auth.requireAuth(h.handleMyProfile)))
 	mux.HandleFunc("POST /v1/creators", rateLimited(h.write, "creator_create", h.auth.requireAuth(h.handleCreateProfile)))
 	mux.HandleFunc("PATCH /v1/creators/me", rateLimited(h.write, "creator_patch",
 		h.requireCreator(identity.PermContentPublish, h.handlePatchProfile)))

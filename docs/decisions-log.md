@@ -212,3 +212,17 @@ change, and the audit hash is stored as the request's non-sensitive audit refere
 an audit failure rolls the decision back. Expiry is evaluated from `expires_at` on
 every access decision, so a lapsed review loses access immediately without a
 background job. Only slot 1 owner activation is configured; slot 2 stays dormant.
+
+## D-083 — The app is account-gated and reads the live creator catalog; no anonymous demo shell
+
+The release prototype exposed static Home/Creator/Membership screens and a local-only
+checkout. Decision: `PlatformApp` now requires a real session, refreshes access tokens
+through `/v1/auth/refresh`, and gates discovery, messaging, finance and creator tools on
+that session. Home calls `GET /v1/creators`; profiles, tiers and posts come from the
+creator endpoints; memberships call the real subscribe/cancel routes; creator tools call
+profile/tier/post/media routes; image and video media are fetched through a short-lived
+delivery token. `/v1/creators` and `/v1/creators/me` were added to the backend with tests.
+The app no longer treats a successful screen render as proof of a feature. Payment capture
+remains blocked by the absent gateway: the server keeps a subscription pending rather than
+claiming money moved. Payout settlement now records an external reference and a `paid`
+state, but the actual bank/rail transfer remains an external operation.

@@ -441,3 +441,35 @@ func TestQueueShowsOpenRequestsAndDetailIsOwnerOrFinance(t *testing.T) {
 		}
 	}
 }
+
+func TestSettleMarksApprovedPayoutPaidExactlyOnce(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	creator := f.creator(t)
+	finance := f.account(t)
+	f.credit(t, creator.UserID, 2500, false)
+	req, err := f.svc.Request(ctx, creator, Input{AmountMinor: 2000, Currency: "USD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.Approve(ctx, finance, req.ID, "checked", ""); err != nil {
+		t.Fatal(err)
+	}
+	paid, err := f.svc.Settle(ctx, finance, req.ID, "bank-ref-123", "")
+	if err != nil {
+		t.Fatalf("settle: %v", err)
+	}
+	if paid.Status != StatusPaid || paid.PaidAt == nil {
+		t.Fatalf("settled payout = %+v", paid)
+	}
+	if _, err := f.svc.Settle(ctx, finance, req.ID, "bank-ref-123", ""); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second settle: want ErrConflict, got %v", err)
+	}
+	detail, err := f.svc.Detail(ctx, creator, req.ID, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(detail.Events) != 3 || detail.Events[2].Action != ActionSettle {
+		t.Fatalf("events = %+v", detail.Events)
+	}
+}

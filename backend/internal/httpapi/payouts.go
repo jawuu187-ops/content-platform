@@ -64,6 +64,8 @@ func (h *payoutHandler) registerRoutes(mux *http.ServeMux) {
 		h.auth.requirePermission(identity.PermPayoutApprove, h.handleApprove)))
 	mux.HandleFunc("POST /v1/admin/payouts/{id}/reject", rateLimited(h.decide, "payout_reject",
 		h.auth.requirePermission(identity.PermPayoutApprove, h.handleReject)))
+	mux.HandleFunc("POST /v1/admin/payouts/{id}/settle", rateLimited(h.decide, "payout_settle",
+		h.auth.requirePermission(identity.PermPayoutApprove, h.handleSettle)))
 }
 
 // handleMine returns the caller's requests together with the balance they are
@@ -157,6 +159,26 @@ func (h *payoutHandler) handleApprove(w http.ResponseWriter, r *http.Request, p 
 		return
 	}
 	req, err := h.payouts.Approve(r.Context(), p, r.PathValue("id"), in.Note, RequestIDFromContext(r.Context()))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"payout": req})
+}
+
+type settleBody struct {
+	Reference string `json:"reference"`
+}
+
+func (h *payoutHandler) handleSettle(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in settleBody
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	req, err := h.payouts.Settle(r.Context(), p, r.PathValue("id"), in.Reference,
+		RequestIDFromContext(r.Context()))
 	if err != nil {
 		h.writeError(w, r, err)
 		return

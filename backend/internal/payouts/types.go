@@ -50,6 +50,7 @@ const (
 	ActionApprove = "approve"
 	ActionReject  = "reject"
 	ActionCancel  = "cancel"
+	ActionSettle  = "settle"
 )
 
 // Payout methods. This is a label on the request, not stored coordinates: bank

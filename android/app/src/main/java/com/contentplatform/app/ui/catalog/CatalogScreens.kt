@@ -480,7 +480,7 @@ private fun PostMediaView(store: CatalogStore, postId: String, media: PostMedia)
                 val bytes = store.imageBytes(postId, media.mediaId)
                 bitmap = withContext(Dispatchers.IO) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
                 if (bitmap == null) failure = "Image could not be decoded."
-            } else if (media.kind == "video") {
+            } else if (media.kind == "video" || media.kind == "audio") {
                 videoSource = store.videoSource(postId, media.mediaId)
             }
         } catch (t: Throwable) {
@@ -498,10 +498,81 @@ private fun PostMediaView(store: CatalogStore, postId: String, media: PostMedia)
             ),
         )
     }
-    videoSource?.let { AuthenticatedVideo(it) }
+    videoSource?.let {
+        if (media.kind == "audio") AuthenticatedAudio(it) else AuthenticatedVideo(it)
+    }
     failure?.let {
         Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
     }
+}
+
+@Composable
+private fun AuthenticatedAudio(source: VideoSource) {
+    val context = LocalContext.current
+    var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var duration by remember { mutableStateOf(0) }
+    var position by remember { mutableStateOf(0) }
+    var playing by remember { mutableStateOf(false) }
+    var failure by remember { mutableStateOf<String?>(null) }
+    val palette = LocalVesperPalette.current
+
+    DisposableEffect(Unit) {
+        onDispose { player?.release() }
+    }
+    LaunchedEffect(player) {
+        while (player != null) {
+            position = player?.currentPosition ?: 0
+            playing = player?.isPlaying == true
+            delay(500)
+        }
+    }
+    Column(Modifier.fillMaxWidth().background(palette.surfaceRaised,
+        androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).padding(12.dp)) {
+        Text("Audio", style = MaterialTheme.typography.titleSmall, color = palette.ink)
+        SpacerH(6)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = {
+                val existing = player
+                if (existing == null) {
+                    val mp = MediaPlayer()
+                    try {
+                        mp.setDataSource(context, Uri.parse(source.url), source.headers)
+                        mp.setOnPreparedListener {
+                            player = it
+                            duration = it.duration
+                            it.start()
+                            playing = true
+                        }
+                        mp.setOnCompletionListener { playing = false }
+                        mp.setOnErrorListener { _, _, _ -> failure = "Audio could not be played."; false }
+                        mp.prepareAsync()
+                    } catch (t: Throwable) {
+                        mp.release()
+                        failure = "Audio could not be loaded."
+                    }
+                } else if (existing.isPlaying) {
+                    existing.pause()
+                } else {
+                    existing.start()
+                }
+            }) {
+                Text(if (playing) "Pause" else "Play", color = palette.actionText)
+            }
+            Text(
+                formatClock(position) + " / " + formatClock(duration),
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.muted,
+            )
+        }
+        failure?.let {
+            Text(it, color = palette.danger, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+private fun formatClock(ms: Int): String {
+    val total = (ms / 1000).coerceAtLeast(0)
+    return "%d:%02d".format(total / 60, total % 60)
 }
 
 @Composable

@@ -129,3 +129,23 @@ func TestUnavailableStorageFailsClosed(t *testing.T) {
 		t.Fatalf("open: want ErrUnavailable, got %v", err)
 	}
 }
+
+func TestIngestAcceptsAudioContainers(t *testing.T) {
+	store := newStore(t)
+	limits := DefaultLimits()
+	cases := []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{"mp3", append([]byte("ID3\x04\x00\x00\x00\x00\x00\x00"), make([]byte, 64)...), "audio/mpeg"},
+		{"ogg", append([]byte("OggS"), make([]byte, 64)...), "audio/ogg"},
+		{"wav", append([]byte("RIFF\x00\x00\x00\x00WAVEfmt "), make([]byte, 64)...), "audio/wav"},
+	}
+	for _, tc := range cases {
+		obj, err := Ingest(context.Background(), store, bytes.NewReader(tc.data), limits)
+		if err != nil || obj.Kind != KindAudio || obj.ContentType != tc.want {
+			t.Fatalf("%s: obj=%+v err=%v", tc.name, obj, err)
+		}
+	}
+}

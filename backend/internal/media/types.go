@@ -39,6 +39,7 @@ type Kind string
 const (
 	KindImage Kind = "image"
 	KindVideo Kind = "video"
+	KindAudio Kind = "audio"
 )
 
 // Limits are the ingestion budget. Values come from configuration so a
@@ -46,6 +47,7 @@ const (
 type Limits struct {
 	ImageBytes int64
 	VideoBytes int64
+	AudioBytes int64
 	// MaxPixels rejects decompression-bomb dimensions before any decode of pixel
 	// data happens.
 	MaxPixels int64
@@ -54,7 +56,7 @@ type Limits struct {
 // DefaultLimits are deliberately modest: a creator platform does not need 4K
 // originals, and smaller files make delivery cheaper and faster.
 func DefaultLimits() Limits {
-	return Limits{ImageBytes: 10 << 20, VideoBytes: 200 << 20, MaxPixels: 40_000_000}
+	return Limits{ImageBytes: 10 << 20, VideoBytes: 200 << 20, AudioBytes: 60 << 20, MaxPixels: 40_000_000}
 }
 
 // Object is one stored file.

@@ -35,6 +35,14 @@ func Ingest(ctx context.Context, st Storage, r io.Reader, limits Limits) (Object
 		return ingestImage(ctx, st, br, limits)
 	case isMP4(head):
 		return ingestVideo(ctx, st, br, limits)
+	case isMP3(head):
+		return ingestAudio(ctx, st, br, limits, "audio/mpeg")
+	case isM4A(head):
+		return ingestAudio(ctx, st, br, limits, "audio/mp4")
+	case isOGG(head):
+		return ingestAudio(ctx, st, br, limits, "audio/ogg")
+	case isWAV(head):
+		return ingestAudio(ctx, st, br, limits, "audio/wav")
 	default:
 		return Object{}, ErrUnsupportedType
 	}
@@ -59,6 +67,41 @@ func isMP4(head []byte) bool {
 		return false
 	}
 	return mp4Brands[string(head[8:12])]
+}
+
+func isMP3(head []byte) bool {
+	if len(head) >= 3 && string(head[:3]) == "ID3" {
+		return true
+	}
+	return len(head) >= 2 && head[0] == 0xFF && head[1]&0xE0 == 0xE0
+}
+
+func isM4A(head []byte) bool {
+	if len(head) < 12 || string(head[4:8]) != "ftyp" {
+		return false
+	}
+	brand := string(head[8:12])
+	return brand == "M4A " || brand == "M4B " || brand == "mp42"
+}
+
+func isOGG(head []byte) bool {
+	return len(head) >= 4 && string(head[:4]) == "OggS"
+}
+
+func isWAV(head []byte) bool {
+	return len(head) >= 12 && string(head[:4]) == "RIFF" && string(head[8:12]) == "WAVE"
+}
+
+func ingestAudio(ctx context.Context, st Storage, br *bufio.Reader, limits Limits, contentType string) (Object, error) {
+	limit := limits.AudioBytes
+	if limit <= 0 {
+		limit = DefaultLimits().AudioBytes
+	}
+	key, sha, size, err := st.Put(ctx, br, limit)
+	if err != nil {
+		return Object{}, err
+	}
+	return Object{Kind: KindAudio, ContentType: contentType, ByteSize: size, StorageKey: key, SHA256: sha}, nil
 }
 
 func ingestImage(ctx context.Context, st Storage, br *bufio.Reader, limits Limits) (Object, error) {

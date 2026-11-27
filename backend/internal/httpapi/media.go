@@ -73,7 +73,7 @@ func (h *mediaHandler) writeMediaError(w http.ResponseWriter, r *http.Request, e
 		writeProblem(w, r, http.StatusRequestEntityTooLarge, "file_too_large", "the file exceeds the size limit")
 	case errors.Is(err, media.ErrUnsupportedType):
 		writeProblem(w, r, http.StatusUnsupportedMediaType, "unsupported_media_type",
-			"only JPEG, PNG and MP4 files are accepted")
+			"only JPEG, PNG, MP4, MP3, M4A, OGG and WAV files are accepted")
 	case errors.Is(err, media.ErrInvalidFile):
 		writeProblem(w, r, http.StatusUnprocessableEntity, "invalid_media", "the file content is not valid")
 	case errors.Is(err, media.ErrTokenInvalid):

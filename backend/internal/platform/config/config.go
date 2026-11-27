@@ -91,6 +91,7 @@ type Config struct {
 	MediaTokenTTL   time.Duration
 	MediaImageBytes int64
 	MediaVideoBytes int64
+	MediaAudioBytes int64
 
 	// Age verification. A provider callback is authenticated with an HMAC secret;
 	// without one, verification cannot complete and 18+ content stays locked.
@@ -170,6 +171,7 @@ func Load(serviceName string) (*Config, error) {
 		MediaTokenTTL:          getDuration("MEDIA_TOKEN_TTL", 60*time.Second),
 		MediaImageBytes:        getInt64("MEDIA_MAX_IMAGE_BYTES", 10<<20),
 		MediaVideoBytes:        getInt64("MEDIA_MAX_VIDEO_BYTES", 200<<20),
+		MediaAudioBytes:        getInt64("MEDIA_MAX_AUDIO_BYTES", 60<<20),
 		AgeProvider:            get("AGE_PROVIDER", "generic"),
 		AgeCallbackSecret:      get("AGE_CALLBACK_SECRET", ""),
 		AgeMinAge:              int(getInt64("AGE_MIN_AGE", 18)),
@@ -291,7 +293,7 @@ func (c *Config) validate() error {
 	if c.MediaTokenTTL < 5*time.Second || c.MediaTokenTTL > 15*time.Minute {
 		problems = append(problems, "MEDIA_TOKEN_TTL must be between 5s and 15m")
 	}
-	if c.MediaImageBytes <= 0 || c.MediaVideoBytes <= 0 || c.MediaImageBytes > c.MediaVideoBytes {
+	if c.MediaImageBytes <= 0 || c.MediaVideoBytes <= 0 || c.MediaAudioBytes <= 0 || c.MediaImageBytes > c.MediaVideoBytes {
 		problems = append(problems, "MEDIA_MAX_IMAGE_BYTES and MEDIA_MAX_VIDEO_BYTES must be positive, image not above video")
 	}
 	if c.IsProduction() && c.MediaDir != "" && c.MediaSigningKey == "" {

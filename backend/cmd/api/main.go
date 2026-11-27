@@ -216,6 +216,7 @@ func run() error {
 			media.WithLimits(media.Limits{
 				ImageBytes: cfg.MediaImageBytes,
 				VideoBytes: cfg.MediaVideoBytes,
+				AudioBytes: cfg.MediaAudioBytes,
 				MaxPixels:  media.DefaultLimits().MaxPixels,
 			}),
 			media.WithBaseURL(cfg.MediaDeliveryBaseURL),

@@ -26,7 +26,7 @@ android {
         // Production endpoint baked into the release APK. It must be a public HTTPS
         // address; the app has no localhost fallback in a release build.
         val apiBaseUrl = providers.gradleProperty("apiBaseUrl")
-            .orElse("https://remixofficial.online")
+            .orElse("https://80.47.235.113.sslip.io")
             .get()
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }

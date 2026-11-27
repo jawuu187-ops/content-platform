@@ -133,15 +133,22 @@ func (s *Service) insertTier(ctx context.Context, creatorID string, in TierInput
 	if in.SortOrder != nil {
 		sortOrder = *in.SortOrder
 	}
+	trialDays := 0
+	if in.TrialDays != nil {
+		trialDays = *in.TrialDays
+	}
+	if trialDays < 0 || trialDays > 30 {
+		return Tier{}, fmt.Errorf("%w: trial days must be between 0 and 30", ErrInvalidInput)
+	}
 	var t Tier
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO creator.tiers (creator_id, name, description, price_minor, currency, period_days, perks, sort_order)
-		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO creator.tiers (creator_id, name, description, price_minor, currency, period_days, trial_days, perks, sort_order)
+		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id::text, creator_id::text, name, description, price_minor, currency,
-		          period_days, perks, is_active, sort_order, created_at`,
-		creatorID, name, in.Description, price, in.Currency, periodDays, in.Perks, sortOrder,
+		          period_days, trial_days, perks, is_active, sort_order, created_at`,
+		creatorID, name, in.Description, price, in.Currency, periodDays, trialDays, in.Perks, sortOrder,
 	).Scan(&t.ID, &t.CreatorID, &t.Name, &t.Description, &t.PriceMinor, &t.Currency,
-		&t.PeriodDays, &t.Perks, &t.Active, &t.SortOrder, &t.CreatedAt)
+		&t.PeriodDays, &t.TrialDays, &t.Perks, &t.Active, &t.SortOrder, &t.CreatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -160,17 +167,18 @@ func (s *Service) updateTier(ctx context.Context, creatorID, tierID string, in T
 		    description = $4,
 		    price_minor = COALESCE($5, price_minor),
 		    period_days = COALESCE($6, period_days),
-		    perks = COALESCE($7, perks),
-		    sort_order = COALESCE($8, sort_order),
-		    is_active = COALESCE($9, is_active),
+		    trial_days = COALESCE($7, trial_days),
+		    perks = COALESCE($8, perks),
+		    sort_order = COALESCE($9, sort_order),
+		    is_active = COALESCE($10, is_active),
 		    updated_at = now()
 		WHERE id = $1::uuid AND creator_id = $2::uuid
 		RETURNING id::text, creator_id::text, name, description, price_minor, currency,
-		          period_days, perks, is_active, sort_order, created_at`,
-		tierID, creatorID, in.Name, in.Description, in.PriceMinor, in.PeriodDays,
+		          period_days, trial_days, perks, is_active, sort_order, created_at`,
+		tierID, creatorID, in.Name, in.Description, in.PriceMinor, in.PeriodDays, in.TrialDays,
 		in.Perks, in.SortOrder, in.Active,
 	).Scan(&t.ID, &t.CreatorID, &t.Name, &t.Description, &t.PriceMinor, &t.Currency,
-		&t.PeriodDays, &t.Perks, &t.Active, &t.SortOrder, &t.CreatedAt)
+		&t.PeriodDays, &t.TrialDays, &t.Perks, &t.Active, &t.SortOrder, &t.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Tier{}, ErrNotFound
 	}
@@ -183,7 +191,7 @@ func (s *Service) updateTier(ctx context.Context, creatorID, tierID string, in T
 func (s *Service) tiersOf(ctx context.Context, creatorID string, activeOnly bool) ([]Tier, error) {
 	query := `
 		SELECT id::text, creator_id::text, name, description, price_minor, currency,
-		       period_days, perks, is_active, sort_order, created_at
+		       period_days, trial_days, perks, is_active, sort_order, created_at
 		FROM creator.tiers WHERE creator_id = $1::uuid`
 	if activeOnly {
 		query += ` AND is_active`
@@ -198,7 +206,7 @@ func (s *Service) tiersOf(ctx context.Context, creatorID string, activeOnly bool
 	for rows.Next() {
 		var t Tier
 		if err := rows.Scan(&t.ID, &t.CreatorID, &t.Name, &t.Description, &t.PriceMinor, &t.Currency,
-			&t.PeriodDays, &t.Perks, &t.Active, &t.SortOrder, &t.CreatedAt); err != nil {
+			&t.PeriodDays, &t.TrialDays, &t.Perks, &t.Active, &t.SortOrder, &t.CreatedAt); err != nil {
 			return nil, fmt.Errorf("creator: scan tier: %w", err)
 		}
 		out = append(out, t)
@@ -210,10 +218,10 @@ func (s *Service) tierByID(ctx context.Context, tierID string) (Tier, error) {
 	var t Tier
 	err := s.pool.QueryRow(ctx, `
 		SELECT id::text, creator_id::text, name, description, price_minor, currency,
-		       period_days, perks, is_active, sort_order, created_at
+		       period_days, trial_days, perks, is_active, sort_order, created_at
 		FROM creator.tiers WHERE id = $1::uuid`, tierID,
 	).Scan(&t.ID, &t.CreatorID, &t.Name, &t.Description, &t.PriceMinor, &t.Currency,
-		&t.PeriodDays, &t.Perks, &t.Active, &t.SortOrder, &t.CreatedAt)
+		&t.PeriodDays, &t.TrialDays, &t.Perks, &t.Active, &t.SortOrder, &t.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Tier{}, ErrNotFound
 	}
@@ -221,6 +229,63 @@ func (s *Service) tierByID(ctx context.Context, tierID string) (Tier, error) {
 		return Tier{}, fmt.Errorf("creator: load tier: %w", err)
 	}
 	return t, nil
+}
+
+func (s *Service) insertSubscriptionOffer(ctx context.Context, fanID string, t Tier, price, discount int64,
+	promoCode string, trial bool) (Subscription, error) {
+	var sub Subscription
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO creator.subscriptions
+			(fan_id, creator_id, tier_id, status, price_minor, currency, discount_minor, promotion_code, is_trial)
+		VALUES ($1::uuid, $2::uuid, $3::uuid, 'pending', $4, $5, $6, $7, $8)
+		RETURNING id::text, fan_id::text, creator_id::text, tier_id::text, status, price_minor, currency,
+		          current_period_start, current_period_end, cancel_at_period_end, discount_minor,
+		          promotion_code, is_trial, created_at`,
+		fanID, t.CreatorID, t.ID, price, t.Currency, discount, promoCode, trial,
+	).Scan(&sub.ID, &sub.FanID, &sub.CreatorID, &sub.TierID, &sub.Status, &sub.PriceMinor, &sub.Currency,
+		&sub.PeriodStart, &sub.PeriodEnd, &sub.CancelAtPeriodEnd, &sub.DiscountMinor,
+		&sub.PromotionCode, &sub.IsTrial, &sub.CreatedAt)
+	if err != nil {
+		return Subscription{}, fmt.Errorf("creator: insert subscription offer: %w", err)
+	}
+	return sub, nil
+}
+
+func (s *Service) activateWithPeriod(ctx context.Context, subscriptionID string, start time.Time, periodDays int) (Subscription, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Subscription{}, fmt.Errorf("creator: begin activate: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	end := start.AddDate(0, 0, periodDays)
+	var sub Subscription
+	err = tx.QueryRow(ctx, `
+		UPDATE creator.subscriptions
+		SET status = 'active', current_period_start = $2, current_period_end = $3, updated_at = now()
+		WHERE id = $1::uuid AND status = 'pending'
+		RETURNING id::text, fan_id::text, creator_id::text, tier_id::text, status, price_minor, currency,
+		          current_period_start, current_period_end, cancel_at_period_end, discount_minor,
+		          promotion_code, is_trial, created_at`, subscriptionID, start, end).
+		Scan(&sub.ID, &sub.FanID, &sub.CreatorID, &sub.TierID, &sub.Status, &sub.PriceMinor, &sub.Currency,
+			&sub.PeriodStart, &sub.PeriodEnd, &sub.CancelAtPeriodEnd, &sub.DiscountMinor,
+			&sub.PromotionCode, &sub.IsTrial, &sub.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Subscription{}, ErrAlreadySubscribed
+	}
+	if err != nil {
+		return Subscription{}, fmt.Errorf("creator: activate offer: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO creator.entitlements (fan_id, creator_id, scope, source, subscription_id, granted_at, expires_at)
+		VALUES ($1::uuid, $2::uuid, 'subscriber', 'subscription', $3::uuid, $4, $5)
+		ON CONFLICT (fan_id, creator_id, scope) WHERE revoked_at IS NULL
+		DO UPDATE SET expires_at = EXCLUDED.expires_at`, sub.FanID, sub.CreatorID, sub.ID, start, end); err != nil {
+		return Subscription{}, fmt.Errorf("creator: grant offer entitlement: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Subscription{}, err
+	}
+	return sub, nil
 }
 
 func (s *Service) insertSubscription(ctx context.Context, fanID string, t Tier, status string) (Subscription, error) {

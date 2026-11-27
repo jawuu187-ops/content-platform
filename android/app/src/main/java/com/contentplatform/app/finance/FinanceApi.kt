@@ -38,6 +38,12 @@ class FinanceApi(private val sessions: SessionStore) {
             unlocks7d = stats.optInt("unlocks_7d", 0),
             topTierName = topName,
             topTierShareBps = topShare,
+            newMembers30d = stats.optInt("new_members_30d", 0),
+            cancelled30d = stats.optInt("cancelled_30d", 0),
+            trialMembers = stats.optInt("trial_members", 0),
+            posts = stats.optInt("posts", 0),
+            likes = stats.optInt("likes", 0),
+            comments = stats.optInt("comments", 0),
         )
     }
 

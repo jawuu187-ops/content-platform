@@ -22,6 +22,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
+	"github.com/jawuu187-ops/content-platform/backend/internal/privacy"
 )
 
 // BuildInfo is injected at link time by the release workflow.
@@ -63,6 +64,8 @@ type Deps struct {
 	Notifications *notifications.Service
 	// CreatorVerify is the metadata-only creator identity review. Nil answers 503.
 	CreatorVerify *creatorverify.Service
+	// Privacy owns export, consent and scheduled deletion. Nil answers 503.
+	Privacy *privacy.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -88,6 +91,7 @@ type Server struct {
 	ageReview *agereview.Service
 	notify    *notifications.Service
 	verify    *creatorverify.Service
+	privacy   *privacy.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -118,6 +122,7 @@ func New(d Deps) http.Handler {
 		ageReview: d.AgeReview,
 		notify:    d.Notifications,
 		verify:    d.CreatorVerify,
+		privacy:   d.Privacy,
 		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
@@ -203,6 +208,9 @@ func New(d Deps) http.Handler {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
 					"the payout queue is not configured on this instance")
 			})
+		}
+		if s.privacy != nil {
+			newPrivacyHandler(authHandler, s.privacy, s.limits).registerRoutes(mux)
 		}
 		if s.verify != nil {
 			newCreatorVerifyHandler(authHandler, s.verify, d.Logger, s.limits).registerRoutes(mux)

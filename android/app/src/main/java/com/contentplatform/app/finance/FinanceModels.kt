@@ -15,6 +15,12 @@ data class AudienceStats(
     val unlocks7d: Int,
     val topTierName: String?,
     val topTierShareBps: Int?,
+    val newMembers30d: Int = 0,
+    val cancelled30d: Int = 0,
+    val trialMembers: Int = 0,
+    val posts: Int = 0,
+    val likes: Int = 0,
+    val comments: Int = 0,
 )
 
 /** `balance` from `GET /v1/creator/payouts`. */

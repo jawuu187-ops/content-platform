@@ -151,11 +151,11 @@ class CatalogStore(
         unlockingPostId = null
     }
 
-    suspend fun subscribe(tier: Tier) {
+    suspend fun subscribe(tier: Tier, promoCode: String = "") {
         val handle = openHandle ?: return
         subscribeState = SubscribeState.Working
         subscribeState = try {
-            val sub = api.subscribe(handle, tier.id)
+            val sub = api.subscribe(handle, tier.id, promoCode)
             when (sub?.status) {
                 "active", "pending" -> {
                     if (sub.status == "active") SubscribeState.Active(sub)

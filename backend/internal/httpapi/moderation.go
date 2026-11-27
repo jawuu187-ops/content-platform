@@ -55,6 +55,16 @@ func (h *moderationHandler) registerRoutes(mux *http.ServeMux) {
 		h.auth.requirePermission(identity.PermSafetyReview, h.handleQueue)))
 	mux.HandleFunc("POST /v1/moderation/reports/{id}/transitions", rateLimited(h.decide, "moderation_decide",
 		h.auth.requirePermission(identity.PermSafetyReview, h.handleTransition)))
+	mux.HandleFunc("POST /v1/copyright/claims", rateLimited(h.submit, "copyright_submit",
+		h.auth.requireAuth(h.handleCopyrightSubmit)))
+	mux.HandleFunc("GET /v1/copyright/claims/mine", rateLimited(h.read, "copyright_mine",
+		h.auth.requireAuth(h.handleCopyrightMine)))
+	mux.HandleFunc("POST /v1/copyright/claims/{id}/counter", rateLimited(h.decide, "copyright_counter",
+		h.auth.requireAuth(h.handleCopyrightCounter)))
+	mux.HandleFunc("GET /v1/moderation/copyright", rateLimited(h.read, "copyright_queue",
+		h.auth.requirePermission(identity.PermSafetyReview, h.handleCopyrightQueue)))
+	mux.HandleFunc("POST /v1/moderation/copyright/{id}/decision", rateLimited(h.decide, "copyright_decide",
+		h.auth.requirePermission(identity.PermSafetyReview, h.handleCopyrightDecision)))
 }
 
 func (h *moderationHandler) handleSubmit(w http.ResponseWriter, r *http.Request, p identity.Principal) {
@@ -163,4 +173,90 @@ func (h *moderationHandler) handleTransition(w http.ResponseWriter, r *http.Requ
 	}
 	noStore(w)
 	writeJSON(w, http.StatusOK, map[string]any{"report": rep})
+}
+
+func (h *moderationHandler) handleCopyrightSubmit(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in moderation.CopyrightInput
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	claim, err := h.reports.SubmitCopyright(r.Context(), p, in)
+	if err != nil {
+		h.writeModerationError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusCreated, map[string]any{"claim": claim})
+}
+
+func (h *moderationHandler) handleCopyrightMine(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	claims, err := h.reports.CopyrightMine(r.Context(), p)
+	if err != nil {
+		h.writeModerationError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"claims": claims})
+}
+
+func (h *moderationHandler) handleCopyrightCounter(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in struct {
+		Notice string `json:"notice"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	claim, err := h.reports.CounterNotice(r.Context(), p, r.PathValue("id"), in.Notice)
+	if err != nil {
+		h.writeModerationError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"claim": claim})
+}
+
+func (h *moderationHandler) handleCopyrightQueue(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	claims, err := h.reports.CopyrightQueue(r.Context())
+	if err != nil {
+		h.writeModerationError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"claims": claims})
+}
+
+func (h *moderationHandler) handleCopyrightDecision(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var in struct {
+		Takedown bool   `json:"takedown"`
+		Note     string `json:"note"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	claim, err := h.reports.DecideCopyright(r.Context(), p, r.PathValue("id"), in.Takedown, in.Note)
+	if err != nil {
+		h.writeModerationError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"claim": claim})
+}
+
+func (h *moderationHandler) writeModerationError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, moderation.ErrInvalidInput):
+		writeProblem(w, r, http.StatusBadRequest, "invalid_report", err.Error())
+	case errors.Is(err, moderation.ErrNotFound):
+		writeProblem(w, r, http.StatusNotFound, "not_found", "the claim or target does not exist")
+	case errors.Is(err, moderation.ErrForbidden):
+		writeProblem(w, r, http.StatusForbidden, "not_allowed", "this account cannot perform that action")
+	case errors.Is(err, moderation.ErrConflict):
+		writeProblem(w, r, http.StatusConflict, "conflict", "that decision is no longer available")
+	default:
+		h.logger.ErrorContext(r.Context(), "moderation request failed", "error", err)
+		internalError(w, r)
+	}
 }

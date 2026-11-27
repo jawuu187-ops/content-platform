@@ -38,10 +38,16 @@ type TierStat struct {
 
 // Stats is the creator's own audience picture.
 type Stats struct {
-	CreatorID string     `json:"creator_id"`
-	Members   int        `json:"members"`
-	Unlocks7d int        `json:"unlocks_7d"`
-	Tiers     []TierStat `json:"tiers"`
+	CreatorID     string     `json:"creator_id"`
+	Members       int        `json:"members"`
+	Unlocks7d     int        `json:"unlocks_7d"`
+	NewMembers30d int        `json:"new_members_30d"`
+	Cancelled30d  int        `json:"cancelled_30d"`
+	TrialMembers  int        `json:"trial_members"`
+	Posts         int        `json:"posts"`
+	Likes         int        `json:"likes"`
+	Comments      int        `json:"comments"`
+	Tiers         []TierStat `json:"tiers"`
 	// TopTier is the active tier with the most members, ties broken by the tier's
 	// own order. Nil when the creator has no live members.
 	TopTier *TierStat `json:"top_tier,omitempty"`
@@ -107,6 +113,29 @@ func (s *Service) Stats(ctx context.Context, creatorID string) (Stats, error) {
 		top := out.Tiers[0]
 		out.TopTier = &top
 	}
+
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM creator.subscriptions
+		WHERE creator_id = $1::uuid AND created_at > $2 AND status IN ('active','cancelled','expired')`,
+		creatorID, now.AddDate(0, 0, -30)).Scan(&out.NewMembers30d)
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM creator.subscriptions
+		WHERE creator_id = $1::uuid AND status = 'cancelled' AND updated_at > $2`,
+		creatorID, now.AddDate(0, 0, -30)).Scan(&out.Cancelled30d)
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM creator.subscriptions
+		WHERE creator_id = $1::uuid AND is_trial AND status = 'active' AND current_period_end > $2`,
+		creatorID, now).Scan(&out.TrialMembers)
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM creator.posts WHERE creator_id = $1::uuid AND status = 'published'`,
+		creatorID).Scan(&out.Posts)
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM creator.post_likes l
+		JOIN creator.posts p ON p.id = l.post_id WHERE p.creator_id = $1::uuid`, creatorID).Scan(&out.Likes)
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM creator.post_comments c
+		JOIN creator.posts p ON p.id = c.post_id
+		WHERE p.creator_id = $1::uuid AND c.deleted_at IS NULL`, creatorID).Scan(&out.Comments)
 
 	if err := s.pool.QueryRow(ctx, `
 		SELECT COUNT(*)::int

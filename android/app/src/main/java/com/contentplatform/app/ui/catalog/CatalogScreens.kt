@@ -309,7 +309,7 @@ fun PublicCreatorScreen(
             tier = tier,
             state = store.subscribeState,
             simulated = store.simulatedPayments,
-            onSubscribe = { scope.launch { store.subscribe(tier) } },
+            onSubscribe = { code -> scope.launch { store.subscribe(tier, code) } },
             onDismiss = {
                 subscribeTier = null
                 store.dismissResult()
@@ -553,15 +553,32 @@ private fun TierSheet(
     tier: Tier,
     state: SubscribeState,
     simulated: Boolean,
-    onSubscribe: () -> Unit,
+    onSubscribe: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val palette = LocalVesperPalette.current
+    var promo by remember(tier.id) { mutableStateOf("") }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         CardSurface {
             Column(Modifier.padding(18.dp)) {
                 Text(tier.name, style = MaterialTheme.typography.titleMedium, color = palette.ink)
                 Text(money(tier.priceMinor, tier.currency) + " / " + tier.periodDays + " days", color = palette.inkSecondary)
+                if (tier.trialDays > 0) {
+                    Text("Includes a ${tier.trialDays}-day free trial for first-time members.", color = palette.sage,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                SpacerH(8)
+                androidx.compose.foundation.text.BasicTextField(
+                    value = promo,
+                    onValueChange = { promo = it.uppercase().take(24) },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = palette.ink),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(palette.ink),
+                    modifier = Modifier.fillMaxWidth().background(palette.surfaceRaised,
+                        androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).padding(10.dp),
+                )
+                SpacerH(4)
+                LabelMono("PROMO CODE (OPTIONAL)")
                 SpacerH(10)
                 if (simulated) {
                     Text(
@@ -579,7 +596,7 @@ private fun TierSheet(
                             color = palette.muted,
                         )
                         SpacerH(10)
-                        ActionButton("Request membership", null, onClick = onSubscribe)
+                        ActionButton("Request membership", null, onClick = { onSubscribe(promo) })
                     }
                     SubscribeState.Working -> LabelMono("Sending request…")
                     is SubscribeState.Active -> Text("Membership active.", color = palette.sage)

@@ -52,6 +52,32 @@ func Pool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
+// cleanupStale drops test databases left by a previous run. It skips the
+// current process and any database with a live connection, so parallel package
+// test binaries are never pulled out from under each other. Without this,
+// repeated local runs accumulated until the filesystem filled.
+func cleanupStale(ctx context.Context, admin *pgx.Conn, current string) {
+	rows, err := admin.Query(ctx, `
+		SELECT d.datname
+		FROM pg_database d
+		WHERE d.datname LIKE 'cp_test_%' AND d.datname <> $1
+		  AND NOT EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.datname = d.datname)`, current)
+	if err != nil {
+		return
+	}
+	var stale []string
+	for rows.Next() {
+		var n string
+		if rows.Scan(&n) == nil {
+			stale = append(stale, n)
+		}
+	}
+	rows.Close()
+	for _, n := range stale {
+		_, _ = admin.Exec(ctx, "DROP DATABASE IF EXISTS "+pgx.Identifier{n}.Sanitize())
+	}
+}
+
 func setup(base string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -69,6 +95,7 @@ func setup(base string) error {
 	if err != nil {
 		return fmt.Errorf("connect to create the test database: %w", err)
 	}
+	cleanupStale(ctx, admin, name)
 	_, err = admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize())
 	_ = admin.Close(ctx)
 	if err != nil {

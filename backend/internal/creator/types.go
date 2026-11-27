@@ -72,6 +72,7 @@ type Tier struct {
 	PriceMinor  int64     `json:"price_minor"`
 	Currency    string    `json:"currency"`
 	PeriodDays  int       `json:"period_days"`
+	TrialDays   int       `json:"trial_days"`
 	Perks       []string  `json:"perks"`
 	Active      bool      `json:"active"`
 	SortOrder   int       `json:"sort_order"`
@@ -90,6 +91,9 @@ type Subscription struct {
 	PeriodStart       *time.Time `json:"current_period_start,omitempty"`
 	PeriodEnd         *time.Time `json:"current_period_end,omitempty"`
 	CancelAtPeriodEnd bool       `json:"cancel_at_period_end"`
+	DiscountMinor     int64      `json:"discount_minor"`
+	PromotionCode     string     `json:"promotion_code,omitempty"`
+	IsTrial           bool       `json:"is_trial"`
 	CreatedAt         time.Time  `json:"created_at"`
 }
 

@@ -159,7 +159,8 @@ func (s *Service) Queue(ctx context.Context, status string, limit int) ([]Report
 		 WHERE ($1 = '' AND status IN ('open', 'reviewing'))
 		    OR ($1 = 'all')
 		    OR ($1 <> '' AND $1 <> 'all' AND status = $1)
-		 ORDER BY CASE status WHEN 'open' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END,
+		 ORDER BY (reason = 'csam') DESC,
+		          CASE status WHEN 'open' THEN 0 WHEN 'reviewing' THEN 1 ELSE 2 END,
 		          created_at ASC
 		 LIMIT $2`, status, limit)
 	if err != nil {

@@ -34,6 +34,7 @@ const (
 	ReasonHarassment    = "harassment"
 	ReasonNonConsensual = "nonconsensual"
 	ReasonMinor         = "minor"
+	ReasonCSAM          = "csam"
 	ReasonImpersonation = "impersonation"
 	ReasonSpam          = "spam"
 	ReasonPayment       = "payment"
@@ -69,7 +70,7 @@ func Subjects() []string { return []string{SubjectUser, SubjectPost, SubjectMess
 // Reasons lists the accepted reasons.
 func Reasons() []string {
 	return []string{
-		ReasonHarassment, ReasonNonConsensual, ReasonMinor,
+		ReasonHarassment, ReasonNonConsensual, ReasonMinor, ReasonCSAM,
 		ReasonImpersonation, ReasonSpam, ReasonPayment, ReasonOther,
 	}
 }

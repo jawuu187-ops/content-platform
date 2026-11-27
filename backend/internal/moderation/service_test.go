@@ -271,3 +271,41 @@ func TestReportsAreScopedToTheirReporter(t *testing.T) {
 		t.Fatalf("other person's list should be empty: %v %+v", err, theirs)
 	}
 }
+
+func TestCSAMUrgencyAndCopyrightTakedown(t *testing.T) {
+	h := newModHarness(t)
+	ctx := context.Background()
+	_, postID := h.creatorWithPost(t)
+	reporter := h.account(t)
+	rep, err := h.reports.Submit(ctx, reporter, Input{
+		SubjectType: SubjectPost, SubjectID: postID, Reason: ReasonCSAM,
+		Details: "urgent safety test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Reason != ReasonCSAM {
+		t.Fatalf("reason = %q", rep.Reason)
+	}
+	queue, err := h.reports.Queue(ctx, "", 10)
+	if err != nil || len(queue) == 0 || queue[0].ID != rep.ID {
+		t.Fatalf("urgent queue = %+v err=%v", queue, err)
+	}
+
+	claim, err := h.reports.SubmitCopyright(ctx, reporter, CopyrightInput{
+		TargetType: "post", TargetID: postID,
+		WorkDescription: "An original photograph I created and published elsewhere.",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := h.account(t)
+	decided, err := h.reports.DecideCopyright(ctx, owner, claim.ID, true, "claim upheld")
+	if err != nil || decided.Status != "takedown" {
+		t.Fatalf("decision = %+v err=%v", decided, err)
+	}
+	var status string
+	if err := h.pool.QueryRow(ctx, `SELECT status FROM creator.posts WHERE id=$1::uuid`, postID).Scan(&status); err != nil || status != "removed" {
+		t.Fatalf("post status = %q err=%v", status, err)
+	}
+}

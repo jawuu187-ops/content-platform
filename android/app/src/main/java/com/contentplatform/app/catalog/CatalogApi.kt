@@ -54,8 +54,8 @@ class CatalogApi(private val sessions: SessionStore) {
         return (0 until (arr?.length() ?: 0)).mapNotNull { parsePost(arr?.optJSONObject(it)) }
     }
 
-    suspend fun subscribe(handle: String, tierId: String): Subscription? {
-        val payload = JSONObject().put("tier_id", tierId).toString()
+    suspend fun subscribe(handle: String, tierId: String, promoCode: String = ""): Subscription? {
+        val payload = JSONObject().put("tier_id", tierId).put("promo_code", promoCode.trim()).toString()
         val body = JSONObject(post("/v1/creators/" + encode(handle) + "/subscribe", payload))
         return parseSubscription(body.optJSONObject("subscription"))
     }
@@ -354,6 +354,7 @@ class CatalogApi(private val sessions: SessionStore) {
             priceMinor = json.optLong("price_minor"),
             currency = json.optString("currency"),
             periodDays = json.optInt("period_days", 30),
+            trialDays = json.optInt("trial_days", 0),
             perks = perks,
             active = json.optBoolean("active", true),
         )

@@ -39,7 +39,8 @@ func newCreatorHandler(auth *authHandler, svc *creator.Service, logger *slog.Log
 }
 
 type subscribeBody struct {
-	TierID string `json:"tier_id"`
+	TierID    string `json:"tier_id"`
+	PromoCode string `json:"promo_code"`
 }
 
 func (h *creatorHandler) handleListCreators(w http.ResponseWriter, r *http.Request) {
@@ -226,7 +227,8 @@ func (h *creatorHandler) handleSubscribe(w http.ResponseWriter, r *http.Request,
 		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
 		return
 	}
-	sub, err := h.creators.Subscribe(r.Context(), p, r.PathValue("handle"), body.TierID, RequestIDFromContext(r.Context()))
+	sub, err := h.creators.SubscribeWithOffer(r.Context(), p, r.PathValue("handle"), body.TierID,
+		body.PromoCode, RequestIDFromContext(r.Context()))
 	if err != nil {
 		h.writeError(w, r, err)
 		return
@@ -306,6 +308,12 @@ func (h *creatorHandler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/creators", rateLimited(h.read, "creator_list", h.handleListCreators))
 	mux.HandleFunc("GET /v1/creators/me", rateLimited(h.read, "creator_me",
 		h.auth.requireAuth(h.handleMyProfile)))
+	mux.HandleFunc("GET /v1/creators/me/promotions", rateLimited(h.read, "promotions",
+		h.requireCreator(identity.PermContentPublish, h.handleListPromotions)))
+	mux.HandleFunc("POST /v1/creators/me/promotions", rateLimited(h.write, "promotions",
+		h.requireCreator(identity.PermContentPublish, h.handleCreatePromotion)))
+	mux.HandleFunc("PATCH /v1/creators/me/promotions/{id}", rateLimited(h.write, "promotions",
+		h.requireCreator(identity.PermContentPublish, h.handleSetPromotion)))
 	mux.HandleFunc("GET /v1/creators/me/posts", rateLimited(h.read, "creator_my_posts",
 		h.auth.requireAuth(h.handleMyPosts)))
 	mux.HandleFunc("POST /v1/creators", rateLimited(h.write, "creator_create", h.auth.requireAuth(h.handleCreateProfile)))
@@ -358,4 +366,46 @@ func (h *creatorHandler) registerRoutes(mux *http.ServeMux) {
 		h.auth.requireAuth(h.handleDeleteComment)))
 
 	h.registerStatsRoutes(mux)
+}
+
+func (h *creatorHandler) handleListPromotions(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	items, err := h.creators.Promotions(r.Context(), p)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"promotions": items})
+}
+
+func (h *creatorHandler) handleCreatePromotion(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var body creator.PromotionInput
+	if err := decodeJSON(w, r, &body); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	promo, err := h.creators.CreatePromotion(r.Context(), p, body)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusCreated, map[string]any{"promotion": promo})
+}
+
+func (h *creatorHandler) handleSetPromotion(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var body struct {
+		Active *bool `json:"active"`
+	}
+	if err := decodeJSON(w, r, &body); err != nil || body.Active == nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "active is required")
+		return
+	}
+	promo, err := h.creators.SetPromotionActive(r.Context(), p, r.PathValue("id"), *body.Active)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"promotion": promo})
 }

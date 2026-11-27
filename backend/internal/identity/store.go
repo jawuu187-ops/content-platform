@@ -446,3 +446,19 @@ func (s *store) consumePasswordReset(ctx context.Context, tokenHash []byte, newH
 	}
 	return userID, email, nil
 }
+
+// passwordHashFor returns the stored password material for one account. It is
+// used only by re-authentication for sensitive account actions.
+func (s *store) passwordHashFor(ctx context.Context, userID string) (string, error) {
+	var hash string
+	err := s.pool.QueryRow(ctx, `
+		SELECT password_hash FROM identity.users
+		WHERE id = $1::uuid AND deleted_at IS NULL AND status = 'active'`, userID).Scan(&hash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("identity: load password hash: %w", err)
+	}
+	return hash, nil
+}

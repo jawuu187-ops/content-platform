@@ -16,6 +16,7 @@ data class Tier(
     val priceMinor: Long,
     val currency: String,
     val periodDays: Int,
+    val trialDays: Int = 0,
     val perks: List<String>,
     val active: Boolean,
 )

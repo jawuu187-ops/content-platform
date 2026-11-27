@@ -469,6 +469,18 @@ fun StudioScreen(
                             )
                             StudioStat(stats?.unlocks7d?.toString() ?: "—", "Unlocks · 7d", Modifier.weight(1f))
                         }
+                        SpacerH(8)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StudioStat(stats?.newMembers30d?.toString() ?: "—", "New · 30d", Modifier.weight(1f))
+                            StudioStat(stats?.cancelled30d?.toString() ?: "—", "Cancelled · 30d", Modifier.weight(1f))
+                            StudioStat(stats?.trialMembers?.toString() ?: "—", "Trials", Modifier.weight(1f))
+                        }
+                        SpacerH(8)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StudioStat(stats?.posts?.toString() ?: "—", "Posts", Modifier.weight(1f))
+                            StudioStat(stats?.likes?.toString() ?: "—", "Likes", Modifier.weight(1f))
+                            StudioStat(stats?.comments?.toString() ?: "—", "Comments", Modifier.weight(1f))
+                        }
                         SpacerH(12)
                         val year = (studio as? StudioState.Ready)?.year
                         CardSurface(Modifier.clickable { onOpenStatement() }) {
@@ -587,6 +599,7 @@ fun AccountScreen(
     onOpenNotifications: () -> Unit = {},
     unreadNotifications: Int = 0,
     onOpenCreatorVerify: () -> Unit = {},
+    onOpenPrivacy: () -> Unit = {},
     canReviewPayouts: Boolean = false,
     onOpenAdminPayouts: () -> Unit = {},
 ) {
@@ -671,6 +684,21 @@ fun AccountScreen(
                             Column(Modifier.weight(1f)) {
                                 Text("Creator verification", style = MaterialTheme.typography.titleMedium, color = palette.ink)
                                 Text("Metadata-only identity review; no ID image is stored", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+                            }
+                            LabelMono("\u2192")
+                        }
+                    }
+                    SpacerH(12)
+                    CardSurface {
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .pressScale(motion, onClick = onOpenPrivacy)
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text("Privacy & data", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                                Text("Export, consent and account deletion", style = MaterialTheme.typography.bodySmall, color = palette.muted)
                             }
                             LabelMono("\u2192")
                         }

@@ -247,7 +247,7 @@ func (s *Service) UpdatePost(ctx context.Context, p identity.Principal, postID s
 // RemovePost hides a post without deleting its history.
 func (s *Service) RemovePost(ctx context.Context, p identity.Principal, postID, requestID string) error {
 	tag, err := s.pool.Exec(ctx, `
-		UPDATE creator.posts SET status = 'removed', updated_at = now()
+		UPDATE creator.posts SET status = 'removed', published_at = NULL, scheduled_at = NULL, updated_at = now()
 		WHERE id = $1::uuid AND creator_id = $2::uuid`, postID, p.UserID)
 	if err != nil {
 		return fmt.Errorf("creator: remove post: %w", err)

@@ -31,6 +31,7 @@ type TierInput struct {
 	PriceMinor  *int64   `json:"price_minor"`
 	Currency    string   `json:"currency"`
 	PeriodDays  *int     `json:"period_days"`
+	TrialDays   *int     `json:"trial_days"`
 	Perks       []string `json:"perks"`
 	SortOrder   *int     `json:"sort_order"`
 	Active      *bool    `json:"active"`

@@ -38,6 +38,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/mail"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/mailsim"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
+	"github.com/jawuu187-ops/content-platform/backend/internal/privacy"
 )
 
 // Set with -ldflags at build time by the release workflow.
@@ -292,6 +293,23 @@ func run() error {
 			}()
 		}
 	}
+	privacyService := privacy.New(db.Pool(), identityService)
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for {
+			if n, err := privacyService.ExecuteDue(ctx); err != nil {
+				logger.Error("account retention pass failed", "error", err)
+			} else if n > 0 {
+				logger.Info("accounts deleted by retention", "count", n)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
 	handler := httpapi.New(httpapi.Deps{
 		Config:          cfg,
 		Logger:          logger,
@@ -309,6 +327,7 @@ func run() error {
 		AgeReview:       agereview.New(db.Pool(), time.Duration(cfg.AgeValidityDays)*24*time.Hour),
 		Notifications:   notificationService,
 		CreatorVerify:   creatorverify.New(db.Pool()),
+		Privacy:         privacyService,
 		Limits:          limits,
 		Build:           httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

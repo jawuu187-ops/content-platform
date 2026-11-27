@@ -46,6 +46,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import com.contentplatform.app.catalog.CatalogStore
+import com.contentplatform.app.catalog.money
 import com.contentplatform.app.catalog.CreatorPost
 import com.contentplatform.app.catalog.CreatorProfile
 import com.contentplatform.app.catalog.CreatorState

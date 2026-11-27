@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.contentplatform.app.catalog.CreatorStudioStore
+import com.contentplatform.app.catalog.money
 import com.contentplatform.app.catalog.CreatorToolsState
 import com.contentplatform.app.catalog.Tier
 import com.contentplatform.app.ui.components.ActionButton

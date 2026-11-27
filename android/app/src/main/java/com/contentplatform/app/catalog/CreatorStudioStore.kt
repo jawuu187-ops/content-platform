@@ -12,7 +12,11 @@ import kotlinx.coroutines.withContext
 sealed interface CreatorToolsState {
     data object Loading : CreatorToolsState
     data object NoProfile : CreatorToolsState
-    data class Ready(val profile: CreatorProfile, val tiers: List<Tier>) : CreatorToolsState
+    data class Ready(
+        val profile: CreatorProfile,
+        val tiers: List<Tier>,
+        val posts: List<CreatorPost> = emptyList(),
+    ) : CreatorToolsState
     data class Failed(val message: String) : CreatorToolsState
 }
 
@@ -33,7 +37,14 @@ class CreatorStudioStore(
         state = try {
             val mine = api.myProfile()
             if (mine == null) CreatorToolsState.NoProfile
-            else CreatorToolsState.Ready(mine.first, mine.second)
+            else {
+                val posts = try {
+                    api.posts(mine.first.handle)
+                } catch (_: Throwable) {
+                    emptyList()
+                }
+                CreatorToolsState.Ready(mine.first, mine.second, posts)
+            }
         } catch (t: Throwable) {
             CreatorToolsState.Failed(explain(t))
         }
@@ -71,6 +82,14 @@ class CreatorStudioStore(
     suspend fun deactivateTier(id: String) {
         action {
             api.deactivateTier(id)
+            load()
+        }
+    }
+
+    suspend fun deletePost(id: String) {
+        action {
+            api.deletePost(id)
+            message = "Post deleted."
             load()
         }
     }

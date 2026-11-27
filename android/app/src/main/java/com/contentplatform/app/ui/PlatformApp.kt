@@ -207,6 +207,7 @@ fun PlatformApp(themeController: ThemeController) {
                             mode = themeController.mode,
                             onModeChange = themeController::choose,
                             onOpenMessages = { messagesOpen = true },
+                            accountEmail = sessions.current().email,
                             onOpenModeration = { moderationOpen = true },
                             canModerate = moderationStore.canModerate,
                             ageVerification = ageStore.verification,
@@ -253,6 +254,18 @@ fun PlatformApp(themeController: ThemeController) {
                         creatorHandle = null
                         catalogStore.close()
                     },
+                    onMessage = { creatorId ->
+                        appScope.launch {
+                            val conversation = dmStore.openWith(creatorId)
+                            if (conversation != null) {
+                                openThreadId = conversation.id
+                                messagesOpen = true
+                            }
+                        }
+                    },
+                    messageBusy = dmStore.openingConversation,
+                    messageError = dmStore.openFailure,
+                    onClearMessageError = dmStore::clearOpenFailure,
                 )
             }
         }

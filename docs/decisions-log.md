@@ -258,3 +258,11 @@ hosts where it works. Sender verification can use the existing
 `info@remixofficial.online` mailbox without a DNS change. Domain authentication
 is recommended but requires separate DNS approval. No live message has been
 sent or claimed.
+
+## D-087 — Email delivery deferred
+
+The provider search and registration are stopped. No provider is approved, no
+account exists for this project, and no DNS change was made. The existing mail
+seam and transactional code remain in place, but email confirmation, password
+reset and security-email delivery are deferred dependencies. Payment and payout
+simulation is unaffected.

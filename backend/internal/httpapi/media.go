@@ -82,6 +82,9 @@ func (h *mediaHandler) writeMediaError(w http.ResponseWriter, r *http.Request, e
 		writeProblem(w, r, http.StatusNotFound, "not_found", "the requested item does not exist")
 	case errors.Is(err, creator.ErrPaymentRequired):
 		writeProblem(w, r, http.StatusPaymentRequired, "payment_required", "this content must be purchased first")
+	case errors.Is(err, creator.ErrAgeRequired):
+		writeProblem(w, r, http.StatusForbidden, "age_verification_required",
+			"age verification is required before this content can be unlocked")
 	case errors.Is(err, creator.ErrInvalidInput):
 		writeProblem(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 	default:

@@ -143,7 +143,14 @@ private fun CreatorRow(creator: CreatorProfile, onClick: () -> Unit) {
 }
 
 @Composable
-fun PublicCreatorScreen(store: CatalogStore, onBack: () -> Unit) {
+fun PublicCreatorScreen(
+    store: CatalogStore,
+    onBack: () -> Unit,
+    onMessage: (String) -> Unit = {},
+    messageBusy: Boolean = false,
+    messageError: String? = null,
+    onClearMessageError: () -> Unit = {},
+) {
     val palette = LocalVesperPalette.current
     val motion = LocalVesperMotion.current
     val scope = rememberCoroutineScope()
@@ -182,6 +189,20 @@ fun PublicCreatorScreen(store: CatalogStore, onBack: () -> Unit) {
                             SpacerH(8)
                             Text(state.profile.bio, color = palette.inkSecondary)
                         }
+                        if (state.profile.userId.isNotBlank()) {
+                            SpacerH(12)
+                            OutlineButton(
+                                label = if (messageBusy) "Opening messages…" else "Message",
+                                onClick = {
+                                    onClearMessageError()
+                                    onMessage(state.profile.userId)
+                                },
+                            )
+                        }
+                        messageError?.let {
+                            SpacerH(6)
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = palette.danger)
+                        }
                         SpacerH(16)
                         Text("Membership", style = MaterialTheme.typography.titleMedium, color = palette.ink)
                         SpacerH(8)
@@ -201,11 +222,19 @@ fun PublicCreatorScreen(store: CatalogStore, onBack: () -> Unit) {
                         if (state.posts.isEmpty()) {
                             Text("No published posts yet.", color = palette.muted)
                         }
+                        store.unlockNotice?.let {
+                            SpacerH(8)
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = palette.brass)
+                        }
+                        store.unlockError?.let {
+                            SpacerH(8)
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = palette.danger)
+                        }
                     }
                 }
                 items(state.posts, key = { it.id }) { post ->
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
-                        PostRow(post, store)
+                        PostRow(post, store, unlocking = store.unlockingPostId == post.id)
                     }
                 }
             }
@@ -250,8 +279,9 @@ private fun TierRow(tier: Tier, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PostRow(post: CreatorPost, store: CatalogStore) {
+private fun PostRow(post: CreatorPost, store: CatalogStore, unlocking: Boolean) {
     val palette = LocalVesperPalette.current
+    val scope = rememberCoroutineScope()
     CardSurface {
         Column(Modifier.padding(14.dp)) {
             if (post.locked) {
@@ -265,9 +295,22 @@ private fun PostRow(post: CreatorPost, store: CatalogStore) {
                     PostMediaView(store, post.id, media)
                 }
             }
-            if (post.priceMinor != null) {
+            if (post.priceMinor != null && post.locked) {
+                SpacerH(8)
+                Text(
+                    (if (store.simulatedPayments) "SIMULATED UNLOCK · " else "Unlock · ") +
+                        money(post.priceMinor, post.currency),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.brass,
+                )
                 SpacerH(6)
-                Text("Unlock " + money(post.priceMinor, post.currency), style = MaterialTheme.typography.bodySmall, color = palette.brass)
+                OutlineButton(
+                    label = if (unlocking) "Unlocking…" else "Unlock this post",
+                    onClick = {
+                        store.clearUnlockMessage()
+                        scope.launch { store.unlock(post) }
+                    },
+                )
             }
         }
     }

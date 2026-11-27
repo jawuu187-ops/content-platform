@@ -556,11 +556,23 @@ private fun StudioStat(value: String, label: String, modifier: Modifier = Modifi
     }
 }
 
+/**
+ * Initials for the account avatar. The address is the only identity the shell has, so
+ * this never invents a display name the server did not return.
+ */
+private fun accountInitials(email: String): String {
+    val local = email.substringBefore('@').replace(".", " ").replace("_", " ").trim()
+    if (local.isBlank()) return "ME"
+    val parts = local.split(' ').filter { it.isNotBlank() }
+    return parts.take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { "ME" }
+}
+
 @Composable
 fun AccountScreen(
     mode: ThemeMode,
     onModeChange: (ThemeMode) -> Unit,
     onOpenMessages: () -> Unit,
+    accountEmail: String = "",
     onOpenModeration: () -> Unit = {},
     canModerate: Boolean = false,
     ageVerification: AgeVerification? = null,
@@ -582,10 +594,14 @@ fun AccountScreen(
             item {
                 Column(Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Monogram("LM", size = 48)
+                        Monogram(accountInitials(accountEmail), size = 48)
                         SpacerH(0)
                         Column(Modifier.padding(start = 12.dp)) {
-                            Text("Fan account", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                            Text(
+                                accountEmail.ifBlank { "Signed-in account" },
+                                style = MaterialTheme.typography.titleMedium,
+                                color = palette.ink,
+                            )
                             LabelMono(ageVerification?.let { statusLabel(it.status) } ?: "Age check")
                         }
                     }

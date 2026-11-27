@@ -216,6 +216,36 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                 }
             }
             SpacerH(18)
+            Text("Published posts", style = MaterialTheme.typography.headlineSmall, color = palette.ink)
+            if (state.posts.isEmpty()) {
+                SpacerH(6)
+                Text("Nothing published yet.", style = MaterialTheme.typography.bodySmall, color = palette.muted)
+            }
+            state.posts.forEach { post ->
+                SpacerH(6)
+                CardSurface {
+                    Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                post.body.ifBlank { "Media post" },
+                                color = palette.ink,
+                                maxLines = 2,
+                                modifier = Modifier.weight(1f),
+                            )
+                            LabelMono(post.visibility.uppercase())
+                        }
+                        if (post.priceMinor != null) {
+                            SpacerH(4)
+                            LabelMono("Price " + money(post.priceMinor, post.currency))
+                        }
+                        SpacerH(6)
+                        OutlineButton("Delete post", onClick = {
+                            scope.launch { store.deletePost(post.id) }
+                        })
+                    }
+                }
+            }
+            SpacerH(18)
             Text("Publish a post", style = MaterialTheme.typography.headlineSmall, color = palette.ink)
             SpacerH(8)
             CardSurface {
@@ -263,7 +293,7 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
             }
             store.message?.let {
                 SpacerH(10)
-                Text(it, color = if (it == "Post published.") palette.sage else palette.danger)
+                Text(it, color = if (it == "Post published." || it == "Post deleted.") palette.sage else palette.danger)
             }
         }
     }

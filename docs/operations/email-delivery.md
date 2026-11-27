@@ -61,3 +61,21 @@ BREVO_API_KEY=<server-side secret only>
 
 Live delivery has not been tested because no Brevo account or API key exists
 yet. This document must not be read as evidence that mail was delivered.
+
+## Status: deferred dependency (2026-11-27)
+
+Email delivery is deferred. No provider account is registered, no DNS record was
+changed, and no live message has been sent. The Brevo adapter and the SMTP sender
+remain in the codebase behind the existing `mail.Sender` seam, but neither is
+configured on the server.
+
+Consequences until this dependency is resumed:
+
+- Email-address confirmation cannot complete against a real mailbox.
+- Password reset and email security notifications remain unavailable.
+- The app's confirmation screen reports the server's refusal instead of pretending
+  a message was delivered.
+- New accounts can postpone confirmation and keep using the account; the step is
+  available again from Account security.
+
+This is a deliberate product dependency, not a claim that verification works.

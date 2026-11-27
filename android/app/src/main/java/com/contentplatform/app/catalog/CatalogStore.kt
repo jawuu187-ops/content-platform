@@ -54,6 +54,12 @@ class CatalogStore(
         private set
     var simulatedPayments by mutableStateOf(false)
         private set
+    var unlockingPostId by mutableStateOf<String?>(null)
+        private set
+    var unlockNotice by mutableStateOf<String?>(null)
+        private set
+    var unlockError by mutableStateOf<String?>(null)
+        private set
 
     suspend fun loadCreators(query: String = "") {
         creators = CreatorsState.Loading
@@ -87,6 +93,8 @@ class CatalogStore(
         openHandle = handle
         creator = CreatorState.Loading
         subscribeState = SubscribeState.Idle
+        unlockNotice = null
+        unlockError = null
         creator = try {
             val (profile, tiers) = api.creator(handle)
             val posts = api.posts(handle)
@@ -100,6 +108,9 @@ class CatalogStore(
         openHandle = null
         creator = CreatorState.Loading
         subscribeState = SubscribeState.Idle
+        unlockNotice = null
+        unlockError = null
+        unlockingPostId = null
     }
 
     suspend fun subscribe(tier: Tier) {
@@ -126,6 +137,41 @@ class CatalogStore(
                 else -> SubscribeState.Failed(explain(t))
             }
         }
+    }
+
+    suspend fun unlock(post: CreatorPost) {
+        if (unlockingPostId != null) return
+        unlockingPostId = post.id
+        unlockNotice = null
+        unlockError = null
+        try {
+            api.unlockPost(post.id)
+            val current = creator as? CreatorState.Ready
+            if (current != null) {
+                creator = current.copy(
+                    posts = current.posts.map { if (it.id == post.id) it.copy(locked = false) else it },
+                )
+            }
+            unlockNotice = if (simulatedPayments) {
+                "Test unlock granted. No card was charged and no real money moved."
+            } else {
+                "Post unlocked."
+            }
+        } catch (t: Throwable) {
+            val e = t as? ApiException
+            unlockError = if (e?.status == 402 || e?.code == "payment_required") {
+                "A real payment provider is required before this post can be unlocked."
+            } else {
+                explain(t)
+            }
+        } finally {
+            unlockingPostId = null
+        }
+    }
+
+    fun clearUnlockMessage() {
+        unlockNotice = null
+        unlockError = null
     }
 
     fun dismissResult() {

@@ -78,6 +78,11 @@ class DmStore(
     var tipState by mutableStateOf<TipState>(TipState.Idle)
         private set
 
+    var openingConversation by mutableStateOf(false)
+        private set
+    var openFailure by mutableStateOf<String?>(null)
+        private set
+
     private var tipKey: String = ""
 
     val signedIn: Boolean get() = session.signedIn
@@ -216,6 +221,32 @@ class DmStore(
 
     fun clearTip() {
         tipState = TipState.Idle
+    }
+
+    suspend fun openWith(creatorId: String): Conversation? {
+        if (openingConversation) return null
+        openingConversation = true
+        openFailure = null
+        return try {
+            val conversation = api.open(creatorId)
+            if (conversation == null) {
+                openFailure = "The creator could not be opened in messages."
+                null
+            } else {
+                openConversation = conversation
+                openConversationId = conversation.id
+                conversation
+            }
+        } catch (t: Throwable) {
+            openFailure = t.toDmFailure().explain()
+            null
+        } finally {
+            openingConversation = false
+        }
+    }
+
+    fun clearOpenFailure() {
+        openFailure = null
     }
 
     suspend fun sendTip(amountMinor: Long, note: String) {

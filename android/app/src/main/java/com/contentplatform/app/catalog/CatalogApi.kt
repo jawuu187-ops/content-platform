@@ -146,6 +146,11 @@ class CatalogApi(private val sessions: SessionStore) {
         request("DELETE", s.baseUrl + "/v1/creators/me/tiers/" + encode(id), s.accessToken, null)
     }
 
+    suspend fun deletePost(id: String) {
+        val s = requireSession()
+        request("DELETE", s.baseUrl + "/v1/posts/" + encode(id), s.accessToken, null)
+    }
+
     suspend fun uploadStream(input: java.io.InputStream, contentType: String): String = withContext(Dispatchers.IO) {
         val session = requireSession()
         val connection = URL(session.baseUrl + "/v1/media").openConnection() as HttpURLConnection
@@ -194,6 +199,10 @@ class CatalogApi(private val sessions: SessionStore) {
         if (priceMinor != null) payload.put("price_minor", priceMinor)
         return parsePost(JSONObject(post("/v1/posts", payload.toString())).optJSONObject("post"))
             .orFail("post missing from response")
+    }
+
+    suspend fun unlockPost(postId: String) {
+        post("/v1/posts/" + encode(postId) + "/unlock", "{}")
     }
 
     suspend fun issueDelivery(postId: String, mediaId: String): Delivery {

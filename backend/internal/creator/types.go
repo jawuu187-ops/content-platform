@@ -22,6 +22,7 @@ var (
 	ErrSelfSubscription  = errors.New("creator: cannot subscribe to yourself")
 	ErrTierInactive      = errors.New("creator: tier is not available")
 	ErrPaymentRequired   = errors.New("creator: payment is required before activation")
+	ErrAgeRequired       = errors.New("creator: age verification is required")
 	ErrNotPublished      = errors.New("creator: profile is not published")
 )
 

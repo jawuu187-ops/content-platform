@@ -420,6 +420,16 @@ func (s *Service) UnlockPost(ctx context.Context, p identity.Principal, postID, 
 	if post.Visibility != VisibilityPPV || post.Status != PostPublished {
 		return Unlock{}, fmt.Errorf("%w: this post is not for sale", ErrInvalidInput)
 	}
+	if s.adult == nil {
+		return Unlock{}, ErrAgeRequired
+	}
+	allowed, err := s.adult.AllowAdult(ctx, p.UserID)
+	if err != nil {
+		return Unlock{}, fmt.Errorf("creator: age verification check: %w", err)
+	}
+	if !allowed {
+		return Unlock{}, ErrAgeRequired
+	}
 	if !s.fakePayments {
 		return Unlock{}, ErrPaymentRequired
 	}

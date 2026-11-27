@@ -103,3 +103,19 @@ then signs in as a seeded moderator, moves the report to reviewing, and closes i
 note; the job afterwards asserts through the API that the queue is a permission, that an
 anonymous report is refused, and that an actioned report carries its closure stamp and a
 three-event history. Rationale: a screen that has never submitted anything is not evidence.
+
+## D-077 — A payout reserves money at approval, and only finance may decide
+
+Given, a creator's payable balance is a ledger account and a withdrawal request is a
+promise to move part of it. Decision: a request moves no money; approval moves it, in one
+transaction that reads the live balance, posts a balanced `payout` transaction (debit the
+creator's payable, credit `platform:payout_clearing`) and marks the request approved, so
+two approvals cannot spend the same balance and a refund that arrives before the decision
+makes the approval fail instead of overdrawing. A refusal of an already-approved request
+posts a compensating transaction rather than editing history. One open request per creator
+and currency is a partial unique index, and `payouts.request_events` refuses UPDATE and
+DELETE. No endpoint sets `paid` or `failed`: no payout rail is configured, and the
+platform does not report money as sent when it was not. Rationale: the ledger is the
+source of truth for what is owed, so a reservation belongs in it, where the balance
+trigger and the append-only rules already enforce honesty. Simulated money is excluded
+from every balance read here (D-070), because the fake provider writes real ledger rows.

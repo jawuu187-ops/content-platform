@@ -14,6 +14,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/moderation"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
+	"github.com/jawuu187-ops/content-platform/backend/internal/payouts"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/ratelimit"
@@ -48,6 +49,8 @@ type Deps struct {
 	Earnings *earnings.Service
 	// Moderation is the safety-report service. Nil answers 503 on its routes.
 	Moderation *moderation.Service
+	// Payouts is the creator withdrawal service. Nil answers 503 on its routes.
+	Payouts *payouts.Service
 	// Limits is the shared rate-limit backend. Nil keeps the counters in process.
 	Limits    *ratelimit.Backend
 	Build     BuildInfo
@@ -68,6 +71,7 @@ type Server struct {
 	earnings  *earnings.Service
 	dm        *messaging.Service
 	reports   *moderation.Service
+	payouts   *payouts.Service
 	limits    *ratelimit.Backend
 	build     BuildInfo
 	startedAt time.Time
@@ -93,6 +97,7 @@ func New(d Deps) http.Handler {
 		payments:  d.Payments,
 		earnings:  d.Earnings,
 		reports:   d.Moderation,
+		payouts:   d.Payouts,
 		dm:        d.DirectMessages,
 		limits:    d.Limits,
 		build:     d.Build,
@@ -159,6 +164,18 @@ func New(d Deps) http.Handler {
 			mux.HandleFunc("/v1/moderation/", func(w http.ResponseWriter, r *http.Request) {
 				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
 					"the moderation queue is not configured on this instance")
+			})
+		}
+		if s.payouts != nil {
+			newPayoutHandler(authHandler, s.payouts, d.Logger, s.limits).registerRoutes(mux)
+		} else {
+			mux.HandleFunc("/v1/creator/payouts", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"payouts are not configured on this instance")
+			})
+			mux.HandleFunc("/v1/admin/payouts/", func(w http.ResponseWriter, r *http.Request) {
+				writeProblem(w, r, http.StatusServiceUnavailable, "dependency_unavailable",
+					"the payout queue is not configured on this instance")
 			})
 		}
 		if s.ageGate != nil {

@@ -47,6 +47,10 @@ const (
 	AccountProviderClearing = "platform:provider_clearing"
 	AccountRevenue          = "platform:revenue"
 	AccountRefundExpense    = "platform:refund_expense"
+	// AccountPayoutClearing holds money a creator has been approved to withdraw
+	// but that has not left the platform yet. It is a liability, not cash: the
+	// funds are still in the provider account until a payout rail sends them.
+	AccountPayoutClearing = "platform:payout_clearing"
 )
 
 // Domain errors.

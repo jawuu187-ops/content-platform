@@ -145,3 +145,199 @@ func TestDatabaseRejectsUnbalancedAndMutatedLedgerRows(t *testing.T) {
 		t.Fatalf("unexpected delete error: %v", err)
 	}
 }
+
+// TestPostTxMovesOnlyWhenTheCallerCommits pins the contract a payout depends on:
+// the ledger legs and the row they pay for share one transaction, so a rollback
+// leaves neither behind and a commit leaves both.
+func TestPostTxMovesOnlyWhenTheCallerCommits(t *testing.T) {
+	pool := dbtest.Pool(t)
+	store := New(pool)
+	ctx := context.Background()
+	posting := balancedPost("tx-owned-1")
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	if _, err := store.PostTx(ctx, tx, posting); err != nil {
+		t.Fatalf("post tx: %v", err)
+	}
+	if err := tx.Rollback(ctx); err != nil {
+		t.Fatalf("rollback: %v", err)
+	}
+
+	var rolledBack int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)::int FROM ledger.transactions WHERE reference = 'tx-owned-1'`).Scan(&rolledBack); err != nil {
+		t.Fatalf("count after rollback: %v", err)
+	}
+	// The insert is atomic: a rolled-back transaction cannot leave a transaction
+	// row whose entries never arrived.
+	if rolledBack != 0 {
+		t.Fatalf("rolled-back posting survived: %d rows", rolledBack)
+	}
+
+	tx, err = pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	txnID, err := store.PostTx(ctx, tx, posting)
+	if err != nil {
+		t.Fatalf("post tx: %v", err)
+	}
+	// The same reference inside the same transaction is still caught by the
+	// database's unique constraint, not by the caller remembering to check.
+	if _, err := store.PostTx(ctx, tx, posting); !errors.Is(err, ErrDuplicate) {
+		t.Fatalf("duplicate inside tx: want ErrDuplicate, got %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+
+	var legs int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*)::int FROM ledger.entries WHERE transaction_id = $1::uuid`, txnID).Scan(&legs); err != nil {
+		t.Fatalf("count legs: %v", err)
+	}
+	if legs != 3 {
+		t.Fatalf("legs=%d, want 3", legs)
+	}
+}
+
+func TestPostTxRefusesAnInvalidPostingBeforeTouchingTheDatabase(t *testing.T) {
+	store := New(dbtest.Pool(t))
+	ctx := context.Background()
+	tx, err := store.pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	bad := balancedPost("tx-invalid-1")
+	bad.Entries[0].AmountMinor = 0 // a zero leg
+
+	if _, err := store.PostTx(ctx, tx, bad); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("want ErrInvalid, got %v", err)
+	}
+}
+
+// TestBalanceCountsCreditsPositiveAndKeepsTestMoneyApart pins the two properties
+// a payout relies on: the sign convention (owed money reads positive) and the
+// data-class split (test money is never available to pay out).
+func TestBalanceCountsCreditsPositiveAndKeepsTestMoneyApart(t *testing.T) {
+	pool := dbtest.Pool(t)
+	store := New(pool)
+	ctx := context.Background()
+
+	const code = "creator:00000000-0000-4000-8000-0000000000b1:payable"
+
+	zero, err := store.Balance(ctx, code, "USD", false)
+	if err != nil {
+		t.Fatalf("balance of an unused account: %v", err)
+	}
+	if zero != 0 {
+		t.Fatalf("unused account balance = %d, want 0", zero)
+	}
+
+	live := balancedPost("balance-live-1")
+	live.Entries = []Entry{
+		{AccountCode: AccountProviderClearing, AmountMinor: 1200},
+		{AccountCode: code, AmountMinor: -960},
+		{AccountCode: AccountRevenue, AmountMinor: -240},
+	}
+	if _, err := store.Post(ctx, live); err != nil {
+		t.Fatalf("post live: %v", err)
+	}
+
+	got, err := store.Balance(ctx, code, "USD", false)
+	if err != nil {
+		t.Fatalf("balance: %v", err)
+	}
+	// The entry is a credit of 960, stored as -960, and the balance reports it
+	// as +960: what the platform owes the creator.
+	if got != 960 {
+		t.Fatalf("live balance = %d, want 960", got)
+	}
+
+	simulated := live
+	simulated.Reference = "balance-simulated-1"
+	simulated.Simulated = true
+	if _, err := store.Post(ctx, simulated); err != nil {
+		t.Fatalf("post simulated: %v", err)
+	}
+
+	liveOnly, err := store.Balance(ctx, code, "USD", false)
+	if err != nil {
+		t.Fatalf("balance live only: %v", err)
+	}
+	if liveOnly != 960 {
+		t.Fatalf("balance excluding test money = %d, want 960", liveOnly)
+	}
+	withTest, err := store.Balance(ctx, code, "USD", true)
+	if err != nil {
+		t.Fatalf("balance with test data: %v", err)
+	}
+	if withTest != 1920 {
+		t.Fatalf("balance including test money = %d, want 1920", withTest)
+	}
+
+	// A debit outweighing the credit reads negative rather than wrapping: the
+	// arithmetic a payout refusal depends on is plain integer arithmetic.
+	refunded := live
+	refunded.Kind = TxnRefund
+	refunded.Reference = "balance-refund-1"
+	refunded.Entries = []Entry{
+		{AccountCode: code, AmountMinor: 2000},
+		{AccountCode: AccountProviderClearing, AmountMinor: -2000},
+	}
+	if _, err := store.Post(ctx, refunded); err != nil {
+		t.Fatalf("post refund: %v", err)
+	}
+	afterRefund, err := store.Balance(ctx, code, "USD", false)
+	if err != nil {
+		t.Fatalf("balance after refund: %v", err)
+	}
+	if afterRefund != -1040 {
+		t.Fatalf("balance after over-refund = %d, want -1040", afterRefund)
+	}
+}
+
+// TestBalanceTxSeesUncommittedEntries proves the in-transaction read used before
+// a payout posts. A separate connection must not see the pending entry, so the
+// same-transaction call is what makes the check and the posting one decision.
+func TestBalanceTxSeesUncommittedEntries(t *testing.T) {
+	pool := dbtest.Pool(t)
+	store := New(pool)
+	ctx := context.Background()
+	const code = "creator:00000000-0000-4000-8000-0000000000b2:payable"
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	p := balancedPost("balance-tx-1")
+	p.Entries = []Entry{
+		{AccountCode: AccountProviderClearing, AmountMinor: 500},
+		{AccountCode: code, AmountMinor: -500},
+	}
+	if _, err := store.PostTx(ctx, tx, p); err != nil {
+		t.Fatalf("post tx: %v", err)
+	}
+
+	inTx, err := store.BalanceTx(ctx, tx, code, "USD", false)
+	if err != nil {
+		t.Fatalf("balance tx: %v", err)
+	}
+	if inTx != 500 {
+		t.Fatalf("in-transaction balance = %d, want 500", inTx)
+	}
+	outsideTx, err := store.Balance(ctx, code, "USD", false)
+	if err != nil {
+		t.Fatalf("balance outside tx: %v", err)
+	}
+	if outsideTx != 0 {
+		t.Fatalf("uncommitted money was visible to another connection: %d", outsideTx)
+	}
+}

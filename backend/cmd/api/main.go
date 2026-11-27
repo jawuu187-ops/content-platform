@@ -27,6 +27,7 @@ import (
 	"github.com/jawuu187-ops/content-platform/backend/internal/messaging"
 	"github.com/jawuu187-ops/content-platform/backend/internal/moderation"
 	"github.com/jawuu187-ops/content-platform/backend/internal/payments"
+	"github.com/jawuu187-ops/content-platform/backend/internal/payouts"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/config"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/database"
 	"github.com/jawuu187-ops/content-platform/backend/internal/platform/logging"
@@ -144,6 +145,7 @@ func run() error {
 	// asked for.
 	var mediaService *media.Service
 	var paymentService *payments.Service
+	var payoutService *payouts.Service
 	var ageGate *agegate.Service
 	var creatorService *creator.Service
 	if db != nil {
@@ -205,6 +207,7 @@ func run() error {
 			logger.Warn("payment provider is the development fake: no money can move; intents and ledger postings are stamped simulated=true")
 		}
 		ledgerStore := ledger.New(db.Pool(), ledger.WithLogger(logger))
+		payoutService = payouts.New(db.Pool(), ledgerStore, payouts.WithLogger(logger))
 		paymentService = payments.New(db.Pool(),
 			payments.WithProvider(provider),
 			payments.WithLedger(ledgerStore),
@@ -244,6 +247,7 @@ func run() error {
 		DirectMessages: messaging.New(db.Pool()),
 		Earnings:       earnings.New(db.Pool()),
 		Moderation:     moderation.New(db.Pool(), moderation.WithLogger(logger)),
+		Payouts:        payoutService,
 		Limits:         limits,
 		Build:          httpapi.BuildInfo{Version: version, Commit: commit, BuiltAt: builtAt},
 	})

@@ -37,28 +37,38 @@ func New(pool *pgxpool.Pool, opts ...Option) *Store {
 	return s
 }
 
-// Post records a balanced transaction. It is idempotent on (kind, reference):
-// posting the same settlement twice is a no-op that reports ErrDuplicate, so a
-// caller can tell "already applied" from "applied now" without counting rows.
-func (s *Store) Post(ctx context.Context, p Posting) (string, error) {
+// validatePosting checks everything that can be checked without touching the
+// database. It is pure, so it runs once at the edge of Post and again inside
+// PostTx, where a caller-supplied transaction may have skipped it.
+func validatePosting(p Posting) error {
 	if len(p.Entries) < 2 {
-		return "", fmt.Errorf("%w: a transaction needs at least two legs", ErrInvalid)
+		return fmt.Errorf("%w: a transaction needs at least two legs", ErrInvalid)
 	}
 	var sum int64
 	for _, e := range p.Entries {
 		if e.AccountCode == "" {
-			return "", fmt.Errorf("%w: an entry has no account", ErrInvalid)
+			return fmt.Errorf("%w: an entry has no account", ErrInvalid)
 		}
 		if e.AmountMinor == 0 {
-			return "", fmt.Errorf("%w: an entry has a zero amount", ErrInvalid)
+			return fmt.Errorf("%w: an entry has a zero amount", ErrInvalid)
 		}
 		sum += e.AmountMinor
 	}
 	if sum != 0 {
-		return "", fmt.Errorf("%w: entries sum to %d, not zero", ErrInvalid, sum)
+		return fmt.Errorf("%w: entries sum to %d, not zero", ErrInvalid, sum)
 	}
 	if p.Kind == "" || p.Reference == "" || len(p.Currency) != 3 {
-		return "", fmt.Errorf("%w: kind, reference and currency are required", ErrInvalid)
+		return fmt.Errorf("%w: kind, reference and currency are required", ErrInvalid)
+	}
+	return nil
+}
+
+// Post records a balanced transaction. It is idempotent on (kind, reference):
+// posting the same settlement twice is a no-op that reports ErrDuplicate, so a
+// caller can tell "already applied" from "applied now" without counting rows.
+func (s *Store) Post(ctx context.Context, p Posting) (string, error) {
+	if err := validatePosting(p); err != nil {
+		return "", err
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -67,8 +77,30 @@ func (s *Store) Post(ctx context.Context, p Posting) (string, error) {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	txnID, err := s.PostTx(ctx, tx, p)
+	if err != nil {
+		return "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", fmt.Errorf("ledger: commit: %w", err)
+	}
+	return txnID, nil
+}
+
+// PostTx records a balanced transaction inside a transaction the caller already
+// owns, so money can move in the same unit of work as the state change it pays
+// for: a payout row and its ledger legs commit together or not at all.
+//
+// It does not commit or roll back. The caller decides. The deferred balance
+// trigger in the database still refuses an unbalanced transaction at commit, so
+// a PostTx that is rolled back after an error leaves nothing behind.
+func (s *Store) PostTx(ctx context.Context, tx pgx.Tx, p Posting) (string, error) {
+	if err := validatePosting(p); err != nil {
+		return "", err
+	}
+
 	var txnID string
-	err = tx.QueryRow(ctx, `
+	err := tx.QueryRow(ctx, `
 		INSERT INTO ledger.transactions (kind, reference, currency, memo, simulated)
 		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (kind, reference) DO NOTHING
@@ -90,9 +122,6 @@ func (s *Store) Post(ctx context.Context, p Posting) (string, error) {
 			VALUES ($1::uuid, $2::uuid, $3)`, txnID, accountID, e.AmountMinor); err != nil {
 			return "", fmt.Errorf("ledger: insert entry: %w", err)
 		}
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return "", fmt.Errorf("ledger: commit: %w", err)
 	}
 	return txnID, nil
 }
@@ -123,6 +152,10 @@ func classify(code string) (kind, ownerType string, ownerID *string) {
 		return KindRevenue, OwnerPlatform, nil
 	case hasPrefix(code, "platform:refund_expense"):
 		return KindExpense, OwnerPlatform, nil
+	case hasPrefix(code, "platform:payout_clearing"):
+		// Money approved for withdrawal is still owed, so it is a liability and
+		// not an asset even though it sits next to the clearing account.
+		return KindLiability, OwnerPlatform, nil
 	case hasPrefix(code, "creator:"):
 		if parts := splitN(code, ':', 3); len(parts) == 3 {
 			id := parts[1]
@@ -176,6 +209,52 @@ func (s *Store) Balances(ctx context.Context, currency string) ([]Balance, error
 		out = append(out, b)
 	}
 	return out, rows.Err()
+}
+
+// querier is the slice of pgx that a balance read needs, so the same query runs
+// on the pool and inside a caller's transaction.
+type querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// Balance returns one account's balance in minor units with credits positive.
+//
+// Entries are stored debit-positive and credit-negative, which reads naturally
+// inside a transaction but reports a liability such as a creator's payable
+// account as a negative number. Balance negates the sum, so a positive result
+// always means "this is what the account holds or is owed": a creator's payable
+// balance is the money available to pay out, and a zero or negative result is a
+// reason to refuse a payout rather than a number to interpret.
+//
+// includeSimulated must be passed explicitly, because the same account holds
+// real and test money (D-070). A payout, a tax export and any figure that could
+// move money pass false; only a creator-facing dashboard that labels the test
+// data passes true. A code that has never been posted to returns 0, not an
+// error, so a new creator has a balance of nothing rather than a 500.
+func (s *Store) Balance(ctx context.Context, code, currency string, includeSimulated bool) (int64, error) {
+	return balanceOf(ctx, s.pool, code, currency, includeSimulated)
+}
+
+// BalanceTx is Balance inside a caller's transaction: a payout reads the balance
+// it is about to spend in the same transaction that marks the request approved,
+// so two concurrent approvals cannot both see the same money.
+func (s *Store) BalanceTx(ctx context.Context, tx pgx.Tx, code, currency string, includeSimulated bool) (int64, error) {
+	return balanceOf(ctx, tx, code, currency, includeSimulated)
+}
+
+func balanceOf(ctx context.Context, q querier, code, currency string, includeSimulated bool) (int64, error) {
+	var sum int64
+	err := q.QueryRow(ctx, `
+		SELECT COALESCE(sum(e.amount_minor), 0)::bigint
+		FROM ledger.accounts a
+		JOIN ledger.entries e ON e.account_id = a.id
+		JOIN ledger.transactions t ON t.id = e.transaction_id
+		WHERE a.code = $1 AND a.currency = $2 AND ($3 OR NOT t.simulated)`,
+		code, currency, includeSimulated).Scan(&sum)
+	if err != nil {
+		return 0, fmt.Errorf("ledger: balance of %q: %w", code, err)
+	}
+	return -sum, nil
 }
 
 // TrialBalance reports whether the whole ledger nets to zero and the total

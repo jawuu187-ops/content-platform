@@ -34,8 +34,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.contentplatform.app.catalog.CreatorStudioStore
 import com.contentplatform.app.catalog.CreatorToolsState
+import com.contentplatform.app.catalog.Tier
 import com.contentplatform.app.ui.components.ActionButton
 import com.contentplatform.app.ui.components.CardSurface
 import com.contentplatform.app.ui.components.LabelMono
@@ -135,6 +137,7 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
     var visibility by remember { mutableStateOf("public") }
     var price by remember { mutableStateOf("") }
     var picked by remember { mutableStateOf<Uri?>(null) }
+    var editingTier by remember { mutableStateOf<Tier?>(null) }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { picked = it }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
@@ -184,6 +187,8 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                                     )
                                 }
                             })
+                            SpacerH(6)
+                            OutlineButton("Edit", onClick = { editingTier = tier })
                             SpacerH(6)
                             OutlineButton("Retire", onClick = {
                                 scope.launch { store.deactivateTier(tier.id) }
@@ -293,7 +298,60 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
             }
             store.message?.let {
                 SpacerH(10)
-                Text(it, color = if (it == "Post published." || it == "Post deleted.") palette.sage else palette.danger)
+                Text(it, color = if (it == "Post published." || it == "Post deleted." || it == "Tier updated.") palette.sage else palette.danger)
+            }
+        }
+    }
+    editingTier?.let { tier ->
+        TierEditorSheet(
+            tier = tier,
+            busy = store.busy,
+            onSave = { name, priceMinor, days, active ->
+                scope.launch {
+                    store.editTier(tier.id, name, tier.description, priceMinor, tier.currency, days, active)
+                    editingTier = null
+                }
+            },
+            onDismiss = { editingTier = null },
+        )
+    }
+}
+
+@Composable
+private fun TierEditorSheet(
+    tier: Tier,
+    busy: Boolean,
+    onSave: (String, Long, Int, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val palette = LocalVesperPalette.current
+    var name by remember(tier.id) { mutableStateOf(tier.name) }
+    var price by remember(tier.id) { mutableStateOf(tier.priceMinor.toString()) }
+    var days by remember(tier.id) { mutableStateOf(tier.periodDays.toString()) }
+    var active by remember(tier.id) { mutableStateOf(tier.active) }
+    Dialog(onDismissRequest = onDismiss) {
+        CardSurface {
+            Column(Modifier.padding(16.dp)) {
+                Text("Edit tier", style = MaterialTheme.typography.titleMedium, color = palette.ink)
+                SpacerH(10)
+                ToolsField("Name", name, { name = it }, "")
+                SpacerH(6)
+                ToolsField("Price in cents", price, { price = it.filter(Char::isDigit).take(9) }, "", KeyboardType.Number)
+                SpacerH(6)
+                ToolsField("Period days", days, { days = it.filter(Char::isDigit).take(3) }, "", KeyboardType.Number)
+                SpacerH(8)
+                OutlineButton(if (active) "Active" else "Inactive", onClick = { active = !active })
+                SpacerH(10)
+                ActionButton(
+                    "Save tier",
+                    null,
+                    onClick = {
+                        onSave(name, price.toLongOrNull() ?: 0, days.toIntOrNull() ?: 30, active)
+                    },
+                    enabled = !busy && name.isNotBlank() && (price.toLongOrNull() ?: 0) > 0,
+                )
+                SpacerH(6)
+                OutlineButton("Close", onClick = onDismiss)
             }
         }
     }

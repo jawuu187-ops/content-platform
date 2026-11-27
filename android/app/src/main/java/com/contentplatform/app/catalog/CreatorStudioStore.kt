@@ -86,6 +86,22 @@ class CreatorStudioStore(
         }
     }
 
+    suspend fun editTier(
+        id: String,
+        name: String,
+        description: String,
+        priceMinor: Long,
+        currency: String,
+        periodDays: Int,
+        active: Boolean,
+    ) {
+        action {
+            api.updateTier(id, name, description, priceMinor, currency, periodDays, active)
+            message = "Tier updated."
+            load()
+        }
+    }
+
     suspend fun deletePost(id: String) {
         action {
             api.deletePost(id)
@@ -104,6 +120,7 @@ class CreatorStudioStore(
             }
             api.createPost(body, visibility, priceMinor, currency, listOfNotNull(mediaId))
             message = "Post published."
+            load()
         }
     }
 

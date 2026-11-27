@@ -153,7 +153,7 @@ class CatalogStore(
                 )
             }
             unlockNotice = if (simulatedPayments) {
-                "Test unlock granted. No card was charged and no real money moved."
+                "Test unlock granted. No card was charged; this shortcut does not credit creator earnings."
             } else {
                 "Post unlocked."
             }

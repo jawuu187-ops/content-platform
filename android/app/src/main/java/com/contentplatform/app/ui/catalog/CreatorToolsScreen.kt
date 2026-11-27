@@ -147,6 +147,9 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) scope.launch { store.setProfileImage("cover", uri) }
     }
+    val storyPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) scope.launch { store.addStory(uri) }
+    }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
         item {
@@ -165,6 +168,8 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                         OutlineButton("Change avatar", onClick = { avatarPicker.launch("image/*") })
                         SpacerH(8)
                         OutlineButton("Change cover", onClick = { coverPicker.launch("image/*") })
+                        SpacerH(8)
+                        OutlineButton("Add story", onClick = { storyPicker.launch("image/*") })
                     }
                     SpacerH(10)
                     Row(verticalAlignment = Alignment.CenterVertically) {

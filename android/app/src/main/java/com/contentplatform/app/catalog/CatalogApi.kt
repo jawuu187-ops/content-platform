@@ -44,6 +44,22 @@ class CatalogApi(private val sessions: SessionStore) {
             .orFail("creator profile missing") to parseTiers(body.optJSONArray("tiers"))
     }
 
+    suspend fun stories(handle: String): List<String> {
+        val arr = JSONObject(get("/v1/creators/" + encode(handle) + "/stories")).optJSONArray("stories")
+        return (0 until (arr?.length() ?: 0)).mapNotNull { arr?.optJSONObject(it)?.optString("id") }
+    }
+
+    suspend fun storyImage(storyId: String): ByteArray {
+        val s = requireSession()
+        return requestBytes("GET", s.baseUrl + "/v1/stories/" + encode(storyId) + "/media", s.accessToken)
+    }
+
+    suspend fun createStory(mediaId: String, caption: String) {
+        val payload = JSONObject().put("media_id", mediaId).put("caption", caption.trim()).toString().toByteArray()
+        request("POST", requireSession().baseUrl + "/v1/creators/me/stories",
+            requireSession().accessToken, payload)
+    }
+
     suspend fun myPosts(): List<CreatorPost> {
         val arr = JSONObject(get("/v1/creators/me/posts")).optJSONArray("posts")
         return (0 until (arr?.length() ?: 0)).mapNotNull { parsePost(arr?.optJSONObject(it)) }

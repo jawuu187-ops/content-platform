@@ -308,6 +308,10 @@ func (h *creatorHandler) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/creators", rateLimited(h.read, "creator_list", h.handleListCreators))
 	mux.HandleFunc("GET /v1/creators/me", rateLimited(h.read, "creator_me",
 		h.auth.requireAuth(h.handleMyProfile)))
+	mux.HandleFunc("POST /v1/creators/me/stories", rateLimited(h.write, "stories",
+		h.requireCreator(identity.PermContentPublish, h.handleCreateStory)))
+	mux.HandleFunc("GET /v1/creators/{handle}/stories", rateLimited(h.read, "stories",
+		h.auth.requireAuth(h.handleStories)))
 	mux.HandleFunc("GET /v1/creators/me/promotions", rateLimited(h.read, "promotions",
 		h.requireCreator(identity.PermContentPublish, h.handleListPromotions)))
 	mux.HandleFunc("POST /v1/creators/me/promotions", rateLimited(h.write, "promotions",
@@ -408,4 +412,32 @@ func (h *creatorHandler) handleSetPromotion(w http.ResponseWriter, r *http.Reque
 	}
 	noStore(w)
 	writeJSON(w, http.StatusOK, map[string]any{"promotion": promo})
+}
+
+func (h *creatorHandler) handleCreateStory(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	var body struct {
+		MediaID string `json:"media_id"`
+		Caption string `json:"caption"`
+	}
+	if err := decodeJSON(w, r, &body); err != nil {
+		writeProblem(w, r, http.StatusBadRequest, "invalid_json", "request body is not valid JSON for this endpoint")
+		return
+	}
+	story, err := h.creators.CreateStory(r.Context(), p, body.MediaID, body.Caption)
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusCreated, map[string]any{"story": story})
+}
+
+func (h *creatorHandler) handleStories(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	stories, err := h.creators.Stories(r.Context(), p, r.PathValue("handle"))
+	if err != nil {
+		h.writeError(w, r, err)
+		return
+	}
+	noStore(w)
+	writeJSON(w, http.StatusOK, map[string]any{"stories": stories})
 }

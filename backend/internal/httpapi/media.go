@@ -378,6 +378,8 @@ func (h *mediaHandler) registerRoutes(mux *http.ServeMux) {
 		creatorOnly(h.handleSetProfileMedia)))
 	mux.HandleFunc("DELETE /v1/creators/me/profile-media/{kind}", rateLimited(h.upload, "profile_media",
 		creatorOnly(h.handleClearProfileMedia)))
+	mux.HandleFunc("GET /v1/stories/{id}/media", rateLimited(h.delivery, "story_media",
+		h.auth.requireAuth(h.handleStoryMedia)))
 	mux.HandleFunc("GET /v1/creators/{handle}/{kind}", rateLimited(h.delivery, "profile_media",
 		h.auth.requireAuth(h.handleProfileMedia)))
 }
@@ -439,4 +441,27 @@ func (h *mediaHandler) handleProfileMedia(w http.ResponseWriter, r *http.Request
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	http.ServeContent(w, r, "profile-image", obj.CreatedAt, seeker)
+}
+
+func (h *mediaHandler) handleStoryMedia(w http.ResponseWriter, r *http.Request, p identity.Principal) {
+	mediaID, err := h.creators.StoryMedia(r.Context(), p, r.PathValue("id"))
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	obj, err := h.media.ObjectByID(r.Context(), mediaID)
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	body, _, err := h.media.Open(r.Context(), obj.StorageKey)
+	if err != nil {
+		h.writeMediaError(w, r, err)
+		return
+	}
+	defer func() { _ = body.Close() }()
+	w.Header().Set("Content-Type", obj.ContentType)
+	w.Header().Set("Cache-Control", "private, max-age=60")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = io.Copy(w, body)
 }

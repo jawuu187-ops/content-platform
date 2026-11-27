@@ -317,6 +317,9 @@ class CatalogStore(
     suspend fun profileImageBytes(handle: String, kind: String): ByteArray =
         api.profileImage(handle, kind)
 
+    suspend fun storyIds(handle: String): List<String> = api.stories(handle)
+    suspend fun storyImage(storyId: String): ByteArray = api.storyImage(storyId)
+
     fun videoSource(postId: String, mediaId: String): VideoSource =
         api.videoSource(postId, mediaId)
 

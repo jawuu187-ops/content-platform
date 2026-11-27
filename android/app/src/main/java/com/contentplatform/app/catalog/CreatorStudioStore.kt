@@ -123,6 +123,22 @@ class CreatorStudioStore(
         }
     }
 
+    suspend fun addStory(uri: android.net.Uri) {
+        busy = true
+        failure = null
+        try {
+            val resolver = context.contentResolver
+            val mime = resolver.getType(uri) ?: "image/jpeg"
+            val bytes = resolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: throw IllegalArgumentException("That image could not be opened")
+            val mediaId = api.upload(bytes, mime)
+            api.createStory(mediaId, "")
+            message = "Story published for 24 hours."
+        } catch (t: Throwable) {
+            failure = t.message ?: "The story could not be saved."
+        } finally { busy = false }
+    }
+
     suspend fun deletePost(id: String) {
         action {
             api.deletePost(id)

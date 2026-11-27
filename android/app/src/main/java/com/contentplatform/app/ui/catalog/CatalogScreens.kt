@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.Image
@@ -149,6 +150,36 @@ fun DiscoverScreen(
 }
 
 @Composable
+private fun StoryStrip(store: CatalogStore, handle: String) {
+    var stories by remember(handle) { mutableStateOf<List<ByteArray>>(emptyList()) }
+    LaunchedEffect(handle) {
+        runCatching {
+            store.storyIds(handle).take(10).mapNotNull { id ->
+                runCatching { store.storyImage(id) }.getOrNull()
+            }
+        }.onSuccess { stories = it }
+    }
+    if (stories.isNotEmpty()) {
+        androidx.compose.foundation.lazy.LazyRow(
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(stories.size) { index ->
+                val bitmap = BitmapFactory.decodeByteArray(stories[index], 0, stories[index].size)
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Story",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(72.dp).clip(androidx.compose.foundation.shape.CircleShape),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CreatorProfileImages(store: CatalogStore, handle: String) {
     var cover by remember(handle) { mutableStateOf<android.graphics.Bitmap?>(null) }
     var avatar by remember(handle) { mutableStateOf<android.graphics.Bitmap?>(null) }
@@ -245,6 +276,7 @@ fun PublicCreatorScreen(
             is CreatorState.Ready -> LazyColumn(Modifier.fillMaxSize()) {
                 item {
                     CreatorProfileImages(store, state.profile.handle)
+                    StoryStrip(store, state.profile.handle)
                     Column(Modifier.padding(20.dp)) {
                         Text(state.profile.displayName, style = MaterialTheme.typography.displaySmall, color = palette.ink)
                         Text("@" + state.profile.handle + " · " + state.profile.category, style = MaterialTheme.typography.bodySmall, color = palette.muted)

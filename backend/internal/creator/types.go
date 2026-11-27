@@ -51,16 +51,17 @@ const (
 
 // Profile is the public face of a creator.
 type Profile struct {
-	UserID      string    `json:"user_id"`
-	Handle      string    `json:"handle"`
-	DisplayName string    `json:"display_name"`
-	Bio         string    `json:"bio"`
-	Category    string    `json:"category"`
-	AvatarURL   string    `json:"avatar_url,omitempty"`
-	CoverURL    string    `json:"cover_url,omitempty"`
-	Published   bool      `json:"published"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	UserID         string    `json:"user_id"`
+	Handle         string    `json:"handle"`
+	DisplayName    string    `json:"display_name"`
+	Bio            string    `json:"bio"`
+	Category       string    `json:"category"`
+	AvatarURL      string    `json:"avatar_url,omitempty"`
+	CoverURL       string    `json:"cover_url,omitempty"`
+	WelcomeMessage string    `json:"welcome_message,omitempty"`
+	Published      bool      `json:"published"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // Tier is one subscription level.

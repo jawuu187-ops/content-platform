@@ -60,13 +60,13 @@ func (s *Service) audit(ctx context.Context, actorID, action, targetType, target
 func (s *Service) insertProfile(ctx context.Context, userID string, in ProfileInput) (Profile, error) {
 	var p Profile
 	err := s.pool.QueryRow(ctx, `
-		INSERT INTO creator.profiles (user_id, handle, display_name, bio, category, avatar_url, cover_url, is_published)
-		VALUES ($1::uuid, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), $8)
+		INSERT INTO creator.profiles (user_id, handle, display_name, bio, category, avatar_url, cover_url, welcome_message, is_published)
+		VALUES ($1::uuid, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), $8, $9)
 		RETURNING user_id::text, handle::text, display_name, bio, category,
-		          COALESCE(avatar_url, ''), COALESCE(cover_url, ''), is_published, created_at, updated_at`,
-		userID, in.Handle, in.DisplayName, in.Bio, in.Category, in.AvatarURL, in.CoverURL, in.publishValue(),
+		          COALESCE(avatar_url, ''), COALESCE(cover_url, ''), welcome_message, is_published, created_at, updated_at`,
+		userID, in.Handle, in.DisplayName, in.Bio, in.Category, in.AvatarURL, in.CoverURL, in.WelcomeMessage, in.publishValue(),
 	).Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.Category,
-		&p.AvatarURL, &p.CoverURL, &p.Published, &p.CreatedAt, &p.UpdatedAt)
+		&p.AvatarURL, &p.CoverURL, &p.WelcomeMessage, &p.Published, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -86,14 +86,15 @@ func (s *Service) updateProfile(ctx context.Context, userID string, in ProfileIn
 		    category = COALESCE(NULLIF($4, ''), category),
 		    avatar_url = NULLIF($5, ''),
 		    cover_url = NULLIF($6, ''),
-		    is_published = COALESCE($7, is_published),
+		    welcome_message = $7,
+		    is_published = COALESCE($8, is_published),
 		    updated_at = now()
 		WHERE user_id = $1::uuid
 		RETURNING user_id::text, handle::text, display_name, bio, category,
-		          COALESCE(avatar_url, ''), COALESCE(cover_url, ''), is_published, created_at, updated_at`,
-		userID, in.DisplayName, in.Bio, in.Category, in.AvatarURL, in.CoverURL, in.Publish,
+		          COALESCE(avatar_url, ''), COALESCE(cover_url, ''), welcome_message, is_published, created_at, updated_at`,
+		userID, in.DisplayName, in.Bio, in.Category, in.AvatarURL, in.CoverURL, in.WelcomeMessage, in.Publish,
 	).Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.Category,
-		&p.AvatarURL, &p.CoverURL, &p.Published, &p.CreatedAt, &p.UpdatedAt)
+		&p.AvatarURL, &p.CoverURL, &p.WelcomeMessage, &p.Published, &p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Profile{}, ErrNotFound
 	}
@@ -109,10 +110,10 @@ func (s *Service) profileByHandle(ctx context.Context, handle string) (Profile, 
 	var p Profile
 	err := s.pool.QueryRow(ctx, `
 		SELECT user_id::text, handle::text, display_name, bio, category,
-		       COALESCE(avatar_url, ''), COALESCE(cover_url, ''), is_published, created_at, updated_at
+		       COALESCE(avatar_url, ''), COALESCE(cover_url, ''), welcome_message, is_published, created_at, updated_at
 		FROM creator.profiles WHERE handle = $1`, handle,
 	).Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.Category,
-		&p.AvatarURL, &p.CoverURL, &p.Published, &p.CreatedAt, &p.UpdatedAt)
+		&p.AvatarURL, &p.CoverURL, &p.WelcomeMessage, &p.Published, &p.CreatedAt, &p.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Profile{}, ErrNotFound
 	}

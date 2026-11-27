@@ -127,6 +127,7 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
     val scope = rememberCoroutineScope()
     var name by remember(state.profile.handle) { mutableStateOf(state.profile.displayName) }
     var bio by remember(state.profile.handle) { mutableStateOf(state.profile.bio) }
+    var welcome by remember(state.profile.handle) { mutableStateOf(state.profile.welcomeMessage) }
     var category by remember(state.profile.handle) { mutableStateOf(state.profile.category) }
     var published by remember(state.profile.handle) { mutableStateOf(state.profile.published) }
 
@@ -162,6 +163,8 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                     SpacerH(8)
                     ToolsField("Bio", bio, { bio = it }, "")
                     SpacerH(8)
+                    ToolsField("Welcome message", welcome, { welcome = it }, "Shown on your profile")
+                    SpacerH(8)
                     ToolsField("Category", category, { category = it }, "")
                     SpacerH(10)
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -176,7 +179,7 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                         OutlineButton(if (published) "Unpublish" else "Publish", onClick = { published = !published })
                         SpacerH(8)
                         ActionButton("Save profile", null, onClick = {
-                            scope.launch { store.saveProfile(name, bio, category, published) }
+                            scope.launch { store.saveProfile(name, bio, category, published, welcome) }
                         }, enabled = !store.busy)
                     }
                 }
@@ -263,6 +266,12 @@ private fun ReadyTools(store: CreatorStudioStore, state: CreatorToolsState.Ready
                             LabelMono("Price " + money(post.priceMinor, post.currency))
                         }
                         SpacerH(6)
+                        if (post.status == "draft" || post.status == "scheduled") {
+                            OutlineButton("Publish now", onClick = {
+                                scope.launch { store.publishDraft(post.id) }
+                            })
+                            SpacerH(6)
+                        }
                         OutlineButton("Delete post", onClick = {
                             scope.launch { store.deletePost(post.id) }
                         })

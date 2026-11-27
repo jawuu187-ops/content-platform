@@ -15,13 +15,14 @@ import (
 // "leave unchanged" for the nullable presentation fields, which is what a PATCH
 // means here.
 type ProfileInput struct {
-	Handle      string `json:"handle"`
-	DisplayName string `json:"display_name"`
-	Bio         string `json:"bio"`
-	Category    string `json:"category"`
-	AvatarURL   string `json:"avatar_url"`
-	CoverURL    string `json:"cover_url"`
-	Publish     *bool  `json:"published"`
+	Handle         string `json:"handle"`
+	DisplayName    string `json:"display_name"`
+	Bio            string `json:"bio"`
+	Category       string `json:"category"`
+	AvatarURL      string `json:"avatar_url"`
+	CoverURL       string `json:"cover_url"`
+	WelcomeMessage string `json:"welcome_message"`
+	Publish        *bool  `json:"published"`
 }
 
 // TierInput is used for both create and update; pointer fields mean "not supplied".

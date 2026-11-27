@@ -59,9 +59,10 @@ class CreatorStudioStore(
         }
     }
 
-    suspend fun saveProfile(name: String, bio: String, category: String, published: Boolean) {
+    suspend fun saveProfile(name: String, bio: String, category: String, published: Boolean,
+                            welcomeMessage: String = "") {
         action {
-            api.updateProfile(name, bio, category, published)
+            api.updateProfile(name, bio, category, published, welcomeMessage)
             load()
         }
     }
@@ -120,6 +121,14 @@ class CreatorStudioStore(
             failure = t.message ?: "The image could not be saved."
         } finally {
             busy = false
+        }
+    }
+
+    suspend fun publishDraft(id: String) {
+        action {
+            api.publishPost(id)
+            message = "Post published."
+            load()
         }
     }
 

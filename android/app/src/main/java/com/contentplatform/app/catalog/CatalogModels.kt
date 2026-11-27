@@ -6,6 +6,7 @@ data class CreatorProfile(
     val displayName: String,
     val bio: String,
     val category: String,
+    val welcomeMessage: String = "",
     val published: Boolean,
 )
 

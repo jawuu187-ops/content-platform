@@ -213,6 +213,7 @@ func (s *Service) UpdatePost(ctx context.Context, p identity.Principal, postID s
 		    price_minor = $5,
 		    currency = $6,
 		    published_at = CASE WHEN $7 THEN COALESCE(published_at, now()) ELSE published_at END,
+		    scheduled_at = CASE WHEN $7 THEN NULL ELSE scheduled_at END,
 		    status = CASE WHEN $7 THEN 'published' ELSE status END,
 		    updated_at = now()
 		WHERE id = $1::uuid AND creator_id = $2::uuid

@@ -116,11 +116,13 @@ class CatalogApi(private val sessions: SessionStore) {
         bio: String,
         category: String,
         published: Boolean,
+        welcomeMessage: String = "",
     ): CreatorProfile {
         val payload = JSONObject()
             .put("display_name", displayName.trim())
             .put("bio", bio.trim())
             .put("category", category)
+            .put("welcome_message", welcomeMessage.trim())
             .put("published", published)
             .toString()
         return parseCreator(JSONObject(patch("/v1/creators/me", payload)).optJSONObject("profile"))
@@ -237,6 +239,12 @@ class CatalogApi(private val sessions: SessionStore) {
         return requestBytes("GET", s.baseUrl + "/v1/creators/" + encode(handle) + "/" + encode(kind), s.accessToken)
     }
 
+    suspend fun publishPost(id: String) {
+        val s = requireSession()
+        val payload = JSONObject().put("published", true).toString().toByteArray()
+        request("PATCH", s.baseUrl + "/v1/posts/" + encode(id), s.accessToken, payload)
+    }
+
     suspend fun deletePost(id: String) {
         val s = requireSession()
         request("DELETE", s.baseUrl + "/v1/posts/" + encode(id), s.accessToken, null)
@@ -350,6 +358,7 @@ class CatalogApi(private val sessions: SessionStore) {
             displayName = json.optString2("display_name"),
             bio = json.optString2("bio"),
             category = json.optString2("category"),
+            welcomeMessage = json.optString("welcome_message"),
             published = json.optBoolean("published"),
         )
     }

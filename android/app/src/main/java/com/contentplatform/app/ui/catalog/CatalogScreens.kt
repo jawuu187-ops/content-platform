@@ -284,6 +284,16 @@ fun PublicCreatorScreen(
                             SpacerH(8)
                             Text(state.profile.bio, color = palette.inkSecondary)
                         }
+                        if (state.profile.welcomeMessage.isNotBlank()) {
+                            SpacerH(10)
+                            CardSurface {
+                                Column(Modifier.padding(12.dp)) {
+                                    LabelMono("WELCOME")
+                                    Text(state.profile.welcomeMessage, color = palette.inkSecondary,
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
                         if (state.profile.userId.isNotBlank()) {
                             SpacerH(12)
                             OutlineButton(

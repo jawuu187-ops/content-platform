@@ -47,9 +47,31 @@ type Summary struct {
 
 type Service struct {
 	pool *pgxpool.Pool
+	// maxExportRows bounds one tax export. It is a field rather than a constant
+	// so a test can prove the refusal with a small database instead of a large one.
+	maxExportRows int
 }
 
-func New(pool *pgxpool.Pool) *Service { return &Service{pool: pool} }
+// Option configures the service.
+type Option func(*Service)
+
+// WithMaxExportRows changes the export row cap. A cap of zero or less is ignored:
+// an export always has a bound.
+func WithMaxExportRows(n int) Option {
+	return func(s *Service) {
+		if n > 0 {
+			s.maxExportRows = n
+		}
+	}
+}
+
+func New(pool *pgxpool.Pool, opts ...Option) *Service {
+	s := &Service{pool: pool, maxExportRows: DefaultMaxExportRows}
+	for _, o := range opts {
+		o(s)
+	}
+	return s
+}
 
 // Summary totals a creator's settled sales and tips.
 //

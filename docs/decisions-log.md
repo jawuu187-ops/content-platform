@@ -119,3 +119,20 @@ platform does not report money as sent when it was not. Rationale: the ledger is
 source of truth for what is owed, so a reservation belongs in it, where the balance
 trigger and the append-only rules already enforce honesty. Simulated money is excluded
 from every balance read here (D-070), because the fake provider writes real ledger rows.
+
+## D-078 — The tax export is a ledger statement, and it refuses rather than truncates
+
+Given, a creator needs a file they can hand to an accountant or a tax authority,
+and the dashboard answers "what did I earn" rather than "show me every movement".
+Decision: `GET /v1/creator/earnings/export` returns CSV built from the ledger
+transactions that touched the creator's payable account, one currency per file,
+for an inclusive UTC date period bounded at 400 days. Each row carries
+`occurred_at, kind, purpose, reference, currency, gross_minor, net_minor,
+data_class`; a refund and a payout reservation are negative net lines, and gross
+is set only where a payment intent backs the row. The excluded simulated row count
+is returned in `X-Export-Excluded-Simulated` and every total is in `X-Export-*`
+headers, so the file states what it leaves out (D-070). More than 5000 rows is a
+400 asking for a narrower period, never a partial file. Rationale: a tax figure
+must be reconstructible from the system of record, so the export reads the ledger
+and not the dashboard's aggregates; a silently truncated year would be a return
+that is quietly short.

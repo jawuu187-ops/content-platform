@@ -1,14 +1,13 @@
-# Public edge for the API. Apply only after the domain's A record points at this
-# host and inbound TCP 80/443 are confirmed open. Caddy obtains and renews the
-# TLS certificate automatically; no certificate files belong in the repository.
 80.47.235.113.sslip.io {
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:8080
-
 	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
 		-Server
 	}
 }

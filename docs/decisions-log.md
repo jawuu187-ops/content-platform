@@ -238,3 +238,14 @@ running backend, not a mock; it is not publicly reachable. Android's default dev
 address remains `http://10.0.2.2:8080`, which reaches the host loopback from an emulator.
 Real payments remain blocked: the configured provider is the explicit development fake,
 and no adult-compatible payment processor or payout rail has been contracted.
+
+## D-085 — Public edge and database principal are hardened independently of the app
+
+Caddy terminates public TLS with a Let's Encrypt certificate and adds HSTS, CSP,
+frame denial, a restrictive permissions policy and no server banner. PostgreSQL
+listens on loopback only and the API now connects as `content_api`, a login role
+without SUPERUSER/CREATEDB/CREATEROLE and without ownership of the schema. Media
+storage is mode 700. The activation-slot table grants SELECT plus only the three
+one-way consumption columns. `APP_ENV` remains local because production startup
+requires real SMTP credentials, which are not configured; that is fail-closed and
+must not be faked.

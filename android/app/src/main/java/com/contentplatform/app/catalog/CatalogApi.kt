@@ -155,7 +155,7 @@ class CatalogApi(private val sessions: SessionStore) {
     suspend fun setLike(postId: String, liked: Boolean): CreatorPost {
         val s = requireSession()
         val method = if (liked) "POST" else "DELETE"
-        val body = JSONObject(request(method, s.baseUrl + "/v1/posts/" + encode(postId) + "/like", s.accessToken, if (liked) "{}".toByteArray() else null)
+        val body = JSONObject(request(method, s.baseUrl + "/v1/posts/" + encode(postId) + "/like", s.accessToken, if (liked) "{}".toByteArray() else null))
         return parsePost(body.optJSONObject("post")) ?: throw ApiException(502, "invalid_response", "post missing from response")
     }
 

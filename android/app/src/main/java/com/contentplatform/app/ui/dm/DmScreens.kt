@@ -560,10 +560,10 @@ private fun MessageBubble(
     }
 }
 
-@Composable
 private fun formatMinor(minor: Long): String =
     java.text.NumberFormat.getCurrencyInstance(java.util.Locale.US).format(minor / 100.0)
 
+@Composable
 private fun Composer(store: DmStore, canReply: Boolean, scope: CoroutineScope, isCreator: Boolean) {
     val palette = LocalVesperPalette.current
     var paidPrice by remember { mutableStateOf<Long?>(null) }
@@ -641,7 +641,16 @@ private fun Composer(store: DmStore, canReply: Boolean, scope: CoroutineScope, i
                         },
                         price = null,
                         enabled = canSubmit,
-                        onClick = { scope.launch { store.send() } },
+                        onClick = {
+                            scope.launch {
+                                if (paidMode && paidPrice != null) {
+                                    val failure = store.sendPaid(store.draft, paidPrice!!)
+                                    if (failure == null) store.draft = ""
+                                } else {
+                                    store.send()
+                                }
+                            }
+                        },
                     )
                 }
             }
@@ -822,16 +831,6 @@ private fun DmField(
                 ),
                 keyboardActions = KeyboardActions(
                     onDone = { onDone?.invoke() },
-                    onSend = {
-                    if (paidMode && paidPrice != null) {
-                        scope.launch {
-                            val failure = store.sendPaid(store.draft, paidPrice!!)
-                            if (failure == null) store.draft = ""
-                        }
-                    } else {
-                        onDone?.invoke()
-                    }
-                },
                 ),
                 modifier = Modifier.fillMaxWidth().semantics {
                     contentDescription = label ?: placeholder

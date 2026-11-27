@@ -733,7 +733,6 @@ private fun TierSheet(
 }
 
 @Composable
-@Composable
 private fun RequestField(value: String, onChange: (String) -> Unit) {
     val palette = LocalVesperPalette.current
     androidx.compose.foundation.text.BasicTextField(

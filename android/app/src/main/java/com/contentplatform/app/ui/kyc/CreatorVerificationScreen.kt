@@ -128,11 +128,12 @@ fun CreatorVerificationScreen(
                     SpacerH(8)
                 }
                 items(store.state.queue, key = { it.id }) { item ->
-                    OwnerVerificationRow(item, store.state.submitting) {
-                        scope.launch { store.approve(item.id) }
-                    } onReject {
-                        scope.launch { store.reject(item.id) }
-                    }
+                    OwnerVerificationRow(
+                        item = item,
+                        busy = store.state.submitting,
+                        onApprove = { scope.launch { store.approve(item.id) } },
+                        onReject = { scope.launch { store.reject(item.id) } },
+                    )
                     SpacerH(8)
                 }
                 item { SpacerH(24) }

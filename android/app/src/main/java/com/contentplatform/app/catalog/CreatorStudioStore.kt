@@ -31,6 +31,8 @@ class CreatorStudioStore(
         private set
     var message by mutableStateOf<String?>(null)
         private set
+    var failure by mutableStateOf<String?>(null)
+        private set
 
     suspend fun load() {
         state = CreatorToolsState.Loading
